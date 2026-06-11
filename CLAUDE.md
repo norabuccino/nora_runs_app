@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**nbb_running_app** — helps the user plan marathon training and strength training.
+**nora_runs_app** — helps the user plan marathon training and strength training.
 
-- **Repo:** https://github.com/norabuccino/nbb_running_app
+- **Repo:** https://github.com/norabuccino/nora_runs_app
 - **Domain:** noraboo22.com
-- **Stack:** Next.js App Router, Supabase (auth + database), Tailwind CSS, Vercel
+- **Stack:** Next.js 16 App Router, Supabase (auth + database), Tailwind CSS v4, Vercel
 
 ## Commands
 
@@ -26,34 +26,62 @@ Push to the `main` branch on GitHub — Vercel auto-deploys on every push.
 
 ## Environment Variables
 
-All three variables are required. Values live in `.env.local` locally and in Vercel's dashboard for production.
+`.env.local` holds all local values. The Supabase public credentials are also hardcoded as fallbacks in `src/lib/supabase/config.ts` (see note below).
 
 ```
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL
+NEXT_PUBLIC_DEV_EMAIL        # dev-only login shortcut
+NEXT_PUBLIC_DEV_PASSWORD     # dev-only login shortcut
+SUPABASE_ACCESS_TOKEN        # for running migrations via CLI
+SUPABASE_DB_PASSWORD         # for running migrations via CLI
 ```
+
+## Known Quirks & Important Decisions
+
+### Supabase credentials are hardcoded in config.ts
+`src/lib/supabase/config.ts` hardcodes the Supabase URL and anon key as fallback values. This was necessary because Vercel's `NEXT_PUBLIC_` env vars were not being embedded in the production bundle reliably. The anon key is safe to commit — Supabase uses Row Level Security (RLS) to protect data, not key secrecy. Do not remove the hardcoded fallbacks.
+
+### middleware.ts must stay as middleware.ts
+Next.js 16 locally warns to rename `middleware.ts` → `proxy.ts`, but **Vercel does not support `proxy.ts`**. Keep the file named `middleware.ts` and the export named `middleware`. This was confirmed through production debugging.
+
+### Dev login button
+The login page shows a one-click "⚡ Dev login" button when `NODE_ENV === 'development'` and `NEXT_PUBLIC_DEV_EMAIL` / `NEXT_PUBLIC_DEV_PASSWORD` are set in `.env.local`. The corresponding Supabase account is `admin@local.dev`.
 
 ## Architecture
 
 ### Supabase client pattern
 
-There are two Supabase clients — use the right one for the context:
+Three files work together — use the right one for the context:
 
+- `src/lib/supabase/config.ts` — shared URL/key constants (fallback values hardcoded here)
 - `src/lib/supabase/client.ts` — browser client, use in `"use client"` components
 - `src/lib/supabase/server.ts` — server client, use in Server Components and Route Handlers (async, reads/writes cookies)
 
 ### Auth flow
 
-Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard` and `/protected`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
+Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, and `/paces`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
 
-The email confirmation flow: signup → Supabase sends email → user clicks link → `/auth/callback/route.ts` exchanges the code for a session → redirect to `/dashboard`.
+The middleware wraps all Supabase calls in a try/catch — auth failures are logged but never crash the site. Same for `layout.tsx`.
 
 Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) to avoid CSRF issues.
 
 ### Adding new protected routes
 
 Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new route prefix that requires authentication.
+
+### Database tables
+
+Five tables exist in Supabase (all with RLS enabled):
+
+| Table | Purpose |
+|---|---|
+| `training_plans` | Plan templates (marathon, half, strength, custom) |
+| `plan_workouts` | Individual workouts within a plan (week + day slots) |
+| `user_plans` | A user's active/past plan assignments with start dates |
+| `running_paces` | Named paces (Easy, Tempo, etc.) stored as seconds/mile |
+| `workout_logs` | Completion records and per-instance workout overrides |
 
 ### Database schema changes
 
@@ -78,3 +106,9 @@ Never edit the database schema directly in the Supabase dashboard — changes ma
 ### Path alias
 
 `@/*` maps to `src/*` (configured in `tsconfig.json`).
+
+### Key utilities
+
+- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation from plan start date
+- `src/app/actions/` — all server actions for mutations (paces, plans, workouts, user plans)
+- `src/components/` — shared components: Nav, WorkoutCard, WeekGrid, PlanCard, PaceCalculator, WorkoutForm, ThemeProvider
