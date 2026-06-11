@@ -63,7 +63,15 @@ Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new rout
 
 2. **TypeScript types** — update `src/types/database.ts` to reflect the new or changed table (add/modify the `Row`, `Insert`, and `Update` shapes, and any convenience type aliases at the bottom).
 
-3. **Apply the migration** — run `supabase db push` in a real terminal (not the Claude Code shell) to push the migration to the live Supabase database. `supabase login` and `supabase link --project-ref btkvovgfsrfvikktoyun` must be done once first; after that only `supabase db push` is needed.
+3. **Apply the migration** — run this exact command (credentials are in `.env.local`):
+
+```bash
+SUPABASE_ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2) \
+  /opt/homebrew/bin/supabase db push \
+  --db-url "postgresql://postgres:$(grep ^SUPABASE_DB_PASSWORD .env.local | cut -d'=' -f2 | sed 's|/|%2F|g')@db.btkvovgfsrfvikktoyun.supabase.co:5432/postgres"
+```
+
+This reads credentials directly from `.env.local` — no manual login or terminal required. Claude can run this command.
 
 Never edit the database schema directly in the Supabase dashboard — changes made there without a corresponding migration file will be lost and will drift from the codebase.
 
