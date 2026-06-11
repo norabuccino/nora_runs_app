@@ -1,0 +1,169 @@
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { updateUserPlan } from "@/app/actions/userPlans";
+import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+
+export default async function MyPlanPage() {
+  const supabase = await createClient();
+
+  const { data: userPlans } = await supabase
+    .from("user_plans")
+    .select("*, training_plans(*)")
+    .order("created_at", { ascending: false });
+
+  const activePlan = userPlans?.find((up) => up.status === "active");
+  const pastPlans = userPlans?.filter((up) => up.status !== "active") ?? [];
+
+  async function handlePause(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    await updateUserPlan(id, { status: "paused" });
+  }
+
+  async function handleComplete(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    await updateUserPlan(id, { status: "completed" });
+  }
+
+  async function handleChangeStartDate(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    const startDate = formData.get("start_date") as string;
+    if (startDate) await updateUserPlan(id, { start_date: startDate });
+  }
+
+  async function handleResume(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    // Pause any currently active
+    const supabase2 = await createClient();
+    const { data: { user } } = await supabase2.auth.getUser();
+    if (user) {
+      await supabase2
+        .from("user_plans")
+        .update({ status: "paused" })
+        .eq("user_id", user.id)
+        .eq("status", "active");
+    }
+    await updateUserPlan(id, { status: "active" });
+  }
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+      <div>
+        <h1 className="text-2xl font-bold">My Plan</h1>
+        <p className="text-sm text-[var(--muted)] mt-1">
+          Your active training plan and history.
+        </p>
+      </div>
+
+      {activePlan ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs text-[var(--muted)] font-medium uppercase tracking-wide">Active plan</p>
+              <h2 className="text-lg font-semibold mt-0.5">
+                {(activePlan.training_plans as { name: string })?.name}
+              </h2>
+              <p className="text-sm text-[var(--muted)]">
+                {PLAN_TYPE_LABELS[(activePlan.training_plans as { type: string })?.type]} ·{" "}
+                {(activePlan.training_plans as { total_weeks: number })?.total_weeks} weeks
+              </p>
+            </div>
+            <Link
+              href={`/plans/${activePlan.plan_id}`}
+              className="text-sm text-[var(--accent)] hover:opacity-70"
+            >
+              View plan →
+            </Link>
+          </div>
+
+          <form action={handleChangeStartDate} className="flex items-end gap-3">
+            <input type="hidden" name="id" value={activePlan.id} />
+            <div className="space-y-1">
+              <label className="text-xs text-[var(--muted)]">Start date</label>
+              <input
+                type="date"
+                name="start_date"
+                defaultValue={activePlan.start_date}
+                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
+              />
+            </div>
+            <button
+              type="submit"
+              className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
+            >
+              Update
+            </button>
+          </form>
+
+          <div className="flex gap-2">
+            <form action={handlePause}>
+              <input type="hidden" name="id" value={activePlan.id} />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
+              >
+                Pause
+              </button>
+            </form>
+            <form action={handleComplete}>
+              <input type="hidden" name="id" value={activePlan.id} />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors"
+              >
+                Mark completed
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-dashed border-[var(--border)] p-10 text-center space-y-3">
+          <p className="font-medium">No active plan</p>
+          <p className="text-sm text-[var(--muted)]">
+            Go to a training plan and click &quot;Use this plan&quot; to assign it.
+          </p>
+          <Link
+            href="/plans"
+            className="inline-block px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Browse plans
+          </Link>
+        </div>
+      )}
+
+      {pastPlans.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">History</h2>
+          <div className="rounded-xl border border-[var(--border)] divide-y divide-[var(--border)]">
+            {pastPlans.map((up) => (
+              <div key={up.id} className="flex items-center justify-between px-4 py-3 gap-4">
+                <div>
+                  <p className="text-sm font-medium">
+                    {(up.training_plans as { name: string })?.name}
+                  </p>
+                  <p className="text-xs text-[var(--muted)] capitalize">
+                    {up.status} · started {up.start_date}
+                  </p>
+                </div>
+                {up.status === "paused" && (
+                  <form action={handleResume}>
+                    <input type="hidden" name="id" value={up.id} />
+                    <button
+                      type="submit"
+                      className="text-xs text-[var(--accent)] hover:opacity-70"
+                    >
+                      Resume
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
