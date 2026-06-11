@@ -55,9 +55,17 @@ Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) 
 
 Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new route prefix that requires authentication.
 
-### Database types
+### Database schema changes
 
-`src/types/database.ts` contains the TypeScript interface for Supabase tables. The `runs` table is pre-typed with `Row`, `Insert`, and `Update` shapes. Update this file whenever the Supabase schema changes.
+**Every schema change requires three things — all three, every time:**
+
+1. **Migration file** — create a new file in `supabase/migrations/` named `YYYYMMDDHHMMSS_description.sql` (timestamp must be newer than the previous migration). Write the SQL using `CREATE TABLE IF NOT EXISTS` and `DROP POLICY IF EXISTS` / `CREATE POLICY` so it is safe to re-run.
+
+2. **TypeScript types** — update `src/types/database.ts` to reflect the new or changed table (add/modify the `Row`, `Insert`, and `Update` shapes, and any convenience type aliases at the bottom).
+
+3. **Apply the migration** — run `supabase db push` in a real terminal (not the Claude Code shell) to push the migration to the live Supabase database. `supabase login` and `supabase link --project-ref btkvovgfsrfvikktoyun` must be done once first; after that only `supabase db push` is needed.
+
+Never edit the database schema directly in the Supabase dashboard — changes made there without a corresponding migration file will be lost and will drift from the codebase.
 
 ### Path alias
 
