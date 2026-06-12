@@ -24,6 +24,28 @@ Node.js is installed at `/opt/homebrew/bin/node`. If `npm` is not found in PATH,
 
 Push to the `main` branch on GitHub — Vercel auto-deploys on every push.
 
+## After Every Change — Required Steps
+
+After completing any code change, always do both of the following without waiting to be asked:
+
+1. **Commit and push to GitHub:**
+   ```bash
+   git add <changed files>
+   git commit -m "descriptive message"
+   git push origin main
+   ```
+
+2. **If the change includes a new migration file, apply it immediately** using the Management API (preferred — works when direct DB connections are blocked):
+   ```bash
+   ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2)
+   curl -s \
+     -X POST "https://api.supabase.com/v1/projects/btkvovgfsrfvikktoyun/database/query" \
+     -H "Authorization: Bearer $ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d "{\"query\": $(cat supabase/migrations/<filename>.sql | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}"
+   ```
+   Then verify by querying `information_schema` to confirm the table/column exists.
+
 ## Environment Variables
 
 `.env.local` holds all local values. The Supabase public credentials are also hardcoded as fallbacks in `src/lib/supabase/config.ts` (see note below).
@@ -73,15 +95,17 @@ Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new rout
 
 ### Database tables
 
-Five tables exist in Supabase (all with RLS enabled):
+Seven tables exist in Supabase (all with RLS enabled):
 
 | Table | Purpose |
 |---|---|
 | `training_plans` | Plan templates (marathon, half, strength, custom) |
-| `plan_workouts` | Individual workouts within a plan (week + day slots) |
+| `plan_workouts` | Individual workouts within a plan (week + day slots); has `run_type` column for run variety |
+| `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down), FK → `plan_workouts` |
 | `user_plans` | A user's active/past plan assignments with start dates |
 | `running_paces` | Named paces (Easy, Tempo, etc.) stored as seconds/mile |
 | `workout_logs` | Completion records and per-instance workout overrides |
+| `strava_tokens` | OAuth tokens for Strava integration (partially set up) |
 
 ### Database schema changes
 
@@ -91,15 +115,25 @@ Five tables exist in Supabase (all with RLS enabled):
 
 2. **TypeScript types** — update `src/types/database.ts` to reflect the new or changed table (add/modify the `Row`, `Insert`, and `Update` shapes, and any convenience type aliases at the bottom).
 
-3. **Apply the migration** — run this exact command (credentials are in `.env.local`):
+3. **Apply the migration** — use the Management API (preferred, works even when direct DB connections fail due to IPv6/firewall):
 
+```bash
+ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2)
+curl -s \
+  -X POST "https://api.supabase.com/v1/projects/btkvovgfsrfvikktoyun/database/query" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"query\": $(cat supabase/migrations/<filename>.sql | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')}"
+```
+
+An empty array `[]` response means success. Verify with a follow-up query against `information_schema`.
+
+If the Management API is unavailable, fall back to the Supabase CLI:
 ```bash
 SUPABASE_ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2) \
   /opt/homebrew/bin/supabase db push \
   --db-url "postgresql://postgres:$(grep ^SUPABASE_DB_PASSWORD .env.local | cut -d'=' -f2 | sed 's|/|%2F|g')@db.btkvovgfsrfvikktoyun.supabase.co:5432/postgres"
 ```
-
-This reads credentials directly from `.env.local` — no manual login or terminal required. Claude can run this command.
 
 Never edit the database schema directly in the Supabase dashboard — changes made there without a corresponding migration file will be lost and will drift from the codebase.
 
