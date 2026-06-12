@@ -6,7 +6,7 @@ import type { LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
 import { createLibraryWorkout, updateLibraryWorkout, deleteLibraryWorkout } from "@/app/actions/workoutLibrary";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS } from "@/lib/paceUtils";
+import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS } from "@/lib/paceUtils";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 export default function WorkoutsPage() {
@@ -183,15 +183,20 @@ interface WorkoutLibraryCardProps {
 }
 
 function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutLibraryCardProps) {
-  const typeBadge = WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600";
+  const typeBadge = workout.run_type
+    ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
   const typeLabel = workout.run_type
     ? RUN_TYPE_LABELS[workout.run_type]
     : WORKOUT_TYPE_LABELS[workout.type];
 
+  const distanceLabel = workout.distance_miles
+    ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+    : null;
+  const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
+
   const meta: string[] = [];
-  if (workout.distance_miles) meta.push(`${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`);
   if (workout.pace_type) meta.push(workout.pace_type);
-  if (workout.duration_minutes) meta.push(`${workout.duration_minutes} min`);
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 flex flex-col">
@@ -202,6 +207,12 @@ function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutL
           </span>
           <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
         </div>
+        {(distanceLabel || durationLabel) && (
+          <div className="text-right flex-shrink-0 space-y-0.5">
+            {distanceLabel && <p className="text-xs font-medium">{distanceLabel}</p>}
+            {durationLabel && <p className="text-xs text-[var(--muted)]">{durationLabel}</p>}
+          </div>
+        )}
       </div>
 
       {workout.description && (
