@@ -83,7 +83,7 @@ Three files work together — use the right one for the context:
 
 ### Auth flow
 
-Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, and `/paces`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
+Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, `/paces`, and `/workouts`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
 
 The middleware wraps all Supabase calls in a try/catch — auth failures are logged but never crash the site. Same for `layout.tsx`.
 
@@ -95,13 +95,14 @@ Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new rout
 
 ### Database tables
 
-Seven tables exist in Supabase (all with RLS enabled):
+Eight tables exist in Supabase (all with RLS enabled):
 
 | Table | Purpose |
 |---|---|
 | `training_plans` | Plan templates (marathon, half, strength, custom) |
-| `plan_workouts` | Individual workouts within a plan (week + day slots); has `run_type` column for run variety |
-| `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down), FK → `plan_workouts` |
+| `plan_workouts` | Individual workouts within a plan (week + day slots); has `run_type` column for run variety (easy_run, tempo_run, interval_run, threshold_run, recovery_run, race, long_run) |
+| `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down); FK to either `plan_workouts.id` OR `workouts.id` — exactly one must be set (enforced by CHECK constraint) |
+| `workouts` | Standalone workout library — reusable templates not tied to any plan; user-owned with RLS |
 | `user_plans` | A user's active/past plan assignments with start dates |
 | `running_paces` | Named paces (Easy, Tempo, etc.) stored as seconds/mile |
 | `workout_logs` | Completion records and per-instance workout overrides |
@@ -137,12 +138,53 @@ SUPABASE_ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2) 
 
 Never edit the database schema directly in the Supabase dashboard — changes made there without a corresponding migration file will be lost and will drift from the codebase.
 
+### Workout library vs plan workouts
+
+Two separate workout concepts exist:
+
+- **Library workouts** (`workouts` table) — standalone templates owned by the user, managed at `/workouts`. Created/edited via `WorkoutLibraryForm`. Server actions in `src/app/actions/workoutLibrary.ts`.
+- **Plan workouts** (`plan_workouts` table) — workouts scheduled to a specific plan week + day. Created/edited via `WorkoutForm`. Server actions in `src/app/actions/workouts.ts`.
+
+When a user clicks "Add to plan" on a library workout, `addLibraryWorkoutToPlan()` **copies** the workout and its steps into `plan_workouts` + `workout_steps`. The copy is independent — editing the library original later does not affect plans that already used it.
+
+### Workout steps
+
+`workout_steps` belongs to either a `plan_workout` or a library `workout` — never both. The `plan_workout_id` and `workout_id` columns are both nullable, and a CHECK constraint (`workout_steps_exactly_one_parent`) enforces that exactly one is non-null. When inserting steps, always set only the relevant FK and leave the other null.
+
+### WorkoutForm fields
+
+Both `WorkoutForm` (plan context) and `WorkoutLibraryForm` (library context) share the same field set:
+- `type` — run | strength | cross_train | rest
+- `run_type` — easy_run | tempo_run | interval_run | threshold_run | recovery_run | race | long_run (only shown when type = run)
+- `title`, `description`, `distance_miles`, `pace_type`, `duration_minutes`, `notes`
+- `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes)
+
+`WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.
+
 ### Path alias
 
 `@/*` maps to `src/*` (configured in `tsconfig.json`).
 
-### Key utilities
+### Key utilities and actions
 
-- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation from plan start date
-- `src/app/actions/` — all server actions for mutations (paces, plans, workouts, user plans)
-- `src/components/` — shared components: Nav, WorkoutCard, WeekGrid, PlanCard, PaceCalculator, WorkoutForm, ThemeProvider
+- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation; exports `RUN_TYPE_LABELS`, `STEP_TYPE_LABELS`, `WORKOUT_TYPE_LABELS`, `WORKOUT_TYPE_COLORS`, `DAY_NAMES`
+- `src/app/actions/workouts.ts` — CRUD for `plan_workouts` + `workout_steps`; also `importWorkouts` for bulk CSV/JSON import
+- `src/app/actions/workoutLibrary.ts` — CRUD for `workouts` library + `addLibraryWorkoutToPlan`
+- `src/app/actions/plans.ts` — CRUD for `training_plans`
+- `src/app/actions/userPlans.ts` — assign plan, mark/unmark workout complete
+- `src/app/actions/paces.ts` — CRUD for `running_paces`
+
+### Components
+
+| Component | Purpose |
+|---|---|
+| `Nav` | Top nav with links: Today, My Plan, Plans, Workouts, Paces |
+| `WorkoutForm` | Modal form for creating/editing plan workouts (includes run type + steps) |
+| `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
+| `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit |
+| `WorkoutImportModal` | File upload modal for bulk-importing workouts from CSV or JSON |
+| `AddToPlanModal` | Modal to copy a library workout into a chosen plan + week + day |
+| `WeekGrid` | 7-column week grid; used on plan view, plan edit, and dashboard |
+| `PlanCard` | Summary card for a training plan |
+| `PaceCalculator` | Pace calculation utility UI |
+| `ThemeProvider` | Dark/light theme context |
