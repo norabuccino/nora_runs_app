@@ -99,7 +99,7 @@ Eight tables exist in Supabase (all with RLS enabled):
 
 | Table | Purpose |
 |---|---|
-| `training_plans` | Plan templates (marathon, half, strength, custom) |
+| `training_plans` | Plan templates — type is one of: `marathon`, `half_marathon`, `5k_10k`, `base_building`, `strength`, `custom` |
 | `plan_workouts` | Individual workouts within a plan (week + day slots); has `run_type` column for run variety (easy_run, tempo_run, interval_run, threshold_run, recovery_run, race, long_run) |
 | `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down); FK to either `plan_workouts.id` OR `workouts.id` — exactly one must be set (enforced by CHECK constraint) |
 | `workouts` | Standalone workout library — reusable templates not tied to any plan; user-owned with RLS |
@@ -138,6 +138,20 @@ SUPABASE_ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2) 
 
 Never edit the database schema directly in the Supabase dashboard — changes made there without a corresponding migration file will be lost and will drift from the codebase.
 
+### Plans page
+
+`src/app/plans/page.tsx` is a **client component** (fetches data via the browser Supabase client). It renders filter tabs for each plan type that has at least one plan — tabs only appear when there are plans of more than one type.
+
+### Plan editor add-workout flow
+
+Clicking **+ Add** on a day in the plan editor (`/plans/[id]/edit`) runs a two-step flow:
+
+1. A picker modal asks: **From library** or **Create new**
+2. **From library** → `LibraryPickerModal` loads the user's workout library with `WorkoutFilterBar` filters; clicking a row calls `addLibraryWorkoutToPlan()` and closes.
+3. **Create new** → `WorkoutForm` opens with `showSaveToLibrary={true}`, which shows a "Save to workout library" checkbox. If checked, the edit page's `handleSave` calls `createLibraryWorkout()` after creating the plan workout.
+
+Clicking **Edit** on an existing workout bypasses the picker and goes directly to `WorkoutForm`.
+
 ### Workout library vs plan workouts
 
 Two separate workout concepts exist:
@@ -158,8 +172,11 @@ Both `WorkoutForm` (plan context) and `WorkoutLibraryForm` (library context) sha
 - `run_type` — easy_run | tempo_run | interval_run | threshold_run | recovery_run | race | long_run (only shown when type = run)
 - `title`, `description`, `distance_miles`, `pace_type`, `duration_minutes`, `notes`
 - `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes)
+- `saveToLibrary?` — optional boolean; only present when `WorkoutForm` is opened with `showSaveToLibrary={true}` (plan editor create-new flow)
 
 `WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.
+
+The step card UI only exposes `step_type`, `pace_type`, `duration_minutes`, and `distance_miles` — `label` and `notes` fields exist in `WorkoutStepFormRow` but are not shown in the form.
 
 ### Path alias
 
@@ -167,7 +184,7 @@ Both `WorkoutForm` (plan context) and `WorkoutLibraryForm` (library context) sha
 
 ### Key utilities and actions
 
-- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation; exports `RUN_TYPE_LABELS`, `STEP_TYPE_LABELS`, `WORKOUT_TYPE_LABELS`, `WORKOUT_TYPE_COLORS`, `DAY_NAMES`
+- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation; exports `RUN_TYPE_LABELS`, `RUN_TYPE_COLORS`, `STEP_TYPE_LABELS`, `WORKOUT_TYPE_LABELS`, `WORKOUT_TYPE_COLORS`, `PLAN_TYPE_LABELS`, `PLAN_TYPE_COLORS`, `DAY_NAMES`
 - `src/app/actions/workouts.ts` — CRUD for `plan_workouts` + `workout_steps`; also `importWorkouts` for bulk CSV/JSON import
 - `src/app/actions/workoutLibrary.ts` — CRUD for `workouts` library + `addLibraryWorkoutToPlan`
 - `src/app/actions/plans.ts` — CRUD for `training_plans`
@@ -179,12 +196,13 @@ Both `WorkoutForm` (plan context) and `WorkoutLibraryForm` (library context) sha
 | Component | Purpose |
 |---|---|
 | `Nav` | Top nav with links: Today, My Plan, Plans, Workouts, Paces |
-| `WorkoutForm` | Modal form for creating/editing plan workouts (includes run type + steps) |
+| `WorkoutForm` | Modal form for creating/editing plan workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
 | `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
-| `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit |
+| `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
 | `WorkoutImportModal` | File upload modal for bulk-importing workouts from CSV or JSON |
 | `AddToPlanModal` | Modal to copy a library workout into a chosen plan + week + day |
+| `LibraryPickerModal` | Modal used in the plan editor to pick an existing library workout and copy it into a specific week + day; includes `WorkoutFilterBar` |
 | `WeekGrid` | 7-column week grid; used on plan view, plan edit, and dashboard |
-| `PlanCard` | Summary card for a training plan |
+| `PlanCard` | Summary card for a training plan; uses `PLAN_TYPE_COLORS` from paceUtils |
 | `PaceCalculator` | Pace calculation utility UI |
 | `ThemeProvider` | Dark/light theme context |
