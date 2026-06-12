@@ -4,33 +4,48 @@ import { useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { TrainingPlan, PlanWorkout } from "@/types/database";
+import type { TrainingPlan, PlanWorkout, WorkoutWithSteps } from "@/types/database";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
+import { WorkoutImportModal } from "@/components/WorkoutImportModal";
 import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
 
 export default function EditPlanPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
-  const [workouts, setWorkouts] = useState<PlanWorkout[]>([]);
+  const [workouts, setWorkouts] = useState<WorkoutWithSteps[]>([]);
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<{
     open: boolean;
     weekNumber: number;
     dayOfWeek: number;
-    existing: PlanWorkout | null;
+    existing: WorkoutWithSteps | null;
   }>({ open: false, weekNumber: 1, dayOfWeek: 0, existing: null });
+  const [showImport, setShowImport] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: s }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
       supabase.from("plan_workouts").select("*").eq("plan_id", id).order("sort_order"),
+      supabase.from("workout_steps").select("*").order("step_order"),
     ]);
+
+    const stepsMap: Record<string, typeof s> = {};
+    (s ?? []).forEach((step) => {
+      if (!stepsMap[step.plan_workout_id]) stepsMap[step.plan_workout_id] = [];
+      stepsMap[step.plan_workout_id]!.push(step);
+    });
+
+    const workoutsWithSteps: WorkoutWithSteps[] = (w ?? []).map((wk) => ({
+      ...wk,
+      workout_steps: stepsMap[wk.id] ?? [],
+    }));
+
     setPlan(p);
-    setWorkouts(w ?? []);
+    setWorkouts(workoutsWithSteps);
     setLoading(false);
   }
 
@@ -41,7 +56,8 @@ export default function EditPlanPage() {
   }
 
   function openEdit(workout: PlanWorkout) {
-    setFormState({ open: true, weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: workout });
+    const full = workouts.find((w) => w.id === workout.id) ?? null;
+    setFormState({ open: true, weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: full });
   }
 
   function handleDelete(workout: PlanWorkout) {
@@ -53,11 +69,21 @@ export default function EditPlanPage() {
   }
 
   async function handleSave(data: WorkoutFormData) {
+    const steps = data.steps.map((s) => ({
+      step_type: s.step_type,
+      label: s.label || null,
+      pace_type: s.pace_type || null,
+      duration_minutes: s.duration_minutes ? parseFloat(s.duration_minutes) : null,
+      distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
+      notes: s.notes || null,
+    }));
+
     const payload = {
       plan_id: id,
       week_number: data.week_number,
       day_of_week: data.day_of_week,
       type: data.type,
+      run_type: data.run_type || null,
       title: data.title,
       description: data.description || null,
       distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,
@@ -65,6 +91,7 @@ export default function EditPlanPage() {
       duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
       notes: data.notes || null,
       sort_order: data.sort_order,
+      steps,
     };
 
     if (formState.existing) {
@@ -83,19 +110,27 @@ export default function EditPlanPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-0.5">
           <Link href={`/plans/${id}`} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]">
             ← {plan.name}
           </Link>
           <h1 className="text-2xl font-bold">Edit plan</h1>
         </div>
-        <button
-          onClick={() => router.push(`/plans/${id}`)}
-          className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          Done editing
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+          >
+            Import workouts
+          </button>
+          <button
+            onClick={() => router.push(`/plans/${id}`)}
+            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            Done editing
+          </button>
+        </div>
       </div>
 
       <p className="text-sm text-[var(--muted)]">
@@ -124,6 +159,17 @@ export default function EditPlanPage() {
           existing={formState.existing}
           onSave={handleSave}
           onCancel={() => setFormState((s) => ({ ...s, open: false }))}
+        />
+      )}
+
+      {showImport && (
+        <WorkoutImportModal
+          planId={id}
+          onClose={() => setShowImport(false)}
+          onImported={async () => {
+            setShowImport(false);
+            await load();
+          }}
         />
       )}
 

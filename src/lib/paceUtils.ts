@@ -97,3 +97,21 @@ export const PLAN_TYPE_LABELS: Record<string, string> = {
   strength: "Strength",
   custom: "Custom",
 };
+
+export const RUN_TYPE_LABELS: Record<string, string> = {
+  easy_run: "Easy Run",
+  tempo_run: "Tempo Run",
+  interval_run: "Interval Run",
+  threshold_run: "Threshold Run",
+  recovery_run: "Recovery Run",
+  race: "Race",
+  long_run: "Long Run",
+};
+
+export const STEP_TYPE_LABELS: Record<string, string> = {
+  warmup: "Warm-up",
+  main: "Main",
+  interval: "Interval",
+  recovery: "Recovery",
+  cooldown: "Cool-down",
+};

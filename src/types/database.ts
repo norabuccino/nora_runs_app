@@ -45,6 +45,7 @@ export interface Database {
           week_number: number;
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train";
+          run_type: "easy_run" | "tempo_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | null;
           title: string;
           description: string | null;
           distance_miles: number | null;
@@ -59,6 +60,7 @@ export interface Database {
           week_number: number;
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train";
+          run_type?: "easy_run" | "tempo_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | null;
           title: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -73,6 +75,7 @@ export interface Database {
           week_number?: number;
           day_of_week?: number;
           type?: "run" | "strength" | "rest" | "cross_train";
+          run_type?: "easy_run" | "tempo_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | null;
           title?: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -80,6 +83,41 @@ export interface Database {
           duration_minutes?: number | null;
           notes?: string | null;
           sort_order?: number;
+        };
+      };
+      workout_steps: {
+        Row: {
+          id: string;
+          plan_workout_id: string;
+          step_order: number;
+          step_type: string;
+          label: string | null;
+          pace_type: string | null;
+          duration_minutes: number | null;
+          distance_miles: number | null;
+          notes: string | null;
+        };
+        Insert: {
+          id?: string;
+          plan_workout_id: string;
+          step_order?: number;
+          step_type?: string;
+          label?: string | null;
+          pace_type?: string | null;
+          duration_minutes?: number | null;
+          distance_miles?: number | null;
+          notes?: string | null;
+        };
+        Update: {
+          id?: string;
+          plan_workout_id?: string;
+          step_order?: number;
+          step_type?: string;
+          label?: string | null;
+          pace_type?: string | null;
+          duration_minutes?: number | null;
+          distance_miles?: number | null;
+          notes?: string | null;
         };
       };
       user_plans: {
@@ -211,9 +249,14 @@ export type PlanWorkout = Database["public"]["Tables"]["plan_workouts"]["Row"];
 export type UserPlan = Database["public"]["Tables"]["user_plans"]["Row"];
 export type RunningPace = Database["public"]["Tables"]["running_paces"]["Row"];
 export type WorkoutLog = Database["public"]["Tables"]["workout_logs"]["Row"];
+export type WorkoutStep = Database["public"]["Tables"]["workout_steps"]["Row"];
 
 // Domain-specific union types
 export type WorkoutType = PlanWorkout["type"];
+export type RunType = NonNullable<PlanWorkout["run_type"]>;
 export type PlanType = TrainingPlan["type"];
 export type PaceType = NonNullable<PlanWorkout["pace_type"]>;
 export type UserPlanStatus = UserPlan["status"];
+
+// Extended type for workouts with their steps loaded
+export type WorkoutWithSteps = PlanWorkout & { workout_steps: WorkoutStep[] };
