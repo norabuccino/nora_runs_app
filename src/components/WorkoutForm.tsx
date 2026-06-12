@@ -261,20 +261,22 @@ export function SortableStepCard({
           </button>
         </div>
 
-        {/* Row 2: pace · duration · distance + unit */}
-        <div className="flex items-start gap-1.5 min-w-0">
-          <select
-            value={step.pace_type}
-            onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-            className={`${ci} flex-1 min-w-0`}
-          >
-            <option value="">Pace: none</option>
-            {paces.map((p) => (
-              <option key={p.id} value={p.name}>
-                {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
-              </option>
-            ))}
-          </select>
+        {/* Row 2: pace */}
+        <select
+          value={step.pace_type}
+          onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
+          className={`${ci} w-full`}
+        >
+          <option value="">Pace: none</option>
+          {paces.map((p) => (
+            <option key={p.id} value={p.name}>
+              {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
+            </option>
+          ))}
+        </select>
+
+        {/* Row 3: duration · distance + horizontal unit toggle */}
+        <div className="flex items-center gap-1.5">
           <input
             type="number"
             min="0"
@@ -282,27 +284,22 @@ export function SortableStepCard({
             placeholder="min"
             value={step.duration_minutes}
             onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
-            style={{ width: "3.5rem" }}
-            className={`${ci} shrink-0`}
+            className={`${ci} flex-1 min-w-0`}
           />
-          <div className="flex gap-0.5 items-start shrink-0">
-            <input
-              type="number"
-              min="0"
-              step={step.distance_unit === "m" ? "10" : "0.1"}
-              placeholder="dist"
-              value={step.distance_miles}
-              onChange={(e) => onUpdate(actualIndex, "distance_miles", e.target.value)}
-              style={{ width: "3.5rem" }}
-              className={ci}
-            />
-            <UnitToggle
-              vertical
-              units={["mi", "km", "m"]}
-              active={step.distance_unit}
-              onChange={(u) => onSwitchUnit(actualIndex, u)}
-            />
-          </div>
+          <input
+            type="number"
+            min="0"
+            step={step.distance_unit === "m" ? "10" : "0.1"}
+            placeholder="dist"
+            value={step.distance_miles}
+            onChange={(e) => onUpdate(actualIndex, "distance_miles", e.target.value)}
+            className={`${ci} flex-1 min-w-0`}
+          />
+          <UnitToggle
+            units={["mi", "km", "m"]}
+            active={step.distance_unit}
+            onChange={(u) => onSwitchUnit(actualIndex, u)}
+          />
         </div>
       </div>
     </div>
