@@ -11,6 +11,8 @@ export interface WorkoutStepData {
   duration_minutes?: number | null;
   distance_miles?: number | null;
   notes?: string | null;
+  repeat_group_id?: number | null;
+  repeat_count?: number;
 }
 
 export interface WorkoutData {

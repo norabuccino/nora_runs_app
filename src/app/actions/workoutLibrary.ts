@@ -135,6 +135,8 @@ export async function addLibraryWorkoutToPlan(
       duration_minutes: s.duration_minutes,
       distance_miles: s.distance_miles,
       notes: s.notes,
+      repeat_group_id: s.repeat_group_id,
+      repeat_count: s.repeat_count ?? 1,
     }));
     const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
     if (stepsError) throw new Error(stepsError.message);

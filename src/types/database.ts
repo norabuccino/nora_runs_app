@@ -97,6 +97,8 @@ export interface Database {
           duration_minutes: number | null;
           distance_miles: number | null;
           notes: string | null;
+          repeat_group_id: number | null;
+          repeat_count: number;
         };
         Insert: {
           id?: string;
@@ -109,6 +111,8 @@ export interface Database {
           duration_minutes?: number | null;
           distance_miles?: number | null;
           notes?: string | null;
+          repeat_group_id?: number | null;
+          repeat_count?: number;
         };
         Update: {
           id?: string;
@@ -121,6 +125,8 @@ export interface Database {
           duration_minutes?: number | null;
           distance_miles?: number | null;
           notes?: string | null;
+          repeat_group_id?: number | null;
+          repeat_count?: number;
         };
       };
       workouts: {

@@ -53,6 +53,8 @@ export default function WorkoutsPage() {
         duration_minutes: s.duration_minutes ? parseFloat(s.duration_minutes) : null,
         distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
         notes: s.notes || null,
+        repeat_group_id: s.repeat_group_id ?? null,
+        repeat_count: s.repeat_count ?? 1,
       })),
     };
 

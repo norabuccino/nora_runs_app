@@ -3,7 +3,8 @@
 import { useState } from "react";
 import type { WorkoutType, PaceType, RunType, LibraryWorkoutWithSteps } from "@/types/database";
 import { STEP_TYPE_LABELS } from "@/lib/paceUtils";
-import type { WorkoutStepFormRow } from "./WorkoutForm";
+import { buildSegments } from "./WorkoutForm";
+import type { WorkoutStepFormRow, StringStepKey } from "./WorkoutForm";
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
@@ -23,8 +24,8 @@ export interface WorkoutLibraryFormData {
   steps: WorkoutStepFormRow[];
 }
 
-function blankStep(): WorkoutStepFormRow {
-  return { step_type: "main", label: "", pace_type: "", duration_minutes: "", distance_miles: "", notes: "" };
+function blankStep(groupId: number | null = null, repeatCount = 1): WorkoutStepFormRow {
+  return { step_type: "main", label: "", pace_type: "", duration_minutes: "", distance_miles: "", notes: "", repeat_group_id: groupId, repeat_count: repeatCount };
 }
 
 export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibraryFormProps) {
@@ -46,6 +47,8 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
       duration_minutes: s.duration_minutes?.toString() ?? "",
       distance_miles: s.distance_miles?.toString() ?? "",
       notes: s.notes ?? "",
+      repeat_group_id: s.repeat_group_id ?? null,
+      repeat_count: s.repeat_count ?? 1,
     })) ?? [],
   });
 
@@ -53,7 +56,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function updateStep(index: number, key: keyof WorkoutStepFormRow, value: string) {
+  function updateStep(index: number, key: StringStepKey, value: string) {
     setForm((prev) => {
       const steps = [...prev.steps];
       steps[index] = { ...steps[index], [key]: value };
@@ -67,6 +70,51 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
 
   function removeStep(index: number) {
     setForm((prev) => ({ ...prev, steps: prev.steps.filter((_, i) => i !== index) }));
+  }
+
+  function addRepeatGroup() {
+    setForm((prev) => {
+      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+      return {
+        ...prev,
+        steps: [
+          ...prev.steps,
+          blankStep(nextGroupId, 2),
+          { ...blankStep(nextGroupId, 2), step_type: "recovery" },
+        ],
+      };
+    });
+  }
+
+  function addStepToGroup(groupId: number) {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      let lastIdx = -1;
+      for (let i = 0; i < steps.length; i++) {
+        if (steps[i].repeat_group_id === groupId) lastIdx = i;
+      }
+      const rc = lastIdx >= 0 ? steps[lastIdx].repeat_count : 2;
+      steps.splice(lastIdx + 1, 0, blankStep(groupId, rc));
+      return { ...prev, steps };
+    });
+  }
+
+  function updateGroupRepeatCount(groupId: number, count: number) {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.map((s) =>
+        s.repeat_group_id === groupId ? { ...s, repeat_count: count } : s
+      ),
+    }));
+  }
+
+  function ungroup(groupId: number) {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.map((s) =>
+        s.repeat_group_id === groupId ? { ...s, repeat_group_id: null, repeat_count: 1 } : s
+      ),
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -88,6 +136,94 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
   const isRun = form.type === "run";
   const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
   const labelClass = "text-xs text-[var(--muted)]";
+
+  function renderStepCard(step: WorkoutStepFormRow, actualIndex: number, stepLabel: string) {
+    return (
+      <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 bg-[var(--card)]">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium">{stepLabel}</span>
+          <button type="button" onClick={() => removeStep(actualIndex)} className="text-xs text-[var(--muted)] hover:text-red-500">
+            Remove
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <label className={labelClass}>Step type</label>
+            <select
+              value={step.step_type}
+              onChange={(e) => updateStep(actualIndex, "step_type", e.target.value)}
+              className={inputClass}
+            >
+              {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className={labelClass}>Label (optional)</label>
+            <input
+              type="text"
+              value={step.label}
+              onChange={(e) => updateStep(actualIndex, "label", e.target.value)}
+              placeholder="e.g. 400m fast"
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1">
+            <label className={labelClass}>Pace</label>
+            <select
+              value={step.pace_type}
+              onChange={(e) => updateStep(actualIndex, "pace_type", e.target.value)}
+              className={inputClass}
+            >
+              <option value="">None</option>
+              <option value="easy">Easy</option>
+              <option value="tempo">Tempo</option>
+              <option value="threshold">Threshold</option>
+              <option value="race">Race</option>
+              <option value="interval">Interval</option>
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className={labelClass}>Duration (min)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={step.duration_minutes}
+              onChange={(e) => updateStep(actualIndex, "duration_minutes", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className={labelClass}>Distance (mi)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              value={step.distance_miles}
+              onChange={(e) => updateStep(actualIndex, "distance_miles", e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className={labelClass}>Notes</label>
+          <input
+            type="text"
+            value={step.notes}
+            onChange={(e) => updateStep(actualIndex, "notes", e.target.value)}
+            className={inputClass}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -213,9 +349,14 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Steps</span>
-                <button type="button" onClick={addStep} className="text-xs text-[var(--accent)] hover:underline">
-                  + Add step
-                </button>
+                <div className="flex gap-3">
+                  <button type="button" onClick={addRepeatGroup} className="text-xs text-[var(--accent)] hover:underline">
+                    + Add group
+                  </button>
+                  <button type="button" onClick={addStep} className="text-xs text-[var(--accent)] hover:underline">
+                    + Add step
+                  </button>
+                </div>
               </div>
 
               {form.steps.length === 0 && (
@@ -224,91 +365,62 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
                 </p>
               )}
 
-              {form.steps.map((step, i) => (
-                <div key={i} className="rounded-lg border border-[var(--border)] p-3 space-y-2 bg-[var(--card)]">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">Step {i + 1}</span>
-                    <button type="button" onClick={() => removeStep(i)} className="text-xs text-[var(--muted)] hover:text-red-500">
-                      Remove
+              {buildSegments(form.steps).map((segment, si) => {
+                if (segment.type === "step") {
+                  return (
+                    <div key={`step-${segment.index}`}>
+                      {renderStepCard(form.steps[segment.index], segment.index, `Step ${si + 1}`)}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    key={`group-${segment.groupId}`}
+                    className="rounded-xl border-2 border-[var(--accent)] p-3 space-y-3"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">
+                        Repeat
+                      </span>
+                      <span className="text-xs text-[var(--accent)]">×</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={segment.repeatCount}
+                        onChange={(e) =>
+                          updateGroupRepeatCount(segment.groupId, parseInt(e.target.value) || 1)
+                        }
+                        className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+                      />
+                      <span className="text-xs text-[var(--muted)] flex-1">times</span>
+                      <button
+                        type="button"
+                        onClick={() => ungroup(segment.groupId)}
+                        className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+                      >
+                        Ungroup
+                      </button>
+                    </div>
+
+                    <div className="space-y-2 pl-2 border-l-2 border-[var(--accent)] opacity-90">
+                      {segment.indices.map((actualIndex, j) => (
+                        <div key={actualIndex}>
+                          {renderStepCard(form.steps[actualIndex], actualIndex, `Step ${j + 1}`)}
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => addStepToGroup(segment.groupId)}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      + Add step to group
                     </button>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <label className={labelClass}>Step type</label>
-                      <select
-                        value={step.step_type}
-                        onChange={(e) => updateStep(i, "step_type", e.target.value)}
-                        className={inputClass}
-                      >
-                        {Object.entries(STEP_TYPE_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>{label}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className={labelClass}>Label (optional)</label>
-                      <input
-                        type="text"
-                        value={step.label}
-                        onChange={(e) => updateStep(i, "label", e.target.value)}
-                        placeholder="e.g. 4×1 mile"
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <label className={labelClass}>Pace</label>
-                      <select
-                        value={step.pace_type}
-                        onChange={(e) => updateStep(i, "pace_type", e.target.value)}
-                        className={inputClass}
-                      >
-                        <option value="">None</option>
-                        <option value="easy">Easy</option>
-                        <option value="tempo">Tempo</option>
-                        <option value="threshold">Threshold</option>
-                        <option value="race">Race</option>
-                        <option value="interval">Interval</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className={labelClass}>Duration (min)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        value={step.duration_minutes}
-                        onChange={(e) => updateStep(i, "duration_minutes", e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className={labelClass}>Distance (mi)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.1"
-                        value={step.distance_miles}
-                        onChange={(e) => updateStep(i, "distance_miles", e.target.value)}
-                        className={inputClass}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className={labelClass}>Notes</label>
-                    <input
-                      type="text"
-                      value={step.notes}
-                      onChange={(e) => updateStep(i, "notes", e.target.value)}
-                      className={inputClass}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
