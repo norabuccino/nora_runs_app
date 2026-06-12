@@ -594,6 +594,20 @@ export function WorkoutForm({
     setForm((prev) => ({ ...prev, steps: arrayMove(prev.steps, activeIdx, overIdx) }));
   }
 
+  // ── Computed totals from steps ──
+
+  const totalDistInUnit = form.steps.reduce((sum, s) => {
+    const v = parseFloat(s.distance_miles);
+    if (isNaN(v) || v <= 0) return sum;
+    const inMi = convertDistance(v, s.distance_unit, "mi");
+    return sum + convertDistance(inMi, "mi", form.distance_unit as DistanceUnit);
+  }, 0);
+
+  const totalDurationMin = form.steps.reduce((sum, s) => {
+    const v = parseFloat(s.duration_minutes);
+    return isNaN(v) ? sum : sum + v;
+  }, 0);
+
   // ── Submit ──
 
   async function handleSubmit(e: React.FormEvent) {
@@ -605,7 +619,15 @@ export function WorkoutForm({
     setSaving(true);
     setError(null);
     try {
-      await onSave(form);
+      await onSave({
+        ...form,
+        distance_miles:
+          totalDistInUnit > 0
+            ? String(parseFloat(totalDistInUnit.toFixed(4)))
+            : form.distance_miles,
+        duration_minutes:
+          totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
       setSaving(false);
@@ -704,74 +726,6 @@ export function WorkoutForm({
               />
             </div>
 
-            {/* Distance + pace (runs only) */}
-            {isRun && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className={labelClass}>Distance</label>
-                  <div className="flex gap-1 items-center">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.1"
-                      value={form.distance_miles}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, distance_miles: e.target.value }))
-                      }
-                      className={`${inputClass} flex-1 min-w-0`}
-                    />
-                    <UnitToggle
-                      units={["mi", "km"]}
-                      active={form.distance_unit}
-                      onChange={(u) => switchWorkoutUnit(u as "mi" | "km")}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <label className={labelClass}>Pace type</label>
-                  <select
-                    value={form.pace_type}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, pace_type: e.target.value as PaceType | "" }))
-                    }
-                    className={inputClass}
-                  >
-                    <option value="">None</option>
-                    <option value="easy">Easy</option>
-                    <option value="tempo">Tempo</option>
-                    <option value="threshold">Threshold</option>
-                    <option value="race">Race</option>
-                    <option value="interval">Interval</option>
-                  </select>
-                </div>
-              </div>
-            )}
-
-            {/* Duration */}
-            <div className="space-y-1">
-              <label className={labelClass}>
-                {isRun ? "Estimated duration (min, optional)" : "Duration (min)"}
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.duration_minutes}
-                onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
-                className={inputClass}
-              />
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-1">
-              <label className={labelClass}>Notes</label>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                rows={2}
-                className={`${inputClass} resize-none`}
-              />
-            </div>
-
             {/* Steps */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -850,6 +804,70 @@ export function WorkoutForm({
                   </div>
                 </SortableContext>
               </DndContext>
+            </div>
+
+            {/* Totals (calculated from steps) + pace type */}
+            {(totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
+              <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
+                {(totalDistInUnit > 0 || totalDurationMin > 0) && (
+                  <div className="flex flex-wrap gap-4">
+                    {totalDistInUnit > 0 && (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className={labelClass}>Total distance</span>
+                          <UnitToggle
+                            units={["mi", "km"]}
+                            active={form.distance_unit}
+                            onChange={(u) =>
+                              setForm((p) => ({ ...p, distance_unit: u as "mi" | "km" }))
+                            }
+                          />
+                        </div>
+                        <p className="text-sm font-medium">
+                          {parseFloat(totalDistInUnit.toFixed(2))} {form.distance_unit}
+                        </p>
+                      </div>
+                    )}
+                    {totalDurationMin > 0 && (
+                      <div className="space-y-0.5">
+                        <span className={labelClass}>Total duration</span>
+                        <p className="text-sm font-medium">{totalDurationMin} min</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isRun && (
+                  <div className="space-y-1">
+                    <label className={labelClass}>Pace type</label>
+                    <select
+                      value={form.pace_type}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, pace_type: e.target.value as PaceType | "" }))
+                      }
+                      className={inputClass}
+                    >
+                      <option value="">None</option>
+                      <option value="easy">Easy</option>
+                      <option value="tempo">Tempo</option>
+                      <option value="threshold">Threshold</option>
+                      <option value="race">Race</option>
+                      <option value="interval">Interval</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Notes */}
+            <div className="space-y-1">
+              <label className={labelClass}>Notes</label>
+              <textarea
+                value={form.notes}
+                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                rows={2}
+                className={`${inputClass} resize-none`}
+              />
             </div>
 
             {error && (
