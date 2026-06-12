@@ -18,6 +18,11 @@ export default function WorkoutsPage() {
   const [addToPlan, setAddToPlan] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [isPending, startTransition] = useTransition();
+  const [compact, setCompact] = useState(false);
+
+  useEffect(() => {
+    setCompact(window.matchMedia("(max-width: 640px)").matches);
+  }, []);
 
   async function load() {
     const supabase = createClient();
@@ -97,12 +102,30 @@ export default function WorkoutsPage() {
             Build reusable workouts and add them to any plan.
           </p>
         </div>
-        <button
-          onClick={() => { setEditing(null); setFormOpen(true); }}
-          className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          + New workout
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCompact((c) => !c)}
+            title={compact ? "Switch to card view" : "Switch to compact view"}
+            className="p-2 rounded-lg border border-[var(--border)] hover:bg-[var(--background)] transition-colors text-[var(--muted)]"
+          >
+            {compact ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+          <button
+            onClick={() => { setEditing(null); setFormOpen(true); }}
+            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            + New workout
+          </button>
+        </div>
       </div>
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
@@ -131,6 +154,19 @@ export default function WorkoutsPage() {
               <p className="text-sm text-[var(--muted)] py-8 text-center">
                 No workouts match this filter.
               </p>
+            ) : compact ? (
+              <div className="flex flex-col gap-1">
+                {filtered.map((workout) => (
+                  <WorkoutLibraryCard
+                    key={workout.id}
+                    workout={workout}
+                    compact
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onAddToPlan={(w) => setAddToPlan(w)}
+                  />
+                ))}
+              </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((workout) => (
@@ -177,12 +213,13 @@ export default function WorkoutsPage() {
 
 interface WorkoutLibraryCardProps {
   workout: LibraryWorkoutWithSteps;
+  compact?: boolean;
   onEdit: (w: LibraryWorkoutWithSteps) => void;
   onDelete: (w: LibraryWorkoutWithSteps) => void;
   onAddToPlan: (w: LibraryWorkoutWithSteps) => void;
 }
 
-function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutLibraryCardProps) {
+function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onAddToPlan }: WorkoutLibraryCardProps) {
   const typeBadge = workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
@@ -194,6 +231,30 @@ function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutL
     ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
     : null;
   const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
+
+  if (compact) {
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3">
+        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
+          {typeLabel}
+        </span>
+        <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
+        {(distanceLabel || durationLabel) && (
+          <div className="flex-shrink-0 text-right">
+            {distanceLabel && <p className="text-xs font-medium leading-tight">{distanceLabel}</p>}
+            {durationLabel && <p className="text-xs text-[var(--muted)] leading-tight">{durationLabel}</p>}
+          </div>
+        )}
+        <button
+          onClick={() => onAddToPlan(workout)}
+          title="Add to plan"
+          className="flex-shrink-0 w-7 h-7 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-base font-medium hover:opacity-90 transition-opacity flex items-center justify-center"
+        >
+          +
+        </button>
+      </div>
+    );
+  }
 
   const meta: string[] = [];
   if (workout.pace_type) meta.push(workout.pace_type);
