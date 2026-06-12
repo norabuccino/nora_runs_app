@@ -154,7 +154,7 @@ export default function PacesPage() {
         <div>
           <h2 className="font-semibold">Common paces</h2>
           <p className="text-sm text-[var(--muted)] mt-0.5">
-            Enter your pace per {unitPref} for each effort level. These will be available in all workout forms.
+            Enter each pace in <strong>min / {unitPref}</strong> (MM:SS format). These will be available in all workout forms.
           </p>
         </div>
 
@@ -177,7 +177,7 @@ export default function PacesPage() {
                   onChange={(e) =>
                     setSuggestedInputs((prev) => ({ ...prev, [name]: e.target.value }))
                   }
-                  placeholder="MM:SS"
+                  placeholder={`MM:SS /${unitPref}`}
                   className="w-24 rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 />
                 <button
@@ -198,7 +198,7 @@ export default function PacesPage() {
         <div>
           <h2 className="font-semibold">Custom paces</h2>
           <p className="text-sm text-[var(--muted)] mt-0.5">
-            Add any other paces you train at (e.g. marathon pace, 5K pace).
+            Add any other paces you train at (e.g. marathon pace, 5K pace) in min / {unitPref}.
           </p>
         </div>
 
@@ -232,7 +232,7 @@ export default function PacesPage() {
                           <input
                             value={editPaceStr}
                             onChange={(e) => setEditPaceStr(e.target.value)}
-                            placeholder="MM:SS"
+                            placeholder={`MM:SS /${unitPref}`}
                             className="w-24 rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-sm font-mono focus:outline-none"
                           />
                         </td>
