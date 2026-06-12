@@ -11,6 +11,7 @@ export interface LibraryWorkoutData {
   title: string;
   description?: string | null;
   distance_miles?: number | null;
+  distance_unit?: string;
   pace_type?: PaceType | null;
   duration_minutes?: number | null;
   notes?: string | null;
@@ -134,6 +135,7 @@ export async function addLibraryWorkoutToPlan(
       pace_type: s.pace_type,
       duration_minutes: s.duration_minutes,
       distance_miles: s.distance_miles,
+      distance_unit: s.distance_unit ?? "mi",
       notes: s.notes,
       repeat_group_id: s.repeat_group_id,
       repeat_count: s.repeat_count ?? 1,

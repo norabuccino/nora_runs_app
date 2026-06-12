@@ -1,0 +1,3 @@
+ALTER TABLE plan_workouts  ADD COLUMN IF NOT EXISTS distance_unit TEXT NOT NULL DEFAULT 'mi';
+ALTER TABLE workout_steps  ADD COLUMN IF NOT EXISTS distance_unit TEXT NOT NULL DEFAULT 'mi';
+ALTER TABLE workouts       ADD COLUMN IF NOT EXISTS distance_unit TEXT NOT NULL DEFAULT 'mi';

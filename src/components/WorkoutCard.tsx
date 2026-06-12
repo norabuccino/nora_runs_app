@@ -33,6 +33,7 @@ export function WorkoutCard({
   const description = log?.custom_description ?? workout.description;
   const estimate = getWorkoutEstimate(
     workout.distance_miles,
+    workout.distance_unit ?? "mi",
     workout.pace_type,
     workout.duration_minutes,
     paces
@@ -76,7 +77,7 @@ export function WorkoutCard({
           )}
           <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
             {workout.distance_miles && (
-              <span>{workout.distance_miles} mi</span>
+              <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
             )}
             {workout.pace_type && (
               <span className="capitalize">{workout.pace_type} pace</span>

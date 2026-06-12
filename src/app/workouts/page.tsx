@@ -43,6 +43,7 @@ export default function WorkoutsPage() {
       title: data.title,
       description: data.description || null,
       distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,
+      distance_unit: data.distance_unit ?? "mi",
       pace_type: data.pace_type || null,
       duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
       notes: data.notes || null,
@@ -52,6 +53,7 @@ export default function WorkoutsPage() {
         pace_type: s.pace_type || null,
         duration_minutes: s.duration_minutes ? parseFloat(s.duration_minutes) : null,
         distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
+        distance_unit: s.distance_unit ?? "mi",
         notes: s.notes || null,
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
@@ -169,7 +171,7 @@ function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutL
     : WORKOUT_TYPE_LABELS[workout.type];
 
   const meta: string[] = [];
-  if (workout.distance_miles) meta.push(`${workout.distance_miles} mi`);
+  if (workout.distance_miles) meta.push(`${workout.distance_miles} ${workout.distance_unit ?? "mi"}`);
   if (workout.pace_type) meta.push(workout.pace_type);
   if (workout.duration_minutes) meta.push(`${workout.duration_minutes} min`);
 
@@ -205,7 +207,7 @@ function WorkoutLibraryCard({ workout, onEdit, onDelete, onAddToPlan }: WorkoutL
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--muted)] flex-shrink-0" />
               <span className="capitalize">{step.label || step.step_type}</span>
               {step.duration_minutes && <span>· {step.duration_minutes} min</span>}
-              {step.distance_miles && <span>· {step.distance_miles} mi</span>}
+              {step.distance_miles && <span>· {step.distance_miles} {step.distance_unit ?? "mi"}</span>}
               {step.pace_type && <span>· {step.pace_type}</span>}
             </div>
           ))}

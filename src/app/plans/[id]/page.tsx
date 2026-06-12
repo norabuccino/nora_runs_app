@@ -101,6 +101,7 @@ export default async function PlanDetailPage({ params }: Props) {
                               dayWorkouts.map((w) => {
                                 const estimate = getWorkoutEstimate(
                                   w.distance_miles,
+                                  w.distance_unit ?? "mi",
                                   w.pace_type,
                                   w.duration_minutes,
                                   paces ?? []
@@ -112,7 +113,7 @@ export default async function PlanDetailPage({ params }: Props) {
                                     </span>
                                     <span className="text-sm font-medium">{w.title}</span>
                                     {w.distance_miles && (
-                                      <span className="text-xs text-[var(--muted)]">{w.distance_miles} mi</span>
+                                      <span className="text-xs text-[var(--muted)]">{w.distance_miles} {w.distance_unit ?? "mi"}</span>
                                     )}
                                     {w.pace_type && (
                                       <span className="text-xs text-[var(--muted)] capitalize">{w.pace_type}</span>

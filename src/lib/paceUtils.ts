@@ -31,17 +31,26 @@ export function findPaceForType(
 }
 
 export function getWorkoutEstimate(
-  distanceMiles: number | null,
+  distance: number | null,
+  distanceUnit: string,
   paceType: PaceType | null,
   durationMinutes: number | null,
   paces: RunningPace[]
 ): string | null {
   if (durationMinutes) return `~${durationMinutes}m`;
+  // Convert to miles for duration estimation (paces stored as sec/mile)
+  const KM_PER_MI = 1.60934;
+  const M_PER_MI = 1609.34;
+  const distanceMiles = distance
+    ? distanceUnit === "km" ? distance / KM_PER_MI
+    : distanceUnit === "m" ? distance / M_PER_MI
+    : distance
+    : null;
   if (distanceMiles && paceType) {
     const pace = findPaceForType(paces, paceType);
     if (pace) return estimateDuration(distanceMiles, pace.pace_seconds_per_mile);
   }
-  if (distanceMiles) return `${distanceMiles} mi`;
+  if (distance) return `${distance} ${distanceUnit ?? "mi"}`;
   return null;
 }
 

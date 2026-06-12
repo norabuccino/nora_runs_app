@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useTheme } from "./ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
+import { useUnitPreference } from "@/hooks/useUnitPreference";
 
 interface NavProps {
   userEmail: string | null;
@@ -23,6 +24,7 @@ export function Nav({ userEmail }: NavProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [unitPref, setUnitPref] = useUnitPreference();
 
   async function handleSignOut() {
     const supabase = createClient();
@@ -58,6 +60,23 @@ export function Nav({ userEmail }: NavProps) {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Unit preference toggle */}
+          <div className="hidden md:flex rounded border border-[var(--border)] overflow-hidden text-xs">
+            {(["mi", "km"] as const).map((u) => (
+              <button
+                key={u}
+                onClick={() => setUnitPref(u)}
+                className={`px-2 py-1 transition-colors ${
+                  unitPref === u
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={toggleTheme}
             className="p-2 rounded-md text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"

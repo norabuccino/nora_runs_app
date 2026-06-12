@@ -10,6 +10,7 @@ export interface WorkoutStepData {
   pace_type?: string | null;
   duration_minutes?: number | null;
   distance_miles?: number | null;
+  distance_unit?: string;
   notes?: string | null;
   repeat_group_id?: number | null;
   repeat_count?: number;
@@ -24,6 +25,7 @@ export interface WorkoutData {
   title: string;
   description?: string | null;
   distance_miles?: number | null;
+  distance_unit?: string;
   pace_type?: PaceType | null;
   duration_minutes?: number | null;
   notes?: string | null;

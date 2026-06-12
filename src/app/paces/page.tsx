@@ -6,6 +6,8 @@ import type { RunningPace } from "@/types/database";
 import { formatPace, parsePace } from "@/lib/paceUtils";
 import { createPace, updatePace, deletePace } from "@/app/actions/paces";
 import { PaceCalculator } from "@/components/PaceCalculator";
+import { useUnitPreference } from "@/hooks/useUnitPreference";
+import { formatPaceForUnit } from "@/lib/unitUtils";
 
 export default function PacesPage() {
   const [paces, setPaces] = useState<RunningPace[]>([]);
@@ -17,6 +19,7 @@ export default function PacesPage() {
   const [newPaceStr, setNewPaceStr] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [unitPref] = useUnitPreference();
 
   async function loadPaces() {
     const supabase = createClient();
@@ -33,17 +36,23 @@ export default function PacesPage() {
   function startEdit(pace: RunningPace) {
     setEditingId(pace.id);
     setEditName(pace.name);
-    setEditPaceStr(formatPace(pace.pace_seconds_per_mile));
+    // Show pace in current display unit
+    const displaySec = unitPref === "km"
+      ? pace.pace_seconds_per_mile / 1.60934
+      : pace.pace_seconds_per_mile;
+    setEditPaceStr(formatPace(Math.round(displaySec)));
     setError(null);
   }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    const seconds = parsePace(newPaceStr);
-    if (!newName.trim() || !seconds) {
+    const parsed = parsePace(newPaceStr);
+    if (!newName.trim() || !parsed) {
       setError("Enter a valid name and pace (MM:SS)");
       return;
     }
+    // Convert /km input to sec/mile for storage
+    const seconds = unitPref === "km" ? Math.round(parsed * 1.60934) : parsed;
     setError(null);
     startTransition(async () => {
       await createPace(newName.trim(), seconds);
@@ -54,11 +63,12 @@ export default function PacesPage() {
   }
 
   async function handleUpdate(id: string) {
-    const seconds = parsePace(editPaceStr);
-    if (!editName.trim() || !seconds) {
+    const parsed = parsePace(editPaceStr);
+    if (!editName.trim() || !parsed) {
       setError("Enter a valid name and pace (MM:SS)");
       return;
     }
+    const seconds = unitPref === "km" ? Math.round(parsed * 1.60934) : parsed;
     setError(null);
     startTransition(async () => {
       await updatePace(id, editName.trim(), seconds);
@@ -94,7 +104,7 @@ export default function PacesPage() {
             <thead>
               <tr className="border-b border-[var(--border)]">
                 <th className="text-left px-4 py-3 text-xs text-[var(--muted)] font-medium">Name</th>
-                <th className="text-left px-4 py-3 text-xs text-[var(--muted)] font-medium">Pace / mile</th>
+                <th className="text-left px-4 py-3 text-xs text-[var(--muted)] font-medium">Pace / {unitPref}</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -139,7 +149,7 @@ export default function PacesPage() {
                   ) : (
                     <>
                       <td className="px-4 py-3 font-medium">{pace.name}</td>
-                      <td className="px-4 py-3 font-mono">{formatPace(pace.pace_seconds_per_mile)}</td>
+                      <td className="px-4 py-3 font-mono">{formatPaceForUnit(pace.pace_seconds_per_mile, unitPref)}</td>
                       <td className="px-4 py-3">
                         <div className="flex gap-3 justify-end">
                           <button

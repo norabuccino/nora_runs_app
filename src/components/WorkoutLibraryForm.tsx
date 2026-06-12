@@ -1,10 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCenter,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
 import type { WorkoutType, PaceType, RunType, LibraryWorkoutWithSteps } from "@/types/database";
-import { STEP_TYPE_LABELS } from "@/lib/paceUtils";
-import { buildSegments } from "./WorkoutForm";
-import type { WorkoutStepFormRow, StringStepKey } from "./WorkoutForm";
+import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
+import {
+  buildSegments,
+  SortableStepCard,
+  SortableGroupContainer,
+  type WorkoutStepFormRow,
+  type StringStepKey,
+} from "./WorkoutForm";
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
@@ -18,43 +36,91 @@ export interface WorkoutLibraryFormData {
   title: string;
   description: string;
   distance_miles: string;
+  distance_unit: "mi" | "km";
   pace_type: PaceType | "";
   duration_minutes: string;
   notes: string;
   steps: WorkoutStepFormRow[];
 }
 
-function blankStep(groupId: number | null = null, repeatCount = 1): WorkoutStepFormRow {
-  return { step_type: "main", label: "", pace_type: "", duration_minutes: "", distance_miles: "", notes: "", repeat_group_id: groupId, repeat_count: repeatCount };
+function blankStep(
+  groupId: number | null = null,
+  repeatCount = 1,
+  unit: DistanceUnit = getStoredUnit()
+): WorkoutStepFormRow {
+  return {
+    step_type: "main",
+    label: "",
+    pace_type: "",
+    duration_minutes: "",
+    distance_miles: "",
+    distance_unit: unit,
+    notes: "",
+    repeat_group_id: groupId,
+    repeat_count: repeatCount,
+  };
+}
+
+function UnitToggle({
+  units,
+  active,
+  onChange,
+}: {
+  units: ("mi" | "km")[];
+  active: "mi" | "km";
+  onChange: (u: "mi" | "km") => void;
+}) {
+  return (
+    <div className="flex rounded border border-[var(--border)] overflow-hidden shrink-0" style={{ fontSize: "10px" }}>
+      {units.map((u) => (
+        <button
+          key={u}
+          type="button"
+          onClick={() => onChange(u)}
+          className={`px-1.5 py-0.5 leading-none transition-colors ${
+            active === u
+              ? "bg-[var(--foreground)] text-[var(--background)]"
+              : "bg-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+          }`}
+        >
+          {u}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function segmentId(seg: ReturnType<typeof buildSegments>[number]): string {
+  return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
 }
 
 export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibraryFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [form, setForm] = useState<WorkoutLibraryFormData>({
+
+  const [form, setForm] = useState<WorkoutLibraryFormData>(() => ({
     type: existing?.type ?? "run",
     run_type: existing?.run_type ?? "",
     title: existing?.title ?? "",
     description: existing?.description ?? "",
     distance_miles: existing?.distance_miles?.toString() ?? "",
+    distance_unit: (existing?.distance_unit as "mi" | "km") ?? getStoredUnit(),
     pace_type: existing?.pace_type ?? "",
     duration_minutes: existing?.duration_minutes?.toString() ?? "",
     notes: existing?.notes ?? "",
-    steps: existing?.workout_steps?.map((s) => ({
-      step_type: s.step_type,
-      label: s.label ?? "",
-      pace_type: s.pace_type ?? "",
-      duration_minutes: s.duration_minutes?.toString() ?? "",
-      distance_miles: s.distance_miles?.toString() ?? "",
-      notes: s.notes ?? "",
-      repeat_group_id: s.repeat_group_id ?? null,
-      repeat_count: s.repeat_count ?? 1,
-    })) ?? [],
-  });
-
-  function update<K extends keyof WorkoutLibraryFormData>(key: K, value: WorkoutLibraryFormData[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+    steps:
+      existing?.workout_steps?.map((s) => ({
+        step_type: s.step_type,
+        label: s.label ?? "",
+        pace_type: s.pace_type ?? "",
+        duration_minutes: s.duration_minutes?.toString() ?? "",
+        distance_miles: s.distance_miles?.toString() ?? "",
+        distance_unit: (s.distance_unit as DistanceUnit) ?? "mi",
+        notes: s.notes ?? "",
+        repeat_group_id: s.repeat_group_id ?? null,
+        repeat_count: s.repeat_count ?? 1,
+      })) ?? [],
+  }));
 
   function updateStep(index: number, key: StringStepKey, value: string) {
     setForm((prev) => {
@@ -64,8 +130,25 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
     });
   }
 
+  function switchStepUnit(index: number, newUnit: DistanceUnit) {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      const cur = steps[index];
+      const raw = parseFloat(cur.distance_miles);
+      const converted =
+        !isNaN(raw) && raw > 0
+          ? String(parseFloat(convertDistance(raw, cur.distance_unit, newUnit).toFixed(4)))
+          : cur.distance_miles;
+      steps[index] = { ...cur, distance_unit: newUnit, distance_miles: converted };
+      return { ...prev, steps };
+    });
+  }
+
   function addStep() {
-    setForm((prev) => ({ ...prev, steps: [...prev.steps, blankStep()] }));
+    setForm((prev) => ({
+      ...prev,
+      steps: [...prev.steps, blankStep(null, 1, prev.distance_unit as DistanceUnit)],
+    }));
   }
 
   function removeStep(index: number) {
@@ -75,12 +158,13 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
   function addRepeatGroup() {
     setForm((prev) => {
       const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+      const unit = prev.distance_unit as DistanceUnit;
       return {
         ...prev,
         steps: [
           ...prev.steps,
-          blankStep(nextGroupId, 2),
-          { ...blankStep(nextGroupId, 2), step_type: "recovery" },
+          blankStep(nextGroupId, 2, unit),
+          { ...blankStep(nextGroupId, 2, unit), step_type: "recovery" },
         ],
       };
     });
@@ -94,7 +178,8 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
         if (steps[i].repeat_group_id === groupId) lastIdx = i;
       }
       const rc = lastIdx >= 0 ? steps[lastIdx].repeat_count : 2;
-      steps.splice(lastIdx + 1, 0, blankStep(groupId, rc));
+      const unit = lastIdx >= 0 ? steps[lastIdx].distance_unit : (prev.distance_unit as DistanceUnit);
+      steps.splice(lastIdx + 1, 0, blankStep(groupId, rc, unit));
       return { ...prev, steps };
     });
   }
@@ -117,6 +202,46 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
     }));
   }
 
+  function switchWorkoutUnit(newUnit: "mi" | "km") {
+    setForm((prev) => {
+      const raw = parseFloat(prev.distance_miles);
+      const converted =
+        !isNaN(raw) && raw > 0
+          ? String(parseFloat(convertDistance(raw, prev.distance_unit, newUnit).toFixed(4)))
+          : prev.distance_miles;
+      return { ...prev, distance_unit: newUnit, distance_miles: converted };
+    });
+  }
+
+  const outerSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  function onSegmentDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const segs = buildSegments(form.steps);
+    const oldIdx = segs.findIndex((s) => segmentId(s) === active.id);
+    const newIdx = segs.findIndex((s) => segmentId(s) === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(segs, oldIdx, newIdx);
+    const newSteps: WorkoutStepFormRow[] = [];
+    for (const seg of reordered) {
+      if (seg.type === "step") newSteps.push(form.steps[seg.index]);
+      else seg.indices.forEach((i) => newSteps.push(form.steps[i]));
+    }
+    setForm((prev) => ({ ...prev, steps: newSteps }));
+  }
+
+  function onGroupDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const activeIdx = parseInt((active.id as string).split("-")[1]);
+    const overIdx = parseInt((over.id as string).split("-")[1]);
+    if (isNaN(activeIdx) || isNaN(overIdx)) return;
+    setForm((prev) => ({ ...prev, steps: arrayMove(prev.steps, activeIdx, overIdx) }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) {
@@ -134,96 +259,11 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
   }
 
   const isRun = form.type === "run";
-  const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+  const inputClass =
+    "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
   const labelClass = "text-xs text-[var(--muted)]";
-
-  function renderStepCard(step: WorkoutStepFormRow, actualIndex: number, stepLabel: string) {
-    return (
-      <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 bg-[var(--card)]">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium">{stepLabel}</span>
-          <button type="button" onClick={() => removeStep(actualIndex)} className="text-xs text-[var(--muted)] hover:text-red-500">
-            Remove
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <label className={labelClass}>Step type</label>
-            <select
-              value={step.step_type}
-              onChange={(e) => updateStep(actualIndex, "step_type", e.target.value)}
-              className={inputClass}
-            >
-              {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
-                <option key={val} value={val}>{lbl}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className={labelClass}>Label (optional)</label>
-            <input
-              type="text"
-              value={step.label}
-              onChange={(e) => updateStep(actualIndex, "label", e.target.value)}
-              placeholder="e.g. 400m fast"
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <label className={labelClass}>Pace</label>
-            <select
-              value={step.pace_type}
-              onChange={(e) => updateStep(actualIndex, "pace_type", e.target.value)}
-              className={inputClass}
-            >
-              <option value="">None</option>
-              <option value="easy">Easy</option>
-              <option value="tempo">Tempo</option>
-              <option value="threshold">Threshold</option>
-              <option value="race">Race</option>
-              <option value="interval">Interval</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className={labelClass}>Duration (min)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              value={step.duration_minutes}
-              onChange={(e) => updateStep(actualIndex, "duration_minutes", e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className={labelClass}>Distance (mi)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.1"
-              value={step.distance_miles}
-              onChange={(e) => updateStep(actualIndex, "distance_miles", e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className={labelClass}>Notes</label>
-          <input
-            type="text"
-            value={step.notes}
-            onChange={(e) => updateStep(actualIndex, "notes", e.target.value)}
-            className={inputClass}
-          />
-        </div>
-      </div>
-    );
-  }
+  const segments = buildSegments(form.steps);
+  const segmentIds = segments.map(segmentId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -231,7 +271,12 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
         <div className="p-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">{existing ? "Edit" : "New"} workout</h2>
-            <button onClick={onCancel} className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none">×</button>
+            <button
+              onClick={onCancel}
+              className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+            >
+              ×
+            </button>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -239,10 +284,13 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
               <label className={labelClass}>Type</label>
               <select
                 value={form.type}
-                onChange={(e) => {
-                  update("type", e.target.value as WorkoutType);
-                  if (e.target.value !== "run") update("run_type", "");
-                }}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    type: e.target.value as WorkoutType,
+                    run_type: e.target.value !== "run" ? "" : p.run_type,
+                  }))
+                }
                 className={inputClass}
               >
                 <option value="run">Run</option>
@@ -257,7 +305,9 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
                 <label className={labelClass}>Run type</label>
                 <select
                   value={form.run_type}
-                  onChange={(e) => update("run_type", e.target.value as RunType | "")}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, run_type: e.target.value as RunType | "" }))
+                  }
                   className={inputClass}
                 >
                   <option value="">— Select —</option>
@@ -277,7 +327,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
               <input
                 type="text"
                 value={form.title}
-                onChange={(e) => update("title", e.target.value)}
+                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder={isRun ? "e.g. Easy 6 miles" : "e.g. Upper body strength"}
                 className={inputClass}
               />
@@ -287,7 +337,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
               <label className={labelClass}>Description</label>
               <textarea
                 value={form.description}
-                onChange={(e) => update("description", e.target.value)}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                 rows={2}
                 className={`${inputClass} resize-none`}
               />
@@ -296,21 +346,32 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
             {isRun && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className={labelClass}>Distance (miles)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={form.distance_miles}
-                    onChange={(e) => update("distance_miles", e.target.value)}
-                    className={inputClass}
-                  />
+                  <label className={labelClass}>Distance</label>
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={form.distance_miles}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, distance_miles: e.target.value }))
+                      }
+                      className={`${inputClass} flex-1 min-w-0`}
+                    />
+                    <UnitToggle
+                      units={["mi", "km"]}
+                      active={form.distance_unit}
+                      onChange={switchWorkoutUnit}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <label className={labelClass}>Pace type</label>
                   <select
                     value={form.pace_type}
-                    onChange={(e) => update("pace_type", e.target.value as PaceType | "")}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, pace_type: e.target.value as PaceType | "" }))
+                    }
                     className={inputClass}
                   >
                     <option value="">None</option>
@@ -325,12 +386,14 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
             )}
 
             <div className="space-y-1">
-              <label className={labelClass}>{isRun ? "Estimated duration (min, optional)" : "Duration (min)"}</label>
+              <label className={labelClass}>
+                {isRun ? "Estimated duration (min, optional)" : "Duration (min)"}
+              </label>
               <input
                 type="number"
                 min="0"
                 value={form.duration_minutes}
-                onChange={(e) => update("duration_minutes", e.target.value)}
+                onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
                 className={inputClass}
               />
             </div>
@@ -339,7 +402,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
               <label className={labelClass}>Notes</label>
               <textarea
                 value={form.notes}
-                onChange={(e) => update("notes", e.target.value)}
+                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
                 rows={2}
                 className={`${inputClass} resize-none`}
               />
@@ -348,12 +411,22 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
             {/* Steps */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Steps</span>
+                <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                  Steps
+                </span>
                 <div className="flex gap-3">
-                  <button type="button" onClick={addRepeatGroup} className="text-xs text-[var(--accent)] hover:underline">
+                  <button
+                    type="button"
+                    onClick={addRepeatGroup}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
                     + Add group
                   </button>
-                  <button type="button" onClick={addStep} className="text-xs text-[var(--accent)] hover:underline">
+                  <button
+                    type="button"
+                    onClick={addStep}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
                     + Add step
                   </button>
                 </div>
@@ -361,66 +434,58 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
 
               {form.steps.length === 0 && (
                 <p className="text-xs text-[var(--muted)] italic">
-                  No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).
+                  No steps yet. Add steps to structure this workout (warm-up, intervals,
+                  cool-down, etc.).
                 </p>
               )}
 
-              {buildSegments(form.steps).map((segment, si) => {
-                if (segment.type === "step") {
-                  return (
-                    <div key={`step-${segment.index}`}>
-                      {renderStepCard(form.steps[segment.index], segment.index, `Step ${si + 1}`)}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={`group-${segment.groupId}`}
-                    className="rounded-xl border-2 border-[var(--accent)] p-3 space-y-3"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">
-                        Repeat
-                      </span>
-                      <span className="text-xs text-[var(--accent)]">×</span>
-                      <input
-                        type="number"
-                        min="1"
-                        value={segment.repeatCount}
-                        onChange={(e) =>
-                          updateGroupRepeatCount(segment.groupId, parseInt(e.target.value) || 1)
-                        }
-                        className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-                      />
-                      <span className="text-xs text-[var(--muted)] flex-1">times</span>
-                      <button
-                        type="button"
-                        onClick={() => ungroup(segment.groupId)}
-                        className="text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
-                      >
-                        Ungroup
-                      </button>
-                    </div>
-
-                    <div className="space-y-2 pl-2 border-l-2 border-[var(--accent)] opacity-90">
-                      {segment.indices.map((actualIndex, j) => (
-                        <div key={actualIndex}>
-                          {renderStepCard(form.steps[actualIndex], actualIndex, `Step ${j + 1}`)}
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => addStepToGroup(segment.groupId)}
-                      className="text-xs text-[var(--accent)] hover:underline"
-                    >
-                      + Add step to group
-                    </button>
+              <DndContext
+                sensors={outerSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={onSegmentDragEnd}
+              >
+                <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-3">
+                    {segments.map((seg, si) => {
+                      if (seg.type === "step") {
+                        return (
+                          <SortableStepCard
+                            key={`step-${seg.index}`}
+                            id={`step-${seg.index}`}
+                            step={form.steps[seg.index]}
+                            actualIndex={seg.index}
+                            label={`Step ${si + 1}`}
+                            onRemove={removeStep}
+                            onUpdate={updateStep}
+                            onSwitchUnit={switchStepUnit}
+                            inputClass={inputClass}
+                            labelClass={labelClass}
+                          />
+                        );
+                      }
+                      return (
+                        <SortableGroupContainer
+                          key={`group-${seg.groupId}`}
+                          id={`group-${seg.groupId}`}
+                          groupId={seg.groupId}
+                          repeatCount={seg.repeatCount}
+                          indices={seg.indices}
+                          steps={form.steps}
+                          onUpdateRepeatCount={updateGroupRepeatCount}
+                          onUngroup={ungroup}
+                          onAddStepToGroup={addStepToGroup}
+                          onGroupDragEnd={onGroupDragEnd}
+                          onRemove={removeStep}
+                          onUpdate={updateStep}
+                          onSwitchUnit={switchStepUnit}
+                          inputClass={inputClass}
+                          labelClass={labelClass}
+                        />
+                      );
+                    })}
                   </div>
-                );
-              })}
+                </SortableContext>
+              </DndContext>
             </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
