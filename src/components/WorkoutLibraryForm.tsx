@@ -15,7 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
-import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
+import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
 import {
   buildSegments,
   SortableStepCard,
@@ -486,31 +486,9 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                     {totalDurationMin > 0 && (
                       <div className="space-y-0.5">
                         <span className={labelClass}>Total duration</span>
-                        <p className="text-sm font-medium">{totalDurationMin} min</p>
+                        <p className="text-sm font-medium">{Math.round(totalDurationMin)} min</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {isRun && (
-                  <div className="space-y-1">
-                    <label className={labelClass}>Overall pace</label>
-                    <select
-                      value={form.pace_type}
-                      onChange={(e) => setForm((p) => ({ ...p, pace_type: e.target.value }))}
-                      className={inputClass}
-                    >
-                      <option value="">None</option>
-                      {paces.length === 0 ? (
-                        <option value="" disabled>No paces saved — add them on the Paces page</option>
-                      ) : (
-                        paces.map((p) => (
-                          <option key={p.id} value={p.name}>
-                            {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, form.distance_unit === "mi" ? "mi" : "km")}
-                          </option>
-                        ))
-                      )}
-                    </select>
                   </div>
                 )}
               </div>
