@@ -41,10 +41,45 @@ export function WorkoutCard({
     paces
   );
 
+  const tagColor = workout.run_type
+    ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : WORKOUT_TYPE_COLORS[workout.type];
+  const tagLabel = workout.run_type
+    ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type])
+    : WORKOUT_TYPE_LABELS[workout.type];
+
   if (workout.type === "rest") {
     return (
       <div className="rounded-lg border border-[var(--border)] p-3 opacity-60">
         <span className="text-sm text-[var(--muted)]">Rest day</span>
+      </div>
+    );
+  }
+
+  if (mode === "edit") {
+    return (
+      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
+        <div className={`px-2 py-1 text-xs font-medium text-center w-full ${tagColor}`}>
+          {tagLabel}
+        </div>
+        <div className="px-2 pt-1.5 pb-2">
+          <p className="text-xs font-medium leading-snug">{title}</p>
+        </div>
+        <div className="flex border-t border-[var(--border)]">
+          <button
+            onClick={() => onEdit?.(workout)}
+            className="flex-1 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] transition-colors"
+          >
+            Edit
+          </button>
+          <div className="w-px bg-[var(--border)]" />
+          <button
+            onClick={() => onDelete?.(workout)}
+            className="flex-1 py-1.5 text-xs text-[var(--muted)] hover:text-red-500 hover:bg-[var(--background)] transition-colors"
+          >
+            Delete
+          </button>
+        </div>
       </div>
     );
   }
@@ -57,53 +92,32 @@ export function WorkoutCard({
           : "border-[var(--border)] bg-[var(--card)]"
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full ${workout.run_type ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type]) : WORKOUT_TYPE_COLORS[workout.type]}`}
-            >
-              {workout.run_type ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type]) : WORKOUT_TYPE_LABELS[workout.type]}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${tagColor}`}>
+            {tagLabel}
+          </span>
+          {isCompleted && (
+            <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+              ✓ Done
             </span>
-            {isCompleted && (
-              <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                ✓ Done
-              </span>
-            )}
-          </div>
-          <p className={`text-sm font-medium mt-1 ${isCompleted ? "line-through opacity-60" : ""}`}>
-            {title}
-          </p>
-          {description && (
-            <p className="text-xs text-[var(--muted)] mt-0.5 leading-relaxed">{description}</p>
           )}
-          <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
-            {workout.distance_miles && (
-              <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
-            )}
-            {workout.pace_type && (
-              <span className="capitalize">{workout.pace_type} pace</span>
-            )}
-            {estimate && <span>~{estimate}</span>}
-          </div>
         </div>
-
-        {mode === "edit" && (
-          <div className="flex gap-1 shrink-0">
-            <button
-              onClick={() => onEdit?.(workout)}
-              className="text-xs px-2 py-1 rounded border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => onDelete?.(workout)}
-              className="text-xs px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950 transition-colors"
-            >
-              Delete
-            </button>
-          </div>
+        <p className={`text-sm font-medium mt-1 ${isCompleted ? "line-through opacity-60" : ""}`}>
+          {title}
+        </p>
+        {description && (
+          <p className="text-xs text-[var(--muted)] mt-0.5 leading-relaxed">{description}</p>
         )}
+        <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
+          {workout.distance_miles && (
+            <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
+          )}
+          {workout.pace_type && (
+            <span className="capitalize">{workout.pace_type} pace</span>
+          )}
+          {estimate && <span>~{estimate}</span>}
+        </div>
       </div>
 
       {mode === "dashboard" && (
