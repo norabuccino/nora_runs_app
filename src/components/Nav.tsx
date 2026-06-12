@@ -14,6 +14,7 @@ const navLinks = [
   { href: "/dashboard", label: "Today" },
   { href: "/my-plan", label: "My Plan" },
   { href: "/plans", label: "Plans" },
+  { href: "/workouts", label: "Workouts" },
   { href: "/paces", label: "Paces" },
 ];
 

@@ -40,7 +40,8 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/protected") ||
       pathname.startsWith("/plans") ||
       pathname.startsWith("/my-plan") ||
-      pathname.startsWith("/paces");
+      pathname.startsWith("/paces") ||
+      pathname.startsWith("/workouts");
 
     if (!user && isProtectedRoute) {
       const url = request.nextUrl.clone();
