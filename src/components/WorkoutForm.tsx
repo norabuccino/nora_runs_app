@@ -16,9 +16,9 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { WorkoutType, PaceType, RunType, WorkoutWithSteps } from "@/types/database";
+import type { WorkoutType, RunType, WorkoutWithSteps, RunningPace } from "@/types/database";
 import { DAY_NAMES, STEP_TYPE_LABELS } from "@/lib/paceUtils";
-import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
+import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -52,7 +52,7 @@ export interface WorkoutFormData {
   description: string;
   distance_miles: string;
   distance_unit: "mi" | "km";
-  pace_type: PaceType | "";
+  pace_type: string;
   duration_minutes: string;
   notes: string;
   sort_order: number;
@@ -92,6 +92,33 @@ export function buildSegments(steps: WorkoutStepFormRow[]): RenderSegment[] {
 
 function segmentId(seg: RenderSegment): string {
   return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
+}
+
+// Distance in miles for a single step, using pace to fill in when distance is absent
+export function computeStepDistanceMi(step: WorkoutStepFormRow, paces: RunningPace[]): number {
+  const d = parseFloat(step.distance_miles);
+  if (!isNaN(d) && d > 0) return convertDistance(d, step.distance_unit, "mi");
+  if (step.pace_type) {
+    const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
+    const dur = parseFloat(step.duration_minutes);
+    if (pace && !isNaN(dur) && dur > 0) return (dur * 60) / pace.pace_seconds_per_mile;
+  }
+  return 0;
+}
+
+// Duration in minutes for a single step, using pace to fill in when duration is absent
+export function computeStepDurationMin(step: WorkoutStepFormRow, paces: RunningPace[]): number {
+  const dur = parseFloat(step.duration_minutes);
+  if (!isNaN(dur) && dur > 0) return dur;
+  if (step.pace_type) {
+    const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
+    const d = parseFloat(step.distance_miles);
+    if (pace && !isNaN(d) && d > 0) {
+      const distMi = convertDistance(d, step.distance_unit, "mi");
+      return (distMi * pace.pace_seconds_per_mile) / 60;
+    }
+  }
+  return 0;
 }
 
 function blankStep(
@@ -165,6 +192,7 @@ interface StepCardProps {
   step: WorkoutStepFormRow;
   actualIndex: number;
   label: string;
+  paces: RunningPace[];
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
@@ -177,6 +205,7 @@ export function SortableStepCard({
   step,
   actualIndex,
   label,
+  paces,
   onRemove,
   onUpdate,
   onSwitchUnit,
@@ -249,11 +278,15 @@ export function SortableStepCard({
               className={inputClass}
             >
               <option value="">None</option>
-              <option value="easy">Easy</option>
-              <option value="tempo">Tempo</option>
-              <option value="threshold">Threshold</option>
-              <option value="race">Race</option>
-              <option value="interval">Interval</option>
+              {paces.length === 0 ? (
+                <option value="" disabled>No paces saved — add them on the Paces page</option>
+              ) : (
+                paces.map((p) => (
+                  <option key={p.id} value={p.name}>
+                    {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
+                  </option>
+                ))
+              )}
             </select>
           </div>
           <div className="space-y-1">
@@ -309,6 +342,7 @@ interface GroupContainerProps {
   repeatCount: number;
   indices: number[];
   steps: WorkoutStepFormRow[];
+  paces: RunningPace[];
   onUpdateRepeatCount: (groupId: number, count: number) => void;
   onUngroup: (groupId: number) => void;
   onAddStepToGroup: (groupId: number) => void;
@@ -326,6 +360,7 @@ export function SortableGroupContainer({
   repeatCount,
   indices,
   steps,
+  paces,
   onUpdateRepeatCount,
   onUngroup,
   onAddStepToGroup,
@@ -395,6 +430,7 @@ export function SortableGroupContainer({
                   step={steps[actualIndex]}
                   actualIndex={actualIndex}
                   label={`Step ${j + 1}`}
+                  paces={paces}
                   onRemove={onRemove}
                   onUpdate={onUpdate}
                   onSwitchUnit={onSwitchUnit}
@@ -425,6 +461,7 @@ interface WorkoutFormProps {
   weekNumber: number;
   dayOfWeek: number;
   existing?: WorkoutWithSteps | null;
+  paces?: RunningPace[];
   onSave: (data: WorkoutFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -434,6 +471,7 @@ export function WorkoutForm({
   weekNumber,
   dayOfWeek,
   existing,
+  paces = [],
   onSave,
   onCancel,
 }: WorkoutFormProps) {
@@ -594,19 +632,32 @@ export function WorkoutForm({
     setForm((prev) => ({ ...prev, steps: arrayMove(prev.steps, activeIdx, overIdx) }));
   }
 
-  // ── Computed totals from steps ──
+  // ── Computed totals from steps (respects repeat groups + pace interpolation) ──
 
-  const totalDistInUnit = form.steps.reduce((sum, s) => {
-    const v = parseFloat(s.distance_miles);
-    if (isNaN(v) || v <= 0) return sum;
-    const inMi = convertDistance(v, s.distance_unit, "mi");
-    return sum + convertDistance(inMi, "mi", form.distance_unit as DistanceUnit);
-  }, 0);
-
-  const totalDurationMin = form.steps.reduce((sum, s) => {
-    const v = parseFloat(s.duration_minutes);
-    return isNaN(v) ? sum : sum + v;
-  }, 0);
+  const { totalDistInUnit, totalDurationMin } = (() => {
+    const segs = buildSegments(form.steps);
+    let distMiSum = 0;
+    let durSum = 0;
+    for (const seg of segs) {
+      if (seg.type === "step") {
+        distMiSum += computeStepDistanceMi(form.steps[seg.index], paces);
+        durSum += computeStepDurationMin(form.steps[seg.index], paces);
+      } else {
+        let groupDistMi = 0;
+        let groupDur = 0;
+        seg.indices.forEach((i) => {
+          groupDistMi += computeStepDistanceMi(form.steps[i], paces);
+          groupDur += computeStepDurationMin(form.steps[i], paces);
+        });
+        distMiSum += groupDistMi * seg.repeatCount;
+        durSum += groupDur * seg.repeatCount;
+      }
+    }
+    return {
+      totalDistInUnit: convertDistance(distMiSum, "mi", form.distance_unit as DistanceUnit),
+      totalDurationMin: durSum,
+    };
+  })();
 
   // ── Submit ──
 
@@ -773,6 +824,7 @@ export function WorkoutForm({
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
+                            paces={paces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
@@ -789,6 +841,7 @@ export function WorkoutForm({
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
+                          paces={paces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
@@ -839,20 +892,22 @@ export function WorkoutForm({
 
                 {isRun && (
                   <div className="space-y-1">
-                    <label className={labelClass}>Pace type</label>
+                    <label className={labelClass}>Overall pace</label>
                     <select
                       value={form.pace_type}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, pace_type: e.target.value as PaceType | "" }))
-                      }
+                      onChange={(e) => setForm((p) => ({ ...p, pace_type: e.target.value }))}
                       className={inputClass}
                     >
                       <option value="">None</option>
-                      <option value="easy">Easy</option>
-                      <option value="tempo">Tempo</option>
-                      <option value="threshold">Threshold</option>
-                      <option value="race">Race</option>
-                      <option value="interval">Interval</option>
+                      {paces.length === 0 ? (
+                        <option value="" disabled>No paces saved — add them on the Paces page</option>
+                      ) : (
+                        paces.map((p) => (
+                          <option key={p.id} value={p.name}>
+                            {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, form.distance_unit === "mi" ? "mi" : "km")}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 )}

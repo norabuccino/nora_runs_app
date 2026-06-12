@@ -12,7 +12,7 @@ export interface LibraryWorkoutData {
   description?: string | null;
   distance_miles?: number | null;
   distance_unit?: string;
-  pace_type?: PaceType | null;
+  pace_type?: string | null;
   duration_minutes?: number | null;
   notes?: string | null;
   steps?: WorkoutStepData[];

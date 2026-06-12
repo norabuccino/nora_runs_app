@@ -50,7 +50,7 @@ export interface Database {
           description: string | null;
           distance_miles: number | null;
           distance_unit: string;
-          pace_type: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type: string | null;
           duration_minutes: number | null;
           notes: string | null;
           sort_order: number;
@@ -66,7 +66,7 @@ export interface Database {
           description?: string | null;
           distance_miles?: number | null;
           distance_unit?: string;
-          pace_type?: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
           sort_order?: number;
@@ -82,7 +82,7 @@ export interface Database {
           description?: string | null;
           distance_miles?: number | null;
           distance_unit?: string;
-          pace_type?: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
           sort_order?: number;
@@ -145,7 +145,7 @@ export interface Database {
           description: string | null;
           distance_miles: number | null;
           distance_unit: string;
-          pace_type: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type: string | null;
           duration_minutes: number | null;
           notes: string | null;
           created_at: string;
@@ -159,7 +159,7 @@ export interface Database {
           description?: string | null;
           distance_miles?: number | null;
           distance_unit?: string;
-          pace_type?: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
           created_at?: string;
@@ -173,7 +173,7 @@ export interface Database {
           description?: string | null;
           distance_miles?: number | null;
           distance_unit?: string;
-          pace_type?: "easy" | "tempo" | "threshold" | "race" | "interval" | null;
+          pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
           created_at?: string;

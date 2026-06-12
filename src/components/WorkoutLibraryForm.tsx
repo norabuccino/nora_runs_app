@@ -14,18 +14,21 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import type { WorkoutType, PaceType, RunType, LibraryWorkoutWithSteps } from "@/types/database";
-import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
+import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
+import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
 import {
   buildSegments,
   SortableStepCard,
   SortableGroupContainer,
+  computeStepDistanceMi,
+  computeStepDurationMin,
   type WorkoutStepFormRow,
   type StringStepKey,
 } from "./WorkoutForm";
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
+  paces?: RunningPace[];
   onSave: (data: WorkoutLibraryFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -37,7 +40,7 @@ export interface WorkoutLibraryFormData {
   description: string;
   distance_miles: string;
   distance_unit: "mi" | "km";
-  pace_type: PaceType | "";
+  pace_type: string;
   duration_minutes: string;
   notes: string;
   steps: WorkoutStepFormRow[];
@@ -94,7 +97,7 @@ function segmentId(seg: ReturnType<typeof buildSegments>[number]): string {
   return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
 }
 
-export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibraryFormProps) {
+export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: WorkoutLibraryFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -242,17 +245,30 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
     setForm((prev) => ({ ...prev, steps: arrayMove(prev.steps, activeIdx, overIdx) }));
   }
 
-  const totalDistInUnit = form.steps.reduce((sum, s) => {
-    const v = parseFloat(s.distance_miles);
-    if (isNaN(v) || v <= 0) return sum;
-    const inMi = convertDistance(v, s.distance_unit, "mi");
-    return sum + convertDistance(inMi, "mi", form.distance_unit as DistanceUnit);
-  }, 0);
-
-  const totalDurationMin = form.steps.reduce((sum, s) => {
-    const v = parseFloat(s.duration_minutes);
-    return isNaN(v) ? sum : sum + v;
-  }, 0);
+  const { totalDistInUnit, totalDurationMin } = (() => {
+    const segs = buildSegments(form.steps);
+    let distMiSum = 0;
+    let durSum = 0;
+    for (const seg of segs) {
+      if (seg.type === "step") {
+        distMiSum += computeStepDistanceMi(form.steps[seg.index], paces);
+        durSum += computeStepDurationMin(form.steps[seg.index], paces);
+      } else {
+        let groupDistMi = 0;
+        let groupDur = 0;
+        seg.indices.forEach((i) => {
+          groupDistMi += computeStepDistanceMi(form.steps[i], paces);
+          groupDur += computeStepDurationMin(form.steps[i], paces);
+        });
+        distMiSum += groupDistMi * seg.repeatCount;
+        durSum += groupDur * seg.repeatCount;
+      }
+    }
+    return {
+      totalDistInUnit: convertDistance(distMiSum, "mi", form.distance_unit as DistanceUnit),
+      totalDurationMin: durSum,
+    };
+  })();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -410,6 +426,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
+                            paces={paces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
@@ -426,6 +443,7 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
+                          paces={paces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
@@ -476,20 +494,22 @@ export function WorkoutLibraryForm({ existing, onSave, onCancel }: WorkoutLibrar
 
                 {isRun && (
                   <div className="space-y-1">
-                    <label className={labelClass}>Pace type</label>
+                    <label className={labelClass}>Overall pace</label>
                     <select
                       value={form.pace_type}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, pace_type: e.target.value as PaceType | "" }))
-                      }
+                      onChange={(e) => setForm((p) => ({ ...p, pace_type: e.target.value }))}
                       className={inputClass}
                     >
                       <option value="">None</option>
-                      <option value="easy">Easy</option>
-                      <option value="tempo">Tempo</option>
-                      <option value="threshold">Threshold</option>
-                      <option value="race">Race</option>
-                      <option value="interval">Interval</option>
+                      {paces.length === 0 ? (
+                        <option value="" disabled>No paces saved — add them on the Paces page</option>
+                      ) : (
+                        paces.map((p) => (
+                          <option key={p.id} value={p.name}>
+                            {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, form.distance_unit === "mi" ? "mi" : "km")}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
                 )}

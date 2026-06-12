@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { TrainingPlan, PlanWorkout, WorkoutWithSteps } from "@/types/database";
+import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@/types/database";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { WorkoutImportModal } from "@/components/WorkoutImportModal";
@@ -15,6 +15,7 @@ export default function EditPlanPage() {
   const router = useRouter();
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutWithSteps[]>([]);
+  const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState<{
     open: boolean;
@@ -27,10 +28,11 @@ export default function EditPlanPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }, { data: s }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: s }, { data: pac }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
       supabase.from("plan_workouts").select("*").eq("plan_id", id).order("sort_order"),
       supabase.from("workout_steps").select("*").order("step_order"),
+      supabase.from("running_paces").select("*").order("created_at"),
     ]);
 
     const stepsMap: Record<string, typeof s> = {};
@@ -46,6 +48,7 @@ export default function EditPlanPage() {
 
     setPlan(p);
     setWorkouts(workoutsWithSteps);
+    setPaces(pac ?? []);
     setLoading(false);
   }
 
@@ -161,6 +164,7 @@ export default function EditPlanPage() {
           weekNumber={formState.weekNumber}
           dayOfWeek={formState.dayOfWeek}
           existing={formState.existing}
+          paces={paces}
           onSave={handleSave}
           onCancel={() => setFormState((s) => ({ ...s, open: false }))}
         />

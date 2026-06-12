@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LibraryWorkoutWithSteps } from "@/types/database";
+import type { LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
 import { createLibraryWorkout, updateLibraryWorkout, deleteLibraryWorkout } from "@/app/actions/workoutLibrary";
@@ -11,6 +11,7 @@ import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilte
 
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
+  const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
@@ -20,9 +21,10 @@ export default function WorkoutsPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: ws }, { data: steps }] = await Promise.all([
+    const [{ data: ws }, { data: steps }, { data: pac }] = await Promise.all([
       supabase.from("workouts").select("*").order("created_at", { ascending: false }),
       supabase.from("workout_steps").select("*").not("workout_id", "is", null).order("step_order"),
+      supabase.from("running_paces").select("*").order("created_at"),
     ]);
 
     const stepsMap: Record<string, typeof steps> = {};
@@ -33,6 +35,7 @@ export default function WorkoutsPage() {
     });
 
     setWorkouts((ws ?? []).map((w) => ({ ...w, workout_steps: stepsMap[w.id] ?? [] })));
+    setPaces(pac ?? []);
     setLoading(false);
   }
 
@@ -148,6 +151,7 @@ export default function WorkoutsPage() {
       {formOpen && (
         <WorkoutLibraryForm
           existing={editing}
+          paces={paces}
           onSave={handleSave}
           onCancel={() => { setFormOpen(false); setEditing(null); }}
         />
