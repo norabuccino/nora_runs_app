@@ -226,104 +226,81 @@ export function SortableStepCard({
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const compactInput =
+    "w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <div className="rounded-lg border border-[var(--border)] p-3 space-y-2 bg-[var(--card)]">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              {...listeners}
-              className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-grab active:cursor-grabbing touch-none flex items-center"
-              aria-label="Drag to reorder"
-            >
-              <GripIcon />
-            </button>
-            <span className="text-xs font-medium">{label}</span>
-          </div>
+      <div className="rounded-lg border border-[var(--border)] p-2 space-y-1.5 bg-[var(--card)]">
+        {/* Row 1: grip · step type · × */}
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={() => onRemove(actualIndex)}
-            className="text-xs text-[var(--muted)] hover:text-red-500"
+            {...listeners}
+            className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-grab active:cursor-grabbing touch-none flex items-center shrink-0"
+            aria-label="Drag to reorder"
           >
-            Remove
+            <GripIcon />
           </button>
-        </div>
-
-        <div className="space-y-1">
-          <label className={labelClass}>Step type</label>
           <select
             value={step.step_type}
             onChange={(e) => onUpdate(actualIndex, "step_type", e.target.value)}
-            className={inputClass}
+            className={`${compactInput} flex-1`}
           >
             {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
               <option key={val} value={val}>{lbl}</option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => onRemove(actualIndex)}
+            className="shrink-0 text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+            aria-label="Remove step"
+          >
+            ×
+          </button>
         </div>
 
-        <div className="space-y-1">
-          <label className={labelClass}>Pace</label>
+        {/* Row 2: pace · duration · distance + unit */}
+        <div className="flex items-start gap-1.5">
           <select
             value={step.pace_type}
             onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-            className={inputClass}
+            className={`${compactInput} flex-1 min-w-0`}
           >
-            <option value="">None</option>
-            {paces.length === 0 ? (
-              <option value="" disabled>No paces saved — add them on the Paces page</option>
-            ) : (
-              paces.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
-                </option>
-              ))
-            )}
+            <option value="">Pace: none</option>
+            {paces.map((p) => (
+              <option key={p.id} value={p.name}>
+                {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
+              </option>
+            ))}
           </select>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <label className={labelClass}>Duration (min)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            placeholder="min"
+            value={step.duration_minutes}
+            onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
+            className={`${compactInput} w-14 shrink-0`}
+          />
+          <div className="flex gap-0.5 items-start shrink-0">
             <input
               type="number"
               min="0"
-              step="0.5"
-              value={step.duration_minutes}
-              onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
-              className={inputClass}
+              step={step.distance_unit === "m" ? "10" : "0.1"}
+              placeholder="dist"
+              value={step.distance_miles}
+              onChange={(e) => onUpdate(actualIndex, "distance_miles", e.target.value)}
+              className={`${compactInput} w-14`}
+            />
+            <UnitToggle
+              vertical
+              units={["mi", "km", "m"]}
+              active={step.distance_unit}
+              onChange={(u) => onSwitchUnit(actualIndex, u)}
             />
           </div>
-          <div className="space-y-1">
-            <label className={labelClass}>Distance</label>
-            <div className="flex gap-1 items-start">
-              <input
-                type="number"
-                min="0"
-                step={step.distance_unit === "m" ? "10" : "0.1"}
-                value={step.distance_miles}
-                onChange={(e) => onUpdate(actualIndex, "distance_miles", e.target.value)}
-                className={`${inputClass} flex-1 min-w-0`}
-              />
-              <UnitToggle
-                vertical
-                units={["mi", "km", "m"]}
-                active={step.distance_unit}
-                onChange={(u) => onSwitchUnit(actualIndex, u)}
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-1">
-          <label className={labelClass}>Notes</label>
-          <input
-            type="text"
-            value={step.notes}
-            onChange={(e) => onUpdate(actualIndex, "notes", e.target.value)}
-            className={inputClass}
-          />
         </div>
       </div>
     </div>
