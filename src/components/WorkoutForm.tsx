@@ -226,8 +226,8 @@ export function SortableStepCard({
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const compactInput =
-    "w-full rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
+  const ci =
+    "rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
@@ -245,7 +245,7 @@ export function SortableStepCard({
           <select
             value={step.step_type}
             onChange={(e) => onUpdate(actualIndex, "step_type", e.target.value)}
-            className={`${compactInput} flex-1`}
+            className={`${ci} flex-1 min-w-0`}
           >
             {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
               <option key={val} value={val}>{lbl}</option>
@@ -262,11 +262,11 @@ export function SortableStepCard({
         </div>
 
         {/* Row 2: pace · duration · distance + unit */}
-        <div className="flex items-start gap-1.5">
+        <div className="flex items-start gap-1.5 min-w-0">
           <select
             value={step.pace_type}
             onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-            className={`${compactInput} flex-1 min-w-0`}
+            className={`${ci} flex-1 min-w-0`}
           >
             <option value="">Pace: none</option>
             {paces.map((p) => (
@@ -282,7 +282,8 @@ export function SortableStepCard({
             placeholder="min"
             value={step.duration_minutes}
             onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
-            className={`${compactInput} w-14 shrink-0`}
+            style={{ width: "3.5rem" }}
+            className={`${ci} shrink-0`}
           />
           <div className="flex gap-0.5 items-start shrink-0">
             <input
@@ -292,7 +293,8 @@ export function SortableStepCard({
               placeholder="dist"
               value={step.distance_miles}
               onChange={(e) => onUpdate(actualIndex, "distance_miles", e.target.value)}
-              className={`${compactInput} w-14`}
+              style={{ width: "3.5rem" }}
+              className={ci}
             />
             <UnitToggle
               vertical
