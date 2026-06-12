@@ -161,19 +161,24 @@ function UnitToggle({
   units,
   active,
   onChange,
+  vertical = false,
 }: {
   units: DistanceUnit[];
   active: DistanceUnit;
   onChange: (u: DistanceUnit) => void;
+  vertical?: boolean;
 }) {
   return (
-    <div className="flex rounded border border-[var(--border)] overflow-hidden shrink-0" style={{ fontSize: "10px" }}>
+    <div
+      className={`${vertical ? "flex-col" : "flex"} flex rounded border border-[var(--border)] overflow-hidden shrink-0`}
+      style={{ fontSize: "10px" }}
+    >
       {units.map((u) => (
         <button
           key={u}
           type="button"
           onClick={() => onChange(u)}
-          className={`px-1.5 py-0.5 leading-none transition-colors ${
+          className={`px-1.5 leading-none transition-colors ${vertical ? "py-1" : "py-0.5"} ${
             active === u
               ? "bg-[var(--foreground)] text-[var(--background)]"
               : "bg-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
@@ -245,51 +250,40 @@ export function SortableStepCard({
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <label className={labelClass}>Step type</label>
-            <select
-              value={step.step_type}
-              onChange={(e) => onUpdate(actualIndex, "step_type", e.target.value)}
-              className={inputClass}
-            >
-              {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
-                <option key={val} value={val}>{lbl}</option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label className={labelClass}>Label (optional)</label>
-            <input
-              type="text"
-              value={step.label}
-              onChange={(e) => onUpdate(actualIndex, "label", e.target.value)}
-              placeholder="e.g. 400m fast"
-              className={inputClass}
-            />
-          </div>
+        <div className="space-y-1">
+          <label className={labelClass}>Step type</label>
+          <select
+            value={step.step_type}
+            onChange={(e) => onUpdate(actualIndex, "step_type", e.target.value)}
+            className={inputClass}
+          >
+            {Object.entries(STEP_TYPE_LABELS).map(([val, lbl]) => (
+              <option key={val} value={val}>{lbl}</option>
+            ))}
+          </select>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="space-y-1">
-            <label className={labelClass}>Pace</label>
-            <select
-              value={step.pace_type}
-              onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-              className={inputClass}
-            >
-              <option value="">None</option>
-              {paces.length === 0 ? (
-                <option value="" disabled>No paces saved — add them on the Paces page</option>
-              ) : (
-                paces.map((p) => (
-                  <option key={p.id} value={p.name}>
-                    {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
+        <div className="space-y-1">
+          <label className={labelClass}>Pace</label>
+          <select
+            value={step.pace_type}
+            onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
+            className={inputClass}
+          >
+            <option value="">None</option>
+            {paces.length === 0 ? (
+              <option value="" disabled>No paces saved — add them on the Paces page</option>
+            ) : (
+              paces.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <label className={labelClass}>Duration (min)</label>
             <input
@@ -303,7 +297,7 @@ export function SortableStepCard({
           </div>
           <div className="space-y-1">
             <label className={labelClass}>Distance</label>
-            <div className="flex gap-1 items-center">
+            <div className="flex gap-1 items-start">
               <input
                 type="number"
                 min="0"
@@ -313,6 +307,7 @@ export function SortableStepCard({
                 className={`${inputClass} flex-1 min-w-0`}
               />
               <UnitToggle
+                vertical
                 units={["mi", "km", "m"]}
                 active={step.distance_unit}
                 onChange={(u) => onSwitchUnit(actualIndex, u)}
