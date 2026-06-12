@@ -1,17 +1,10 @@
 import Link from "next/link";
 import type { TrainingPlan } from "@/types/database";
-import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS } from "@/lib/paceUtils";
 
 interface PlanCardProps {
   plan: TrainingPlan;
 }
-
-const PLAN_TYPE_COLORS: Record<string, string> = {
-  marathon: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  half_marathon: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  strength: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  custom: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-};
 
 export function PlanCard({ plan }: PlanCardProps) {
   return (

@@ -8,7 +8,16 @@ import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { WorkoutImportModal } from "@/components/WorkoutImportModal";
+import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
+import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
+import { DAY_NAMES } from "@/lib/paceUtils";
+
+type AddFlow =
+  | { step: "idle" }
+  | { step: "picking"; weekNumber: number; dayOfWeek: number }
+  | { step: "library"; weekNumber: number; dayOfWeek: number }
+  | { step: "form"; weekNumber: number; dayOfWeek: number; existing: WorkoutWithSteps | null };
 
 export default function EditPlanPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,12 +26,7 @@ export default function EditPlanPage() {
   const [workouts, setWorkouts] = useState<WorkoutWithSteps[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
-  const [formState, setFormState] = useState<{
-    open: boolean;
-    weekNumber: number;
-    dayOfWeek: number;
-    existing: WorkoutWithSteps | null;
-  }>({ open: false, weekNumber: 1, dayOfWeek: 0, existing: null });
+  const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
   const [showImport, setShowImport] = useState(false);
   const [isPending, startTransition] = useTransition();
 
@@ -55,12 +59,12 @@ export default function EditPlanPage() {
   useEffect(() => { load(); }, [id]);
 
   function openAdd(weekNumber: number, dayOfWeek: number) {
-    setFormState({ open: true, weekNumber, dayOfWeek, existing: null });
+    setFlow({ step: "picking", weekNumber, dayOfWeek });
   }
 
   function openEdit(workout: PlanWorkout) {
     const full = workouts.find((w) => w.id === workout.id) ?? null;
-    setFormState({ open: true, weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: full });
+    setFlow({ step: "form", weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: full });
   }
 
   function handleDelete(workout: PlanWorkout) {
@@ -101,12 +105,29 @@ export default function EditPlanPage() {
       steps,
     };
 
-    if (formState.existing) {
-      await updateWorkout(formState.existing.id, payload);
+    const existing = flow.step === "form" ? flow.existing : null;
+    if (existing) {
+      await updateWorkout(existing.id, payload);
     } else {
       await createWorkout(payload);
     }
-    setFormState((s) => ({ ...s, open: false }));
+
+    if (data.saveToLibrary) {
+      await createLibraryWorkout({
+        type: data.type,
+        run_type: data.run_type || null,
+        title: data.title,
+        description: data.description || null,
+        distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,
+        distance_unit: data.distance_unit ?? "mi",
+        pace_type: data.pace_type || null,
+        duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
+        notes: data.notes || null,
+        steps,
+      });
+    }
+
+    setFlow({ step: "idle" });
     await load();
   }
 
@@ -158,15 +179,63 @@ export default function EditPlanPage() {
         ))}
       </div>
 
-      {formState.open && (
+      {/* Step 1: Choose how to add */}
+      {flow.step === "picking" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">
+                Add workout — Wk {flow.weekNumber}, {DAY_NAMES[flow.dayOfWeek]}
+              </h2>
+              <button
+                onClick={() => setFlow({ step: "idle" })}
+                className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setFlow({ ...flow, step: "library" })}
+                className="rounded-xl border border-[var(--border)] p-4 text-left hover:border-[var(--foreground)] transition-colors space-y-1.5"
+              >
+                <p className="text-sm font-medium">From library</p>
+                <p className="text-xs text-[var(--muted)]">Pick a saved workout</p>
+              </button>
+              <button
+                onClick={() => setFlow({ ...flow, step: "form", existing: null })}
+                className="rounded-xl border border-[var(--border)] p-4 text-left hover:border-[var(--foreground)] transition-colors space-y-1.5"
+              >
+                <p className="text-sm font-medium">Create new</p>
+                <p className="text-xs text-[var(--muted)]">Build from scratch</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2a: Pick from library */}
+      {flow.step === "library" && (
+        <LibraryPickerModal
+          planId={id}
+          weekNumber={flow.weekNumber}
+          dayOfWeek={flow.dayOfWeek}
+          onAdded={async () => { setFlow({ step: "idle" }); await load(); }}
+          onCancel={() => setFlow({ step: "picking", weekNumber: flow.weekNumber, dayOfWeek: flow.dayOfWeek })}
+        />
+      )}
+
+      {/* Step 2b: Create new (or edit existing) */}
+      {flow.step === "form" && (
         <WorkoutForm
           planId={id}
-          weekNumber={formState.weekNumber}
-          dayOfWeek={formState.dayOfWeek}
-          existing={formState.existing}
+          weekNumber={flow.weekNumber}
+          dayOfWeek={flow.dayOfWeek}
+          existing={flow.existing}
           paces={paces}
+          showSaveToLibrary={!flow.existing}
           onSave={handleSave}
-          onCancel={() => setFormState((s) => ({ ...s, open: false }))}
+          onCancel={() => setFlow({ step: "idle" })}
         />
       )}
 

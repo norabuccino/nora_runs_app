@@ -57,6 +57,7 @@ export interface WorkoutFormData {
   notes: string;
   sort_order: number;
   steps: WorkoutStepFormRow[];
+  saveToLibrary?: boolean;
 }
 
 // ── Segment helpers ────────────────────────────────────────────────────────────
@@ -462,6 +463,7 @@ interface WorkoutFormProps {
   dayOfWeek: number;
   existing?: WorkoutWithSteps | null;
   paces?: RunningPace[];
+  showSaveToLibrary?: boolean;
   onSave: (data: WorkoutFormData) => Promise<void>;
   onCancel: () => void;
 }
@@ -472,11 +474,13 @@ export function WorkoutForm({
   dayOfWeek,
   existing,
   paces = [],
+  showSaveToLibrary = false,
   onSave,
   onCancel,
 }: WorkoutFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveToLibrary, setSaveToLibrary] = useState(false);
 
   const [form, setForm] = useState<WorkoutFormData>(() => ({
     plan_id: planId,
@@ -678,6 +682,7 @@ export function WorkoutForm({
             : form.distance_miles,
         duration_minutes:
           totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes,
+        saveToLibrary: showSaveToLibrary ? saveToLibrary : undefined,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -902,6 +907,18 @@ export function WorkoutForm({
                 className={`${inputClass} resize-none`}
               />
             </div>
+
+            {showSaveToLibrary && !existing && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={saveToLibrary}
+                  onChange={(e) => setSaveToLibrary(e.target.checked)}
+                  className="rounded border-[var(--border)] accent-[var(--accent)]"
+                />
+                Save to workout library
+              </label>
+            )}
 
             {error && (
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>

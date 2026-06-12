@@ -103,8 +103,19 @@ export const WORKOUT_TYPE_COLORS: Record<string, string> = {
 export const PLAN_TYPE_LABELS: Record<string, string> = {
   marathon: "Marathon",
   half_marathon: "Half Marathon",
+  "5k_10k": "5K / 10K",
+  base_building: "Base Building",
   strength: "Strength",
   custom: "Custom",
+};
+
+export const PLAN_TYPE_COLORS: Record<string, string> = {
+  marathon: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+  half_marathon: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+  "5k_10k": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  base_building: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  strength: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
+  custom: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
 };
 
 export const RUN_TYPE_LABELS: Record<string, string> = {

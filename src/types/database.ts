@@ -14,7 +14,7 @@ export interface Database {
           id: string;
           user_id: string;
           name: string;
-          type: "marathon" | "half_marathon" | "strength" | "custom";
+          type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           description: string | null;
           total_weeks: number;
           created_at: string;
@@ -23,7 +23,7 @@ export interface Database {
           id?: string;
           user_id: string;
           name: string;
-          type: "marathon" | "half_marathon" | "strength" | "custom";
+          type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           description?: string | null;
           total_weeks: number;
           created_at?: string;
@@ -32,7 +32,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           name?: string;
-          type?: "marathon" | "half_marathon" | "strength" | "custom";
+          type?: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           description?: string | null;
           total_weeks?: number;
           created_at?: string;
