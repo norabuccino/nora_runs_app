@@ -4,6 +4,8 @@ import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
 import {
   WORKOUT_TYPE_LABELS,
   WORKOUT_TYPE_COLORS,
+  RUN_TYPE_LABELS,
+  RUN_TYPE_COLORS,
   getWorkoutEstimate,
 } from "@/lib/paceUtils";
 
@@ -59,9 +61,9 @@ export function WorkoutCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`text-xs font-medium px-2 py-0.5 rounded-full ${WORKOUT_TYPE_COLORS[workout.type]}`}
+              className={`text-xs font-medium px-2 py-0.5 rounded-full ${workout.run_type ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type]) : WORKOUT_TYPE_COLORS[workout.type]}`}
             >
-              {WORKOUT_TYPE_LABELS[workout.type]}
+              {workout.run_type ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type]) : WORKOUT_TYPE_LABELS[workout.type]}
             </span>
             {isCompleted && (
               <span className="text-xs text-green-600 dark:text-green-400 font-medium">

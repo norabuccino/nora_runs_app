@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 
 interface Props {
@@ -108,8 +108,8 @@ export default async function PlanDetailPage({ params }: Props) {
                                 );
                                 return (
                                   <div key={w.id} className="flex items-center gap-2 flex-wrap">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full ${WORKOUT_TYPE_COLORS[w.type]}`}>
-                                      {WORKOUT_TYPE_LABELS[w.type]}
+                                    <span className={`text-xs px-2 py-0.5 rounded-full ${w.run_type ? (RUN_TYPE_COLORS[w.run_type] ?? WORKOUT_TYPE_COLORS[w.type]) : WORKOUT_TYPE_COLORS[w.type]}`}>
+                                      {w.run_type ? (RUN_TYPE_LABELS[w.run_type] ?? WORKOUT_TYPE_LABELS[w.type]) : WORKOUT_TYPE_LABELS[w.type]}
                                     </span>
                                     <span className="text-sm font-medium">{w.title}</span>
                                     {w.distance_miles && (
