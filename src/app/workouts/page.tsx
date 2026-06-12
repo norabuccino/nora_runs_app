@@ -7,6 +7,7 @@ import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/Wo
 import { AddToPlanModal } from "@/components/AddToPlanModal";
 import { createLibraryWorkout, updateLibraryWorkout, deleteLibraryWorkout } from "@/app/actions/workoutLibrary";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS } from "@/lib/paceUtils";
+import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
@@ -14,6 +15,7 @@ export default function WorkoutsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
   const [addToPlan, setAddToPlan] = useState<LibraryWorkoutWithSteps | null>(null);
+  const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [isPending, startTransition] = useTransition();
 
   async function load() {
@@ -117,19 +119,31 @@ export default function WorkoutsPage() {
         </div>
       )}
 
-      {!loading && workouts.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {workouts.map((workout) => (
-            <WorkoutLibraryCard
-              key={workout.id}
-              workout={workout}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onAddToPlan={(w) => setAddToPlan(w)}
-            />
-          ))}
-        </div>
-      )}
+      {!loading && workouts.length > 0 && (() => {
+        const filtered = applyWorkoutFilter(workouts, filter);
+        return (
+          <div className="space-y-4">
+            <WorkoutFilterBar filter={filter} onChange={setFilter} />
+            {filtered.length === 0 ? (
+              <p className="text-sm text-[var(--muted)] py-8 text-center">
+                No workouts match this filter.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {filtered.map((workout) => (
+                  <WorkoutLibraryCard
+                    key={workout.id}
+                    workout={workout}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onAddToPlan={(w) => setAddToPlan(w)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {formOpen && (
         <WorkoutLibraryForm

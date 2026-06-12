@@ -9,6 +9,7 @@ import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { WorkoutImportModal } from "@/components/WorkoutImportModal";
 import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
+import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 export default function EditPlanPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +24,7 @@ export default function EditPlanPage() {
     existing: WorkoutWithSteps | null;
   }>({ open: false, weekNumber: 1, dayOfWeek: 0, existing: null });
   const [showImport, setShowImport] = useState(false);
+  const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [isPending, startTransition] = useTransition();
 
   async function load() {
@@ -137,16 +139,19 @@ export default function EditPlanPage() {
         </div>
       </div>
 
-      <p className="text-sm text-[var(--muted)]">
-        Click <strong>+ Add</strong> in any day cell to add a workout, or click <strong>Edit</strong> on an existing one.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-[var(--muted)]">
+          Click <strong>+ Add</strong> in any day cell to add a workout, or click <strong>Edit</strong> on an existing one.
+        </p>
+        <WorkoutFilterBar filter={filter} onChange={setFilter} />
+      </div>
 
       <div className="space-y-10 overflow-x-auto pb-4">
         {weeks.map((weekNum) => (
           <WeekGrid
             key={weekNum}
             weekNumber={weekNum}
-            workouts={workouts}
+            workouts={applyWorkoutFilter(workouts, filter)}
             mode="edit"
             onEdit={openEdit}
             onDelete={handleDelete}
