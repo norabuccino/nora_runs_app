@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
+import { WorkoutImportModal } from "@/components/WorkoutImportModal";
 import {
   createLibraryWorkout,
   updateLibraryWorkout,
@@ -49,6 +50,7 @@ export default function WorkoutsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
   const [addToPlan, setAddToPlan] = useState<LibraryWorkoutWithSteps | null>(null);
+  const [showImport, setShowImport] = useState(false);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("az");
@@ -151,6 +153,12 @@ export default function WorkoutsPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowImport(true)}
+            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+          >
+            Import
+          </button>
+          <button
             onClick={() => setCompact((c) => !c)}
             title={compact ? "Switch to card view" : "Switch to compact view"}
             className="p-2 rounded-lg border border-[var(--border)] hover:bg-[var(--background)] transition-colors text-[var(--muted)]"
@@ -252,6 +260,13 @@ export default function WorkoutsPage() {
             </div>
           )}
         </div>
+      )}
+
+      {showImport && (
+        <WorkoutImportModal
+          onClose={() => setShowImport(false)}
+          onImported={async () => { setShowImport(false); await load(); }}
+        />
       )}
 
       {formOpen && (

@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@/types/database";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
-import { WorkoutImportModal } from "@/components/WorkoutImportModal";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
@@ -28,7 +27,6 @@ export default function EditPlanPage() {
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
   const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
-  const [showImport, setShowImport] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState("");
   const [planDescription, setPlanDescription] = useState("");
@@ -161,12 +159,6 @@ export default function EditPlanPage() {
         </Link>
         <div className="flex gap-2">
           <button
-            onClick={() => setShowImport(true)}
-            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
-          >
-            Import workouts
-          </button>
-          <button
             onClick={() => router.push(`/plans/${id}`)}
             className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
           >
@@ -278,17 +270,6 @@ export default function EditPlanPage() {
           showSaveToLibrary={!flow.existing}
           onSave={handleSave}
           onCancel={() => setFlow({ step: "idle" })}
-        />
-      )}
-
-      {showImport && (
-        <WorkoutImportModal
-          planId={id}
-          onClose={() => setShowImport(false)}
-          onImported={async () => {
-            setShowImport(false);
-            await load();
-          }}
         />
       )}
 

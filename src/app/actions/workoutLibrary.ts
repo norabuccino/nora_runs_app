@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import type { WorkoutType, PaceType, RunType } from "@/types/database";
+import type { WorkoutType, RunType } from "@/types/database";
 import type { WorkoutStepData } from "./workouts";
 
 export interface LibraryWorkoutData {
@@ -78,6 +78,46 @@ export async function deleteLibraryWorkout(id: string) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/workouts");
+}
+
+export interface LibraryImportRow {
+  type: WorkoutType;
+  run_type?: RunType | null;
+  title: string;
+  description?: string | null;
+  distance_miles?: number | null;
+  distance_unit?: string;
+  pace_type?: string | null;
+  duration_minutes?: number | null;
+  notes?: string | null;
+  steps?: WorkoutStepData[];
+}
+
+export async function importLibraryWorkouts(rows: LibraryImportRow[]): Promise<{ imported: number }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  let imported = 0;
+  for (const row of rows) {
+    const { steps, ...fields } = row;
+    const { data: workout, error } = await supabase
+      .from("workouts")
+      .insert({ ...fields, user_id: user.id })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    if (steps?.length) {
+      const stepsToInsert = steps.map((s, i) => ({ ...s, workout_id: workout.id, step_order: i }));
+      const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
+      if (stepsError) throw new Error(stepsError.message);
+    }
+    imported++;
+  }
+
+  revalidatePath("/workouts");
+  return { imported };
 }
 
 export async function duplicateLibraryWorkout(id: string) {
