@@ -25,6 +25,10 @@ const TYPE_PILLS: { value: WorkoutType | "all"; label: string }[] = [
   { value: "all", label: "All" },
   { value: "run", label: WORKOUT_TYPE_LABELS.run },
   { value: "strength", label: WORKOUT_TYPE_LABELS.strength },
+  { value: "bike", label: WORKOUT_TYPE_LABELS.bike },
+  { value: "swim", label: WORKOUT_TYPE_LABELS.swim },
+  { value: "yoga", label: WORKOUT_TYPE_LABELS.yoga },
+  { value: "elliptical", label: WORKOUT_TYPE_LABELS.elliptical },
   { value: "cross_train", label: WORKOUT_TYPE_LABELS.cross_train },
   { value: "rest", label: WORKOUT_TYPE_LABELS.rest },
 ];

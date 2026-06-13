@@ -351,6 +351,10 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
               >
                 <option value="run">Run</option>
                 <option value="strength">Strength</option>
+                <option value="bike">Bike</option>
+                <option value="swim">Swim</option>
+                <option value="yoga">Yoga</option>
+                <option value="elliptical">Elliptical</option>
                 <option value="cross_train">Cross-Train</option>
                 <option value="rest">Rest</option>
               </select>

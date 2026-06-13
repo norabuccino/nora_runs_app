@@ -91,6 +91,10 @@ export const WORKOUT_TYPE_LABELS: Record<string, string> = {
   strength: "Strength",
   rest: "Rest",
   cross_train: "Cross-Train",
+  bike: "Bike",
+  swim: "Swim",
+  yoga: "Yoga",
+  elliptical: "Elliptical",
 };
 
 export const WORKOUT_TYPE_COLORS: Record<string, string> = {
@@ -98,6 +102,10 @@ export const WORKOUT_TYPE_COLORS: Record<string, string> = {
   strength: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
   rest: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
   cross_train: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  bike: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
+  swim: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
+  yoga: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+  elliptical: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
 };
 
 export const PLAN_TYPE_LABELS: Record<string, string> = {
