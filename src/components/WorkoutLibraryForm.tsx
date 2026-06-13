@@ -56,6 +56,7 @@ function blankStep(
     label: "",
     pace_type: "",
     duration_minutes: "",
+    duration_unit: "min",
     distance_miles: "",
     distance_unit: unit,
     notes: "",
@@ -117,6 +118,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
         label: s.label ?? "",
         pace_type: s.pace_type ?? "",
         duration_minutes: s.duration_minutes?.toString() ?? "",
+        duration_unit: "min" as const,
         distance_miles: s.distance_miles?.toString() ?? "",
         distance_unit: (s.distance_unit as DistanceUnit) ?? "mi",
         notes: s.notes ?? "",
@@ -143,6 +145,24 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
           ? String(parseFloat(convertDistance(raw, cur.distance_unit, newUnit).toFixed(4)))
           : cur.distance_miles;
       steps[index] = { ...cur, distance_unit: newUnit, distance_miles: converted };
+      return { ...prev, steps };
+    });
+  }
+
+  function switchStepDurationUnit(index: number, newUnit: "min" | "sec") {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      const cur = steps[index];
+      const raw = parseFloat(cur.duration_minutes);
+      let converted = cur.duration_minutes;
+      if (!isNaN(raw) && raw > 0) {
+        if (cur.duration_unit === "min" && newUnit === "sec") {
+          converted = String(Math.round(raw * 60));
+        } else if (cur.duration_unit === "sec" && newUnit === "min") {
+          converted = String(parseFloat((raw / 60).toFixed(2)));
+        }
+      }
+      steps[index] = { ...cur, duration_unit: newUnit, duration_minutes: converted };
       return { ...prev, steps };
     });
   }
@@ -430,6 +450,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
+                            onSwitchDurationUnit={switchStepDurationUnit}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -451,6 +472,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                           onRemove={removeStep}
                           onUpdate={updateStep}
                           onSwitchUnit={switchStepUnit}
+                          onSwitchDurationUnit={switchStepDurationUnit}
                           inputClass={inputClass}
                           labelClass={labelClass}
                         />

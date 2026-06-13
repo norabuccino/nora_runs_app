@@ -5,9 +5,42 @@ import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
-import { createLibraryWorkout, updateLibraryWorkout, deleteLibraryWorkout } from "@/app/actions/workoutLibrary";
+import {
+  createLibraryWorkout,
+  updateLibraryWorkout,
+  deleteLibraryWorkout,
+  duplicateLibraryWorkout,
+} from "@/app/actions/workoutLibrary";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS } from "@/lib/paceUtils";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+
+type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc";
+
+function applySearch(items: LibraryWorkoutWithSteps[], query: string): LibraryWorkoutWithSteps[] {
+  if (!query.trim()) return items;
+  const q = query.toLowerCase();
+  return items.filter(
+    (w) => w.title.toLowerCase().includes(q) || w.description?.toLowerCase().includes(q)
+  );
+}
+
+function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWorkoutWithSteps[] {
+  const sorted = [...items];
+  switch (sort) {
+    case "az":
+      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+    case "za":
+      return sorted.sort((a, b) => b.title.localeCompare(a.title));
+    case "type":
+      return sorted.sort((a, b) => a.type.localeCompare(b.type) || a.title.localeCompare(b.title));
+    case "duration_desc":
+      return sorted.sort((a, b) => (b.duration_minutes ?? 0) - (a.duration_minutes ?? 0));
+    case "duration_asc":
+      return sorted.sort((a, b) => (a.duration_minutes ?? 0) - (b.duration_minutes ?? 0));
+    default:
+      return sorted;
+  }
+}
 
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
@@ -17,6 +50,8 @@ export default function WorkoutsPage() {
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
   const [addToPlan, setAddToPlan] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<SortKey>("az");
   const [isPending, startTransition] = useTransition();
   const [compact, setCompact] = useState(false);
 
@@ -93,6 +128,18 @@ export default function WorkoutsPage() {
     });
   }
 
+  function handleDuplicate(workout: LibraryWorkoutWithSteps) {
+    startTransition(async () => {
+      await duplicateLibraryWorkout(workout.id);
+      await load();
+    });
+  }
+
+  const displayed = applySort(
+    applySearch(applyWorkoutFilter(workouts, filter), search),
+    sort
+  );
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -145,44 +192,67 @@ export default function WorkoutsPage() {
         </div>
       )}
 
-      {!loading && workouts.length > 0 && (() => {
-        const filtered = applyWorkoutFilter(workouts, filter);
-        return (
-          <div className="space-y-4">
-            <WorkoutFilterBar filter={filter} onChange={setFilter} />
-            {filtered.length === 0 ? (
-              <p className="text-sm text-[var(--muted)] py-8 text-center">
-                No workouts match this filter.
-              </p>
-            ) : compact ? (
-              <div className="flex flex-col gap-1">
-                {filtered.map((workout) => (
-                  <WorkoutLibraryCard
-                    key={workout.id}
-                    workout={workout}
-                    compact
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onAddToPlan={(w) => setAddToPlan(w)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {filtered.map((workout) => (
-                  <WorkoutLibraryCard
-                    key={workout.id}
-                    workout={workout}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onAddToPlan={(w) => setAddToPlan(w)}
-                  />
-                ))}
-              </div>
-            )}
+      {!loading && workouts.length > 0 && (
+        <div className="space-y-4">
+          {/* Search + sort */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="search"
+              placeholder="Search workouts…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            >
+              <option value="az">A → Z</option>
+              <option value="za">Z → A</option>
+              <option value="type">By type</option>
+              <option value="duration_desc">Longest first</option>
+              <option value="duration_asc">Shortest first</option>
+            </select>
           </div>
-        );
-      })()}
+
+          {/* Type filter */}
+          <WorkoutFilterBar filter={filter} onChange={setFilter} />
+
+          {displayed.length === 0 ? (
+            <p className="text-sm text-[var(--muted)] py-8 text-center">
+              No workouts match.
+            </p>
+          ) : compact ? (
+            <div className="flex flex-col gap-1">
+              {displayed.map((workout) => (
+                <WorkoutLibraryCard
+                  key={workout.id}
+                  workout={workout}
+                  compact
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
+                  onAddToPlan={(w) => setAddToPlan(w)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {displayed.map((workout) => (
+                <WorkoutLibraryCard
+                  key={workout.id}
+                  workout={workout}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onDuplicate={handleDuplicate}
+                  onAddToPlan={(w) => setAddToPlan(w)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {formOpen && (
         <WorkoutLibraryForm
@@ -204,7 +274,7 @@ export default function WorkoutsPage() {
 
       {isPending && (
         <div className="fixed bottom-4 right-4 bg-[var(--foreground)] text-[var(--background)] text-xs px-3 py-2 rounded-lg">
-          Deleting…
+          Saving…
         </div>
       )}
     </div>
@@ -216,10 +286,11 @@ interface WorkoutLibraryCardProps {
   compact?: boolean;
   onEdit: (w: LibraryWorkoutWithSteps) => void;
   onDelete: (w: LibraryWorkoutWithSteps) => void;
+  onDuplicate: (w: LibraryWorkoutWithSteps) => void;
   onAddToPlan: (w: LibraryWorkoutWithSteps) => void;
 }
 
-function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onAddToPlan }: WorkoutLibraryCardProps) {
+function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
   const typeBadge = workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
@@ -245,6 +316,13 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onAddToPlan }:
             {durationLabel && <p className="text-xs text-[var(--muted)] leading-tight">{durationLabel}</p>}
           </div>
         )}
+        <button
+          onClick={() => onDuplicate(workout)}
+          title="Duplicate"
+          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+        >
+          ⧉
+        </button>
         <button
           onClick={() => onAddToPlan(workout)}
           title="Add to plan"
@@ -316,6 +394,13 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onAddToPlan }:
           className="px-3 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
         >
           Edit
+        </button>
+        <button
+          onClick={() => onDuplicate(workout)}
+          className="px-3 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
+          title="Duplicate workout"
+        >
+          Duplicate
         </button>
         <button
           onClick={() => onDelete(workout)}

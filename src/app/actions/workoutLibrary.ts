@@ -80,6 +80,39 @@ export async function deleteLibraryWorkout(id: string) {
   revalidatePath("/workouts");
 }
 
+export async function duplicateLibraryWorkout(id: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const [{ data: workout }, { data: steps }] = await Promise.all([
+    supabase.from("workouts").select("*").eq("id", id).eq("user_id", user.id).single(),
+    supabase.from("workout_steps").select("*").eq("workout_id", id).order("step_order"),
+  ]);
+  if (!workout) throw new Error("Workout not found");
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id: _id, created_at: _ca, user_id: _uid, ...rest } = workout;
+  const { data: copy, error } = await supabase
+    .from("workouts")
+    .insert({ ...rest, user_id: user.id, title: `Copy of ${workout.title}` })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+
+  if (steps?.length) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const stepsToInsert = steps.map(({ id: _sid, workout_id: _wid, ...stepRest }) => ({
+      ...stepRest,
+      workout_id: copy.id,
+    }));
+    const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
+    if (stepsError) throw new Error(stepsError.message);
+  }
+
+  revalidatePath("/workouts");
+}
+
 export async function addLibraryWorkoutToPlan(
   workoutId: string,
   planId: string,

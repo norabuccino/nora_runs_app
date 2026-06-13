@@ -27,6 +27,7 @@ export interface WorkoutStepFormRow {
   label: string;
   pace_type: string;
   duration_minutes: string;
+  duration_unit: "min" | "sec";
   distance_miles: string;
   distance_unit: DistanceUnit;
   notes: string;
@@ -110,7 +111,7 @@ export function computeStepDistanceMi(step: WorkoutStepFormRow, paces: RunningPa
 // Duration in minutes for a single step, using pace to fill in when duration is absent
 export function computeStepDurationMin(step: WorkoutStepFormRow, paces: RunningPace[]): number {
   const dur = parseFloat(step.duration_minutes);
-  if (!isNaN(dur) && dur > 0) return dur;
+  if (!isNaN(dur) && dur > 0) return step.duration_unit === "sec" ? dur / 60 : dur;
   if (step.pace_type) {
     const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
     const d = parseFloat(step.distance_miles);
@@ -132,6 +133,7 @@ function blankStep(
     label: "",
     pace_type: "",
     duration_minutes: "",
+    duration_unit: "min",
     distance_miles: "",
     distance_unit: unit,
     notes: "",
@@ -157,15 +159,15 @@ function GripIcon() {
 
 // ── Unit toggle ───────────────────────────────────────────────────────────────
 
-function UnitToggle({
+function UnitToggle<T extends string>({
   units,
   active,
   onChange,
   vertical = false,
 }: {
-  units: DistanceUnit[];
-  active: DistanceUnit;
-  onChange: (u: DistanceUnit) => void;
+  units: T[];
+  active: T;
+  onChange: (u: T) => void;
   vertical?: boolean;
 }) {
   return (
@@ -202,6 +204,7 @@ interface StepCardProps {
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
+  onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
   inputClass: string;
   labelClass: string;
 }
@@ -215,6 +218,7 @@ export function SortableStepCard({
   onRemove,
   onUpdate,
   onSwitchUnit,
+  onSwitchDurationUnit,
   inputClass,
   labelClass,
 }: StepCardProps) {
@@ -275,16 +279,21 @@ export function SortableStepCard({
           ))}
         </select>
 
-        {/* Row 3: duration · distance + horizontal unit toggle */}
+        {/* Row 3: duration + min/sec toggle · distance + dist unit toggle */}
         <div className="flex items-center gap-1.5">
           <input
             type="number"
             min="0"
-            step="0.5"
-            placeholder="min"
+            step={step.duration_unit === "sec" ? "1" : "0.5"}
+            placeholder={step.duration_unit}
             value={step.duration_minutes}
             onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
             className={`${ci} flex-1 min-w-0`}
+          />
+          <UnitToggle
+            units={["min", "sec"]}
+            active={step.duration_unit}
+            onChange={(u) => onSwitchDurationUnit(actualIndex, u)}
           />
           <input
             type="number"
@@ -322,6 +331,7 @@ interface GroupContainerProps {
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
+  onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
   inputClass: string;
   labelClass: string;
 }
@@ -340,6 +350,7 @@ export function SortableGroupContainer({
   onRemove,
   onUpdate,
   onSwitchUnit,
+  onSwitchDurationUnit,
   inputClass,
   labelClass,
 }: GroupContainerProps) {
@@ -406,6 +417,7 @@ export function SortableGroupContainer({
                   onRemove={onRemove}
                   onUpdate={onUpdate}
                   onSwitchUnit={onSwitchUnit}
+                  onSwitchDurationUnit={onSwitchDurationUnit}
                   inputClass={inputClass}
                   labelClass={labelClass}
                 />
@@ -473,6 +485,7 @@ export function WorkoutForm({
         label: s.label ?? "",
         pace_type: s.pace_type ?? "",
         duration_minutes: s.duration_minutes?.toString() ?? "",
+        duration_unit: "min" as const,
         distance_miles: s.distance_miles?.toString() ?? "",
         distance_unit: (s.distance_unit as DistanceUnit) ?? "mi",
         notes: s.notes ?? "",
@@ -501,6 +514,24 @@ export function WorkoutForm({
           ? String(parseFloat(convertDistance(raw, cur.distance_unit, newUnit).toFixed(4)))
           : cur.distance_miles;
       steps[index] = { ...cur, distance_unit: newUnit, distance_miles: converted };
+      return { ...prev, steps };
+    });
+  }
+
+  function switchStepDurationUnit(index: number, newUnit: "min" | "sec") {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      const cur = steps[index];
+      const raw = parseFloat(cur.duration_minutes);
+      let converted = cur.duration_minutes;
+      if (!isNaN(raw) && raw > 0) {
+        if (cur.duration_unit === "min" && newUnit === "sec") {
+          converted = String(Math.round(raw * 60));
+        } else if (cur.duration_unit === "sec" && newUnit === "min") {
+          converted = String(parseFloat((raw / 60).toFixed(2)));
+        }
+      }
+      steps[index] = { ...cur, duration_unit: newUnit, duration_minutes: converted };
       return { ...prev, steps };
     });
   }
@@ -804,6 +835,7 @@ export function WorkoutForm({
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
+                            onSwitchDurationUnit={switchStepDurationUnit}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -825,6 +857,7 @@ export function WorkoutForm({
                           onRemove={removeStep}
                           onUpdate={updateStep}
                           onSwitchUnit={switchStepUnit}
+                          onSwitchDurationUnit={switchStepDurationUnit}
                           inputClass={inputClass}
                           labelClass={labelClass}
                         />
