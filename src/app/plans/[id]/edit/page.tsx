@@ -11,6 +11,7 @@ import { WorkoutImportModal } from "@/components/WorkoutImportModal";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
+import { updatePlan } from "@/app/actions/plans";
 import { DAY_NAMES } from "@/lib/paceUtils";
 
 type AddFlow =
@@ -29,6 +30,9 @@ export default function EditPlanPage() {
   const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
   const [showImport, setShowImport] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [planName, setPlanName] = useState("");
+  const [planDescription, setPlanDescription] = useState("");
+  const [planSaving, setPlanSaving] = useState(false);
 
   async function load() {
     const supabase = createClient();
@@ -51,12 +55,25 @@ export default function EditPlanPage() {
     }));
 
     setPlan(p);
+    if (p) {
+      setPlanName((prev) => prev || p.name);
+      setPlanDescription((prev) => prev || (p.description ?? ""));
+    }
     setWorkouts(workoutsWithSteps);
     setPaces(pac ?? []);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, [id]);
+
+  async function handleSavePlanMeta() {
+    if (!planName.trim()) return;
+    setPlanSaving(true);
+    const desc = planDescription.trim() || undefined;
+    await updatePlan(id, { name: planName.trim(), description: desc });
+    setPlan((p) => p ? { ...p, name: planName.trim(), description: desc ?? null } : p);
+    setPlanSaving(false);
+  }
 
   function openAdd(weekNumber: number, dayOfWeek: number) {
     setFlow({ step: "picking", weekNumber, dayOfWeek });
@@ -139,12 +156,9 @@ export default function EditPlanPage() {
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="space-y-0.5">
-          <Link href={`/plans/${id}`} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]">
-            ← {plan.name}
-          </Link>
-          <h1 className="text-2xl font-bold">Edit plan</h1>
-        </div>
+        <Link href={`/plans/${id}`} className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]">
+          ← Back to plan
+        </Link>
         <div className="flex gap-2">
           <button
             onClick={() => setShowImport(true)}
@@ -159,6 +173,34 @@ export default function EditPlanPage() {
             Done editing
           </button>
         </div>
+      </div>
+
+      {/* Plan name + description */}
+      <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3">
+        <h2 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Plan details</h2>
+        <div className="space-y-2">
+          <input
+            type="text"
+            value={planName}
+            onChange={(e) => setPlanName(e.target.value)}
+            placeholder="Plan name"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          />
+          <textarea
+            value={planDescription}
+            onChange={(e) => setPlanDescription(e.target.value)}
+            placeholder="Description (optional)"
+            rows={2}
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          />
+        </div>
+        <button
+          onClick={handleSavePlanMeta}
+          disabled={planSaving || !planName.trim()}
+          className="px-4 py-1.5 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] disabled:opacity-50 transition-colors"
+        >
+          {planSaving ? "Saving…" : "Save"}
+        </button>
       </div>
 
       <p className="text-sm text-[var(--muted)]">
