@@ -17,8 +17,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { WorkoutType, RunType, WorkoutWithSteps, RunningPace } from "@/types/database";
-import { DAY_NAMES, STEP_TYPE_LABELS } from "@/lib/paceUtils";
+import { DAY_NAMES, STEP_TYPE_LABELS, parsePace } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
+import { createPace } from "@/app/actions/paces";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -205,6 +206,7 @@ interface StepCardProps {
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
   onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
+  onCreatePace: (name: string, secondsPerMile: number) => Promise<RunningPace>;
   inputClass: string;
   labelClass: string;
 }
@@ -219,6 +221,7 @@ export function SortableStepCard({
   onUpdate,
   onSwitchUnit,
   onSwitchDurationUnit,
+  onCreatePace,
   inputClass,
   labelClass,
 }: StepCardProps) {
@@ -230,8 +233,36 @@ export function SortableStepCard({
     opacity: isDragging ? 0.4 : 1,
   };
 
+  const [addingPace, setAddingPace] = useState(false);
+  const [newPaceName, setNewPaceName] = useState("");
+  const [newPaceStr, setNewPaceStr] = useState("");
+  const [paceError, setPaceError] = useState<string | null>(null);
+  const [paceSaving, setPaceSaving] = useState(false);
+
+  async function handleSavePace() {
+    if (!newPaceName.trim()) { setPaceError("Name required"); return; }
+    const parsed = parsePace(newPaceStr.trim());
+    if (!parsed) { setPaceError("Use MM:SS format"); return; }
+    const unit = getStoredUnit();
+    const secondsPerMile = unit === "km" ? Math.round(parsed * 1.60934) : parsed;
+    setPaceSaving(true);
+    setPaceError(null);
+    try {
+      const created = await onCreatePace(newPaceName.trim(), secondsPerMile);
+      onUpdate(actualIndex, "pace_type", created.name);
+      setAddingPace(false);
+      setNewPaceName("");
+      setNewPaceStr("");
+    } catch (e) {
+      setPaceError(e instanceof Error ? e.message : "Failed to save pace");
+    }
+    setPaceSaving(false);
+  }
+
   const ci =
     "rounded border border-[var(--border)] bg-[var(--background)] px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-[var(--accent)]";
+
+  const unit = getStoredUnit();
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
@@ -265,19 +296,67 @@ export function SortableStepCard({
           </button>
         </div>
 
-        {/* Row 2: pace */}
-        <select
-          value={step.pace_type}
-          onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-          className={`${ci} w-full`}
-        >
-          <option value="">Pace: none</option>
-          {paces.map((p) => (
-            <option key={p.id} value={p.name}>
-              {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, step.distance_unit === "mi" ? "mi" : "km")}
-            </option>
-          ))}
-        </select>
+        {/* Row 2: pace select + "+ New" toggle */}
+        <div className="flex items-center gap-1">
+          <select
+            value={step.pace_type}
+            onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
+            className={`${ci} flex-1 min-w-0`}
+          >
+            <option value="">Pace: none</option>
+            {paces.map((p) => (
+              <option key={p.id} value={p.name}>
+                {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, unit)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => { setAddingPace((v) => !v); setPaceError(null); }}
+            className="shrink-0 text-xs text-[var(--accent)] hover:underline leading-none"
+          >
+            + New
+          </button>
+        </div>
+
+        {/* Inline pace creation */}
+        {addingPace && (
+          <div className="rounded border border-[var(--accent)] p-1.5 space-y-1">
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                placeholder="Name (e.g. Marathon)"
+                value={newPaceName}
+                onChange={(e) => setNewPaceName(e.target.value)}
+                className={`${ci} flex-1 min-w-0`}
+              />
+              <input
+                type="text"
+                placeholder={`MM:SS /${unit}`}
+                value={newPaceStr}
+                onChange={(e) => setNewPaceStr(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSavePace(); } }}
+                className={`${ci} w-20 font-mono`}
+              />
+              <button
+                type="button"
+                onClick={handleSavePace}
+                disabled={paceSaving}
+                className="shrink-0 text-xs text-[var(--accent)] hover:underline disabled:opacity-50"
+              >
+                {paceSaving ? "…" : "Save"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddingPace(false); setPaceError(null); }}
+                className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--foreground)]"
+              >
+                ×
+              </button>
+            </div>
+            {paceError && <p className="text-xs text-red-500">{paceError}</p>}
+          </div>
+        )}
 
         {/* Row 3: duration + min/sec toggle · distance + dist unit toggle */}
         <div className="flex items-center gap-1.5">
@@ -332,6 +411,7 @@ interface GroupContainerProps {
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
   onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
+  onCreatePace: (name: string, secondsPerMile: number) => Promise<RunningPace>;
   inputClass: string;
   labelClass: string;
 }
@@ -351,6 +431,7 @@ export function SortableGroupContainer({
   onUpdate,
   onSwitchUnit,
   onSwitchDurationUnit,
+  onCreatePace,
   inputClass,
   labelClass,
 }: GroupContainerProps) {
@@ -418,6 +499,7 @@ export function SortableGroupContainer({
                   onUpdate={onUpdate}
                   onSwitchUnit={onSwitchUnit}
                   onSwitchDurationUnit={onSwitchDurationUnit}
+                  onCreatePace={onCreatePace}
                   inputClass={inputClass}
                   labelClass={labelClass}
                 />
@@ -464,6 +546,7 @@ export function WorkoutForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
+  const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
 
   const [form, setForm] = useState<WorkoutFormData>(() => ({
     plan_id: planId,
@@ -594,6 +677,12 @@ export function WorkoutForm({
     }));
   }
 
+  async function handleCreatePace(name: string, secondsPerMile: number): Promise<RunningPace> {
+    const created = await createPace(name, secondsPerMile);
+    setLocalPaces((prev) => [...prev, created]);
+    return created;
+  }
+
   // ── Workout-level unit ──
 
   function switchWorkoutUnit(newUnit: "mi" | "km") {
@@ -646,14 +735,14 @@ export function WorkoutForm({
     let durSum = 0;
     for (const seg of segs) {
       if (seg.type === "step") {
-        distMiSum += computeStepDistanceMi(form.steps[seg.index], paces);
-        durSum += computeStepDurationMin(form.steps[seg.index], paces);
+        distMiSum += computeStepDistanceMi(form.steps[seg.index], localPaces);
+        durSum += computeStepDurationMin(form.steps[seg.index], localPaces);
       } else {
         let groupDistMi = 0;
         let groupDur = 0;
         seg.indices.forEach((i) => {
-          groupDistMi += computeStepDistanceMi(form.steps[i], paces);
-          groupDur += computeStepDurationMin(form.steps[i], paces);
+          groupDistMi += computeStepDistanceMi(form.steps[i], localPaces);
+          groupDur += computeStepDurationMin(form.steps[i], localPaces);
         });
         distMiSum += groupDistMi * seg.repeatCount;
         durSum += groupDur * seg.repeatCount;
@@ -835,11 +924,12 @@ export function WorkoutForm({
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
-                            paces={paces}
+                            paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
+                            onCreatePace={handleCreatePace}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -853,7 +943,7 @@ export function WorkoutForm({
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
-                          paces={paces}
+                          paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
@@ -862,6 +952,7 @@ export function WorkoutForm({
                           onUpdate={updateStep}
                           onSwitchUnit={switchStepUnit}
                           onSwitchDurationUnit={switchStepDurationUnit}
+                          onCreatePace={handleCreatePace}
                           inputClass={inputClass}
                           labelClass={labelClass}
                         />

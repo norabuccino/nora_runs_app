@@ -16,6 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
 import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
+import { createPace } from "@/app/actions/paces";
 import {
   buildSegments,
   SortableStepCard,
@@ -101,6 +102,7 @@ function segmentId(seg: ReturnType<typeof buildSegments>[number]): string {
 export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: WorkoutLibraryFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
 
   const [form, setForm] = useState<WorkoutLibraryFormData>(() => ({
     type: existing?.type ?? "run",
@@ -225,6 +227,12 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
     }));
   }
 
+  async function handleCreatePace(name: string, secondsPerMile: number): Promise<RunningPace> {
+    const created = await createPace(name, secondsPerMile);
+    setLocalPaces((prev) => [...prev, created]);
+    return created;
+  }
+
   function switchWorkoutUnit(newUnit: "mi" | "km") {
     setForm((prev) => {
       const raw = parseFloat(prev.distance_miles);
@@ -271,14 +279,14 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
     let durSum = 0;
     for (const seg of segs) {
       if (seg.type === "step") {
-        distMiSum += computeStepDistanceMi(form.steps[seg.index], paces);
-        durSum += computeStepDurationMin(form.steps[seg.index], paces);
+        distMiSum += computeStepDistanceMi(form.steps[seg.index], localPaces);
+        durSum += computeStepDurationMin(form.steps[seg.index], localPaces);
       } else {
         let groupDistMi = 0;
         let groupDur = 0;
         seg.indices.forEach((i) => {
-          groupDistMi += computeStepDistanceMi(form.steps[i], paces);
-          groupDur += computeStepDurationMin(form.steps[i], paces);
+          groupDistMi += computeStepDistanceMi(form.steps[i], localPaces);
+          groupDur += computeStepDurationMin(form.steps[i], localPaces);
         });
         distMiSum += groupDistMi * seg.repeatCount;
         durSum += groupDur * seg.repeatCount;
@@ -450,11 +458,12 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
-                            paces={paces}
+                            paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
+                            onCreatePace={handleCreatePace}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -468,7 +477,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
-                          paces={paces}
+                          paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
@@ -477,6 +486,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                           onUpdate={updateStep}
                           onSwitchUnit={switchStepUnit}
                           onSwitchDurationUnit={switchStepDurationUnit}
+                          onCreatePace={handleCreatePace}
                           inputClass={inputClass}
                           labelClass={labelClass}
                         />

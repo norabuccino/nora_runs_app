@@ -2,20 +2,22 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import type { RunningPace } from "@/types/database";
 
-export async function createPace(name: string, paceSecondsPerMile: number) {
+export async function createPace(name: string, paceSecondsPerMile: number): Promise<RunningPace> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase.from("running_paces").insert({
-    user_id: user.id,
-    name,
-    pace_seconds_per_mile: paceSecondsPerMile,
-  });
+  const { data, error } = await supabase
+    .from("running_paces")
+    .insert({ user_id: user.id, name, pace_seconds_per_mile: paceSecondsPerMile })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
   revalidatePath("/paces");
+  return data;
 }
 
 export async function updatePace(id: string, name: string, paceSecondsPerMile: number) {
