@@ -9,7 +9,7 @@ import { PaceCalculator } from "@/components/PaceCalculator";
 import { useUnitPreference } from "@/hooks/useUnitPreference";
 import { formatPaceForUnit } from "@/lib/unitUtils";
 
-const SUGGESTED_NAMES = ["Easy", "Long Run", "Tempo", "Threshold", "Recovery"];
+const SUGGESTED_NAMES = ["Easy", "Long Run", "Threshold", "Recovery"];
 const SUGGESTED_LOWER = new Set(SUGGESTED_NAMES.map((n) => n.toLowerCase()));
 
 export default function PacesPage() {
