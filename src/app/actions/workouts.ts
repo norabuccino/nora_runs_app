@@ -169,12 +169,23 @@ export async function copyWorkoutToDays(
   if (!source) throw new Error("Source workout not found");
 
   for (const { weekNumber, dayOfWeek } of targets) {
-    const { count } = await supabase
+    const { data: existingOnDay } = await supabase
       .from("plan_workouts")
-      .select("*", { count: "exact", head: true })
+      .select("id, day_logic")
       .eq("plan_id", planId)
       .eq("week_number", weekNumber)
       .eq("day_of_week", dayOfWeek);
+
+    const existingCount = existingOnDay?.length ?? 0;
+    let dayLogic: "and" | "or";
+    if (existingCount === 0) {
+      dayLogic = "or";
+    } else if (existingCount === 1) {
+      dayLogic = "or";
+      await supabase.from("plan_workouts").update({ day_logic: "or" }).eq("id", existingOnDay![0].id);
+    } else {
+      dayLogic = (existingOnDay![0].day_logic as "and" | "or") ?? "or";
+    }
 
     const { data: newWorkout, error } = await supabase
       .from("plan_workouts")
@@ -191,7 +202,8 @@ export async function copyWorkoutToDays(
         pace_type: source.pace_type,
         duration_minutes: source.duration_minutes,
         notes: source.notes,
-        sort_order: count ?? 0,
+        sort_order: existingCount,
+        day_logic: dayLogic,
       })
       .select()
       .single();
