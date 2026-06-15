@@ -98,7 +98,7 @@ export default async function PlanDetailPage({ params }: Props) {
                             {dayWorkouts.length === 0 ? (
                               <span className="text-xs text-[var(--muted)]">Rest</span>
                             ) : (
-                              dayWorkouts.map((w) => {
+                              dayWorkouts.flatMap((w, i) => {
                                 const estimate = getWorkoutEstimate(
                                   w.distance_miles,
                                   w.distance_unit ?? "mi",
@@ -106,7 +106,7 @@ export default async function PlanDetailPage({ params }: Props) {
                                   w.duration_minutes,
                                   paces ?? []
                                 );
-                                return (
+                                const card = (
                                   <div key={w.id} className="flex items-center gap-2 flex-wrap">
                                     <span className={`text-xs px-2 py-0.5 rounded-full ${w.run_type ? (RUN_TYPE_COLORS[w.run_type] ?? WORKOUT_TYPE_COLORS[w.type]) : WORKOUT_TYPE_COLORS[w.type]}`}>
                                       {w.run_type ? (RUN_TYPE_LABELS[w.run_type] ?? WORKOUT_TYPE_LABELS[w.type]) : WORKOUT_TYPE_LABELS[w.type]}
@@ -123,6 +123,16 @@ export default async function PlanDetailPage({ params }: Props) {
                                     )}
                                   </div>
                                 );
+                                if (i === 0) return [card];
+                                const logic = dayWorkouts[0].day_logic ?? "and";
+                                const sep = (
+                                  <div key={`logic-${i}`} className="flex items-center gap-2">
+                                    <span className="text-xs font-semibold text-[var(--muted)] uppercase">
+                                      {logic}
+                                    </span>
+                                  </div>
+                                );
+                                return [sep, card];
                               })
                             )}
                           </div>

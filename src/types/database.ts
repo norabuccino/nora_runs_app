@@ -54,6 +54,7 @@ export interface Database {
           duration_minutes: number | null;
           notes: string | null;
           sort_order: number;
+          day_logic: "and" | "or";
         };
         Insert: {
           id?: string;
@@ -70,6 +71,7 @@ export interface Database {
           duration_minutes?: number | null;
           notes?: string | null;
           sort_order?: number;
+          day_logic?: "and" | "or";
         };
         Update: {
           id?: string;
@@ -86,6 +88,7 @@ export interface Database {
           duration_minutes?: number | null;
           notes?: string | null;
           sort_order?: number;
+          day_logic?: "and" | "or";
         };
       };
       workout_steps: {

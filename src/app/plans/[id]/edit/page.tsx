@@ -8,7 +8,7 @@ import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { createWorkout, updateWorkout, deleteWorkout } from "@/app/actions/workouts";
+import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
 import { updatePlan } from "@/app/actions/plans";
 import { DAY_NAMES } from "@/lib/paceUtils";
@@ -80,6 +80,13 @@ export default function EditPlanPage() {
   function openEdit(workout: PlanWorkout) {
     const full = workouts.find((w) => w.id === workout.id) ?? null;
     setFlow({ step: "form", weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: full });
+  }
+
+  function handleDayLogicChange(weekNumber: number, dayOfWeek: number, logic: "and" | "or") {
+    startTransition(async () => {
+      await updateDayLogic(id, weekNumber, dayOfWeek, logic);
+      await load();
+    });
   }
 
   function handleDelete(workout: PlanWorkout) {
@@ -209,6 +216,7 @@ export default function EditPlanPage() {
             onEdit={openEdit}
             onDelete={handleDelete}
             onAddWorkout={openAdd}
+            onDayLogicChange={handleDayLogicChange}
           />
         ))}
       </div>
