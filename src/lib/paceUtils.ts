@@ -128,7 +128,6 @@ export const PLAN_TYPE_COLORS: Record<string, string> = {
 
 export const RUN_TYPE_LABELS: Record<string, string> = {
   easy_run: "Easy Run",
-  tempo_run: "Tempo Run",
   interval_run: "Interval Run",
   threshold_run: "Threshold Run",
   recovery_run: "Recovery Run",
@@ -138,7 +137,6 @@ export const RUN_TYPE_LABELS: Record<string, string> = {
 
 export const RUN_TYPE_COLORS: Record<string, string> = {
   easy_run: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  tempo_run: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   interval_run: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
   threshold_run: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
   recovery_run: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",

@@ -380,7 +380,6 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
                 >
                   <option value="">— Select —</option>
                   <option value="easy_run">Easy Run</option>
-                  <option value="tempo_run">Tempo Run</option>
                   <option value="interval_run">Interval Run</option>
                   <option value="threshold_run">Threshold Run</option>
                   <option value="recovery_run">Recovery Run</option>
