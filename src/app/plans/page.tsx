@@ -21,16 +21,20 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<PlanType | "all">("all");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase
-        .from("training_plans")
-        .select("*")
-        .is("source_plan_id", null)
-        .order("created_at", { ascending: false });
+      const [{ data }, { data: { user } }] = await Promise.all([
+        supabase.from("training_plans").select("*").is("source_plan_id", null).order("created_at", { ascending: false }),
+        supabase.auth.getUser(),
+      ]);
       setPlans(data ?? []);
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+        setIsAdmin(profile?.role === "admin");
+      }
       setLoading(false);
     }
     load();
@@ -54,12 +58,14 @@ export default function PlansPage() {
             Your saved training plans.
           </p>
         </div>
-        <Link
-          href="/plans/new"
-          className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          + New plan
-        </Link>
+        {isAdmin && (
+          <Link
+            href="/plans/new"
+            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            + New plan
+          </Link>
+        )}
       </div>
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}

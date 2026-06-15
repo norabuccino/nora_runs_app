@@ -1,17 +1,31 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createPlan } from "@/app/actions/plans";
 import type { PlanType } from "@/types/database";
 import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+import { createClient } from "@/lib/supabase/client";
 
 export default function NewPlanPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [type, setType] = useState<PlanType>("marathon");
   const [description, setDescription] = useState("");
   const [totalWeeks, setTotalWeeks] = useState("16");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    async function checkAdmin() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.replace("/plans"); return; }
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (profile?.role !== "admin") router.replace("/plans");
+    }
+    checkAdmin();
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

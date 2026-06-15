@@ -9,6 +9,7 @@ import { useUnitPreference } from "@/hooks/useUnitPreference";
 
 interface NavProps {
   userEmail: string | null;
+  isAdmin?: boolean;
 }
 
 const navLinks = [
@@ -19,7 +20,7 @@ const navLinks = [
   { href: "/paces", label: "Paces" },
 ];
 
-export function Nav({ userEmail }: NavProps) {
+export function Nav({ userEmail, isAdmin = false }: NavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -56,6 +57,18 @@ export function Nav({ userEmail }: NavProps) {
                 {link.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                href="/admin/users"
+                className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  pathname.startsWith("/admin")
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                }`}
+              >
+                Admin
+              </Link>
+            )}
           </div>
         </div>
 
@@ -138,6 +151,19 @@ export function Nav({ userEmail }: NavProps) {
               {link.label}
             </Link>
           ))}
+          {isAdmin && (
+            <Link
+              href="/admin/users"
+              onClick={() => setMenuOpen(false)}
+              className={`block px-3 py-2 rounded-md text-sm ${
+                pathname.startsWith("/admin")
+                  ? "bg-[var(--foreground)] text-[var(--background)]"
+                  : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
           <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
             <span className="text-xs text-[var(--muted)]">{userEmail}</span>
             <button

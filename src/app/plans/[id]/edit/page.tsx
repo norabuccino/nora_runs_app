@@ -36,12 +36,22 @@ export default function EditPlanPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }, { data: s }, { data: pac }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: s }, { data: pac }, { data: { user } }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
       supabase.from("plan_workouts").select("*").eq("plan_id", id).order("sort_order"),
       supabase.from("workout_steps").select("*").order("step_order"),
       supabase.from("running_paces").select("*").order("created_at"),
+      supabase.auth.getUser(),
     ]);
+
+    // Non-admins cannot edit base plans (only their own personal copies)
+    if (p && !p.source_plan_id && user) {
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (profile?.role !== "admin") {
+        router.replace(`/plans/${id}`);
+        return;
+      }
+    }
 
     const stepsMap: Record<string, typeof s> = {};
     (s ?? []).forEach((step) => {

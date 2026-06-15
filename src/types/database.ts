@@ -278,6 +278,26 @@ export interface Database {
           notes?: string | null;
         };
       };
+      profiles: {
+        Row: {
+          id: string;
+          email: string | null;
+          role: "admin" | "user";
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          email?: string | null;
+          role?: "admin" | "user";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          email?: string | null;
+          role?: "admin" | "user";
+          created_at?: string;
+        };
+      };
       strava_tokens: {
         Row: {
           user_id: string;

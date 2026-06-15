@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
+import { getIsAdmin } from "@/lib/profile";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -12,10 +13,11 @@ export default async function PlanDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: plan }, { data: workouts }, { data: paces }] = await Promise.all([
+  const [{ data: plan }, { data: workouts }, { data: paces }, isAdmin] = await Promise.all([
     supabase.from("training_plans").select("*").eq("id", id).single(),
     supabase.from("plan_workouts").select("*").eq("plan_id", id).order("week_number").order("day_of_week").order("sort_order"),
     supabase.from("running_paces").select("*").order("created_at"),
+    getIsAdmin(),
   ]);
 
   if (!plan) notFound();
@@ -49,12 +51,14 @@ export default async function PlanDetailPage({ params }: Props) {
         </div>
 
         <div className="flex gap-2 shrink-0">
-          <Link
-            href={`/plans/${id}/edit`}
-            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
-          >
-            Edit plan
-          </Link>
+          {isAdmin && (
+            <Link
+              href={`/plans/${id}/edit`}
+              className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+            >
+              Edit plan
+            </Link>
+          )}
           {!plan.source_plan_id && (
             <form action={handleAssign} className="flex gap-2">
               <input
