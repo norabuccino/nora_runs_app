@@ -138,7 +138,10 @@ export default function EditPlanPage() {
     if (existing) {
       await updateWorkout(existing.id, payload);
     } else {
-      await createWorkout(payload);
+      const nextSortOrder = workouts.filter(
+        (w) => w.week_number === data.week_number && w.day_of_week === data.day_of_week
+      ).length;
+      await createWorkout({ ...payload, sort_order: nextSortOrder });
     }
 
     if (data.saveToLibrary) {

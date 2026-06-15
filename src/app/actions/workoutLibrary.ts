@@ -163,10 +163,17 @@ export async function addLibraryWorkoutToPlan(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Verify ownership of both the library workout and the plan
-  const [{ data: workout }, { data: plan }] = await Promise.all([
+  // Verify ownership of both the library workout and the plan, and count
+  // existing workouts on the target day so the new one goes at the end.
+  const [{ data: workout }, { data: plan }, { count: dayCount }] = await Promise.all([
     supabase.from("workouts").select("*").eq("id", workoutId).eq("user_id", user.id).single(),
     supabase.from("training_plans").select("id").eq("id", planId).eq("user_id", user.id).single(),
+    supabase
+      .from("plan_workouts")
+      .select("*", { count: "exact", head: true })
+      .eq("plan_id", planId)
+      .eq("week_number", weekNumber)
+      .eq("day_of_week", dayOfWeek),
   ]);
   if (!workout) throw new Error("Workout not found");
   if (!plan) throw new Error("Plan not found");
@@ -186,7 +193,7 @@ export async function addLibraryWorkoutToPlan(
       pace_type: workout.pace_type,
       duration_minutes: workout.duration_minutes,
       notes: workout.notes,
-      sort_order: 0,
+      sort_order: dayCount ?? 0,
     })
     .select()
     .single();
