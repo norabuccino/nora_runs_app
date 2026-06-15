@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { updateUserPlan } from "@/app/actions/userPlans";
+import { updateUserPlan, deleteUserPlan } from "@/app/actions/userPlans";
 import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
 import type { PlanWorkout, RunningPace, TrainingPlan } from "@/types/database";
 import { WeekGrid } from "@/components/WeekGrid";
@@ -58,6 +58,12 @@ export default async function MyPlanPage() {
     const id = formData.get("id") as string;
     const startDate = formData.get("start_date") as string;
     if (startDate) await updateUserPlan(id, { start_date: startDate });
+  }
+
+  async function handleDelete(formData: FormData) {
+    "use server";
+    const id = formData.get("id") as string;
+    await deleteUserPlan(id);
   }
 
   async function handleResume(formData: FormData) {
@@ -130,7 +136,7 @@ export default async function MyPlanPage() {
               </button>
             </form>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <form action={handlePause}>
                 <input type="hidden" name="id" value={activePlan.id} />
                 <button
@@ -147,6 +153,15 @@ export default async function MyPlanPage() {
                   className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors"
                 >
                   Mark completed
+                </button>
+              </form>
+              <form action={handleDelete}>
+                <input type="hidden" name="id" value={activePlan.id} />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-red-500 hover:bg-red-50 hover:border-red-300 dark:hover:bg-red-950 transition-colors"
+                >
+                  Delete
                 </button>
               </form>
             </div>
@@ -206,17 +221,28 @@ export default async function MyPlanPage() {
                     {up.status} · started {up.start_date}
                   </p>
                 </div>
-                {up.status === "paused" && (
-                  <form action={handleResume}>
+                <div className="flex items-center gap-3">
+                  {up.status === "paused" && (
+                    <form action={handleResume}>
+                      <input type="hidden" name="id" value={up.id} />
+                      <button
+                        type="submit"
+                        className="text-xs text-[var(--accent)] hover:opacity-70"
+                      >
+                        Resume
+                      </button>
+                    </form>
+                  )}
+                  <form action={handleDelete}>
                     <input type="hidden" name="id" value={up.id} />
                     <button
                       type="submit"
-                      className="text-xs text-[var(--accent)] hover:opacity-70"
+                      className="text-xs text-red-500 hover:opacity-70"
                     >
-                      Resume
+                      Delete
                     </button>
                   </form>
-                )}
+                </div>
               </div>
             ))}
           </div>

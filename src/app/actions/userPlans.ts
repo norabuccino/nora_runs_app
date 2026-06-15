@@ -138,6 +138,37 @@ export async function markWorkoutComplete(
   revalidatePath("/dashboard");
 }
 
+export async function deleteUserPlan(userPlanId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: userPlan } = await supabase
+    .from("user_plans")
+    .select("plan_id")
+    .eq("id", userPlanId)
+    .eq("user_id", user.id)
+    .single();
+  if (!userPlan) throw new Error("Plan not found");
+
+  const { data: trainingPlan } = await supabase
+    .from("training_plans")
+    .select("id, source_plan_id")
+    .eq("id", userPlan.plan_id)
+    .single();
+
+  // Delete user_plan first (cascades workout_logs)
+  await supabase.from("user_plans").delete().eq("id", userPlanId).eq("user_id", user.id);
+
+  // If this was a personal copy, remove it too (cascades plan_workouts → workout_steps)
+  if (trainingPlan?.source_plan_id) {
+    await supabase.from("training_plans").delete().eq("id", trainingPlan.id);
+  }
+
+  revalidatePath("/my-plan");
+  revalidatePath("/dashboard");
+}
+
 export async function unmarkWorkoutComplete(userPlanId: string, planWorkoutId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
