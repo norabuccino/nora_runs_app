@@ -125,6 +125,35 @@ export async function deleteWorkout(id: string, planId: string) {
   revalidatePath(`/plans/${planId}/edit`);
 }
 
+export async function batchUpdateWorkoutPositions(
+  planId: string,
+  updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: plan } = await supabase
+    .from("training_plans")
+    .select("id")
+    .eq("id", planId)
+    .eq("user_id", user.id)
+    .single();
+  if (!plan) throw new Error("Plan not found");
+
+  await Promise.all(
+    updates.map(({ id, week_number, day_of_week, sort_order }) =>
+      supabase
+        .from("plan_workouts")
+        .update({ week_number, day_of_week, sort_order })
+        .eq("id", id)
+    )
+  );
+
+  revalidatePath(`/plans/${planId}`);
+  revalidatePath(`/plans/${planId}/edit`);
+}
+
 export async function updateDayLogic(
   planId: string,
   weekNumber: number,
