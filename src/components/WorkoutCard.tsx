@@ -48,7 +48,7 @@ export function WorkoutCard({
     ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type])
     : WORKOUT_TYPE_LABELS[workout.type];
 
-  if (workout.type === "rest") {
+  if (workout.type === "rest" && mode !== "edit") {
     return (
       <div className="rounded-lg border border-[var(--border)] p-3 opacity-60">
         <span className="text-sm text-[var(--muted)]">Rest day</span>
