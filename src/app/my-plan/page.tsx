@@ -20,9 +20,10 @@ export default async function MyPlanPage() {
 
   let planWorkouts: PlanWorkout[] = [];
   let paces: RunningPace[] = [];
+  let sourcePlanName: string | null = null;
 
   if (activePlan && plan) {
-    const [{ data: w }, { data: p }] = await Promise.all([
+    const [{ data: w }, { data: p }, { data: sp }] = await Promise.all([
       supabase
         .from("plan_workouts")
         .select("*")
@@ -31,9 +32,13 @@ export default async function MyPlanPage() {
         .order("day_of_week")
         .order("sort_order"),
       supabase.from("running_paces").select("*").order("created_at"),
+      plan.source_plan_id
+        ? supabase.from("training_plans").select("name").eq("id", plan.source_plan_id).single()
+        : Promise.resolve({ data: null, error: null }),
     ]);
     planWorkouts = (w as PlanWorkout[]) ?? [];
     paces = p ?? [];
+    sourcePlanName = (sp as { name: string } | null)?.name ?? null;
   }
 
   async function handlePause(formData: FormData) {
@@ -92,6 +97,11 @@ export default async function MyPlanPage() {
                 <p className="text-sm text-[var(--muted)]">
                   {PLAN_TYPE_LABELS[plan.type]} · {plan.total_weeks} weeks
                 </p>
+                {sourcePlanName && (
+                  <p className="text-xs text-[var(--muted)] mt-0.5">
+                    Based on: {sourcePlanName}
+                  </p>
+                )}
               </div>
               <Link
                 href={`/plans/${activePlan.plan_id}/edit`}
