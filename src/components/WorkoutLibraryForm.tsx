@@ -126,7 +126,7 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
         notes: s.notes ?? "",
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
-      })) ?? [],
+      })) ?? [blankStep()],
   }));
 
   function updateStep(index: number, key: StringStepKey, value: string) {
