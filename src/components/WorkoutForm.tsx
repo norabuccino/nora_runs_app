@@ -878,27 +878,9 @@ export function WorkoutForm({
 
             {/* Steps */}
             <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                  Steps
-                </span>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={addRepeatGroup}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    + Add group
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addStep}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    + Add step
-                  </button>
-                </div>
-              </div>
+              <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                Steps
+              </span>
 
               {form.steps.length === 0 && (
                 <p className="text-xs text-[var(--muted)] italic">
@@ -960,6 +942,23 @@ export function WorkoutForm({
                   </div>
                 </SortableContext>
               </DndContext>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className="text-xs text-[var(--accent)] hover:underline"
+                >
+                  + Add step
+                </button>
+                <button
+                  type="button"
+                  onClick={addRepeatGroup}
+                  className="text-xs text-[var(--accent)] hover:underline"
+                >
+                  + Add repeats
+                </button>
+              </div>
             </div>
 
             {/* Totals (calculated from steps) + pace type */}
