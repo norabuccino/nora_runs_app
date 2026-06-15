@@ -61,12 +61,14 @@ function SortableCard({
   paces,
   onEdit,
   onDelete,
+  onCopy,
 }: {
   workout: PlanWorkout;
   log: WorkoutLog | null;
   paces: RunningPace[];
   onEdit?: (w: PlanWorkout) => void;
   onDelete?: (w: PlanWorkout) => void;
+  onCopy?: (w: PlanWorkout) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workout.id,
@@ -94,7 +96,7 @@ function SortableCard({
           <circle cx="11" cy="6" r="1.5" />
         </svg>
       </div>
-      <WorkoutCard workout={workout} log={log} paces={paces} mode="edit" onEdit={onEdit} onDelete={onDelete} />
+      <WorkoutCard workout={workout} log={log} paces={paces} mode="edit" onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} />
     </div>
   );
 }
@@ -114,6 +116,7 @@ interface WeekGridProps {
   onAddWorkout?: (weekNumber: number, dayOfWeek: number) => void;
   onDayLogicChange?: (weekNumber: number, dayOfWeek: number, logic: "and" | "or") => void;
   onReorder?: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
+  onCopy?: (workout: PlanWorkout) => void;
 }
 
 export function WeekGrid({
@@ -129,6 +132,7 @@ export function WeekGrid({
   onAddWorkout,
   onDayLogicChange,
   onReorder,
+  onCopy,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
     toDayMap(workouts.filter((w) => w.week_number === weekNumber))
@@ -359,7 +363,7 @@ export function WeekGrid({
                       dayWorkouts.flatMap((workout, i) => {
                         const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
                         const card = (
-                          <SortableCard key={workout.id} workout={workout} log={log} paces={paces} onEdit={onEdit} onDelete={onDelete} />
+                          <SortableCard key={workout.id} workout={workout} log={log} paces={paces} onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} />
                         );
                         if (i === 0) return [card];
                         return [andOrSep(dayLogic, dayIndex, i, true), card];

@@ -18,6 +18,7 @@ interface WorkoutCardProps {
   onUnComplete?: (workout: PlanWorkout) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
+  onCopy?: (workout: PlanWorkout) => void;
 }
 
 export function WorkoutCard({
@@ -29,6 +30,7 @@ export function WorkoutCard({
   onUnComplete,
   onEdit,
   onDelete,
+  onCopy,
 }: WorkoutCardProps) {
   const isCompleted = !!log?.completed_at;
   const title = log?.custom_title ?? workout.title;
@@ -80,6 +82,12 @@ export function WorkoutCard({
             Delete
           </button>
         </div>
+        <button
+          onClick={() => onCopy?.(workout)}
+          className="w-full py-1.5 text-[10px] text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--background)] border-t border-[var(--border)] transition-colors"
+        >
+          Copy to days…
+        </button>
       </div>
     );
   }

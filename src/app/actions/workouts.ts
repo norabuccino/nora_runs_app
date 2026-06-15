@@ -125,6 +125,81 @@ export async function deleteWorkout(id: string, planId: string) {
   revalidatePath(`/plans/${planId}/edit`);
 }
 
+export async function copyWorkoutToDays(
+  sourceId: string,
+  planId: string,
+  targets: { weekNumber: number; dayOfWeek: number }[]
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: plan } = await supabase
+    .from("training_plans")
+    .select("id")
+    .eq("id", planId)
+    .eq("user_id", user.id)
+    .single();
+  if (!plan) throw new Error("Plan not found");
+
+  const [{ data: source }, { data: sourceSteps }] = await Promise.all([
+    supabase.from("plan_workouts").select("*").eq("id", sourceId).single(),
+    supabase.from("workout_steps").select("*").eq("plan_workout_id", sourceId).order("step_order"),
+  ]);
+  if (!source) throw new Error("Source workout not found");
+
+  for (const { weekNumber, dayOfWeek } of targets) {
+    const { count } = await supabase
+      .from("plan_workouts")
+      .select("*", { count: "exact", head: true })
+      .eq("plan_id", planId)
+      .eq("week_number", weekNumber)
+      .eq("day_of_week", dayOfWeek);
+
+    const { data: newWorkout, error } = await supabase
+      .from("plan_workouts")
+      .insert({
+        plan_id: planId,
+        week_number: weekNumber,
+        day_of_week: dayOfWeek,
+        type: source.type,
+        run_type: source.run_type,
+        title: source.title,
+        description: source.description,
+        distance_miles: source.distance_miles,
+        distance_unit: source.distance_unit ?? "mi",
+        pace_type: source.pace_type,
+        duration_minutes: source.duration_minutes,
+        notes: source.notes,
+        sort_order: count ?? 0,
+      })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+
+    if (sourceSteps?.length) {
+      await supabase.from("workout_steps").insert(
+        sourceSteps.map((s) => ({
+          plan_workout_id: newWorkout.id,
+          step_order: s.step_order,
+          step_type: s.step_type,
+          label: s.label,
+          pace_type: s.pace_type,
+          duration_minutes: s.duration_minutes,
+          distance_miles: s.distance_miles,
+          distance_unit: s.distance_unit ?? "mi",
+          notes: s.notes,
+          repeat_group_id: s.repeat_group_id,
+          repeat_count: s.repeat_count ?? 1,
+        }))
+      );
+    }
+  }
+
+  revalidatePath(`/plans/${planId}`);
+  revalidatePath(`/plans/${planId}/edit`);
+}
+
 export async function batchUpdateWorkoutPositions(
   planId: string,
   updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]

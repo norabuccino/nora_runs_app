@@ -8,10 +8,11 @@ import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions } from "@/app/actions/workouts";
+import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
 import { updatePlan } from "@/app/actions/plans";
 import { DAY_NAMES } from "@/lib/paceUtils";
+import { CopyToDaysModal } from "@/components/CopyToDaysModal";
 
 type AddFlow =
   | { step: "idle" }
@@ -27,6 +28,7 @@ export default function EditPlanPage() {
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
   const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
+  const [copying, setCopying] = useState<PlanWorkout | null>(null);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState("");
   const [planDescription, setPlanDescription] = useState("");
@@ -228,6 +230,7 @@ export default function EditPlanPage() {
             onAddWorkout={openAdd}
             onDayLogicChange={handleDayLogicChange}
             onReorder={handleReorder}
+            onCopy={setCopying}
           />
         ))}
       </div>
@@ -289,6 +292,16 @@ export default function EditPlanPage() {
           showSaveToLibrary={!flow.existing}
           onSave={handleSave}
           onCancel={() => setFlow({ step: "idle" })}
+        />
+      )}
+
+      {copying && plan && (
+        <CopyToDaysModal
+          workout={copying}
+          planId={id}
+          totalWeeks={plan.total_weeks}
+          onClose={() => setCopying(null)}
+          onCopied={async () => { setCopying(null); await load(); }}
         />
       )}
 
