@@ -32,8 +32,15 @@ function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWork
       return sorted.sort((a, b) => a.title.localeCompare(b.title));
     case "za":
       return sorted.sort((a, b) => b.title.localeCompare(a.title));
-    case "type":
-      return sorted.sort((a, b) => a.type.localeCompare(b.type) || a.title.localeCompare(b.title));
+    case "type": {
+      return sorted.sort((a, b) => {
+        const t = a.type.localeCompare(b.type);
+        if (t !== 0) return t;
+        const rt = (a.run_type ?? "").localeCompare(b.run_type ?? "");
+        if (rt !== 0) return rt;
+        return a.title.localeCompare(b.title);
+      });
+    }
     case "duration_desc":
       return sorted.sort((a, b) => (b.duration_minutes ?? 0) - (a.duration_minutes ?? 0));
     case "duration_asc":
@@ -331,6 +338,13 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, o
             {durationLabel && <p className="text-xs text-[var(--muted)] leading-tight">{durationLabel}</p>}
           </div>
         )}
+        <button
+          onClick={() => onEdit(workout)}
+          title="Edit"
+          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+        >
+          ✎
+        </button>
         <button
           onClick={() => onDuplicate(workout)}
           title="Duplicate"
