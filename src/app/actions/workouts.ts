@@ -61,10 +61,30 @@ export async function createWorkout(data: WorkoutData) {
 
   if (!plan) throw new Error("Plan not found");
 
+  // Determine day_logic: default to 'or' for multi-workout days, inherit from
+  // existing workouts once the user has already set a preference (3rd+).
+  const { data: existingOnDay } = await supabase
+    .from("plan_workouts")
+    .select("id, day_logic")
+    .eq("plan_id", data.plan_id)
+    .eq("week_number", data.week_number)
+    .eq("day_of_week", data.day_of_week);
+
+  const existingCount = existingOnDay?.length ?? 0;
+  let dayLogic: "and" | "or";
+  if (existingCount === 0) {
+    dayLogic = "or";
+  } else if (existingCount === 1) {
+    dayLogic = "or";
+    await supabase.from("plan_workouts").update({ day_logic: "or" }).eq("id", existingOnDay![0].id);
+  } else {
+    dayLogic = (existingOnDay![0].day_logic as "and" | "or") ?? "or";
+  }
+
   const { steps, ...workoutRow } = data;
   const { data: workout, error } = await supabase
     .from("plan_workouts")
-    .insert(workoutRow)
+    .insert({ ...workoutRow, day_logic: dayLogic })
     .select()
     .single();
   if (error) throw new Error(error.message);

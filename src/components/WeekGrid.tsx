@@ -306,7 +306,7 @@ export function WeekGrid({
         {header}
         <div className="grid grid-cols-7 gap-2 overflow-x-auto">
           {byDay.map((dayWorkouts, dayIndex) => {
-            const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "and";
+            const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             return (
               <div key={dayIndex} className="min-w-[120px] space-y-2">
                 <p className="text-xs font-medium text-center text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
@@ -345,7 +345,7 @@ export function WeekGrid({
         {header}
         <div className="grid grid-cols-7 gap-2 overflow-x-auto">
           {byDay.map((dayWorkouts, dayIndex) => {
-            const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "and";
+            const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             const containerId = `day-${dayIndex}`;
             return (
               <div key={dayIndex} className="min-w-[120px] space-y-2">
