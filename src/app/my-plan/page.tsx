@@ -2,6 +2,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { updateUserPlan } from "@/app/actions/userPlans";
 import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+import type { PlanWorkout, RunningPace, TrainingPlan } from "@/types/database";
+import { WeekGrid } from "@/components/WeekGrid";
 
 export default async function MyPlanPage() {
   const supabase = await createClient();
@@ -13,6 +15,26 @@ export default async function MyPlanPage() {
 
   const activePlan = userPlans?.find((up) => up.status === "active");
   const pastPlans = userPlans?.filter((up) => up.status !== "active") ?? [];
+
+  const plan = (activePlan?.training_plans as unknown as TrainingPlan) ?? null;
+
+  let planWorkouts: PlanWorkout[] = [];
+  let paces: RunningPace[] = [];
+
+  if (activePlan && plan) {
+    const [{ data: w }, { data: p }] = await Promise.all([
+      supabase
+        .from("plan_workouts")
+        .select("*")
+        .eq("plan_id", activePlan.plan_id)
+        .order("week_number")
+        .order("day_of_week")
+        .order("sort_order"),
+      supabase.from("running_paces").select("*").order("created_at"),
+    ]);
+    planWorkouts = (w as PlanWorkout[]) ?? [];
+    paces = p ?? [];
+  }
 
   async function handlePause(formData: FormData) {
     "use server";
@@ -36,7 +58,6 @@ export default async function MyPlanPage() {
   async function handleResume(formData: FormData) {
     "use server";
     const id = formData.get("id") as string;
-    // Pause any currently active
     const supabase2 = await createClient();
     const { data: { user } } = await supabase2.auth.getUser();
     if (user) {
@@ -49,8 +70,10 @@ export default async function MyPlanPage() {
     await updateUserPlan(id, { status: "active" });
   }
 
+  const weeks = plan ? Array.from({ length: plan.total_weeks }, (_, i) => i + 1) : [];
+
   return (
-    <div className="space-y-8 max-w-2xl">
+    <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-bold">My Plan</h1>
         <p className="text-sm text-[var(--muted)] mt-1">
@@ -58,66 +81,91 @@ export default async function MyPlanPage() {
         </p>
       </div>
 
-      {activePlan ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs text-[var(--muted)] font-medium uppercase tracking-wide">Active plan</p>
-              <h2 className="text-lg font-semibold mt-0.5">
-                {(activePlan.training_plans as { name: string })?.name}
-              </h2>
-              <p className="text-sm text-[var(--muted)]">
-                {PLAN_TYPE_LABELS[(activePlan.training_plans as { type: string })?.type]} ·{" "}
-                {(activePlan.training_plans as { total_weeks: number })?.total_weeks} weeks
-              </p>
+      {activePlan && plan ? (
+        <div className="space-y-8">
+          {/* Plan info + controls */}
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs text-[var(--muted)] font-medium uppercase tracking-wide">Active plan</p>
+                <h2 className="text-lg font-semibold mt-0.5">{plan.name}</h2>
+                <p className="text-sm text-[var(--muted)]">
+                  {PLAN_TYPE_LABELS[plan.type]} · {plan.total_weeks} weeks
+                </p>
+              </div>
+              <Link
+                href={`/plans/${activePlan.plan_id}/edit`}
+                className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
+              >
+                Edit plan
+              </Link>
             </div>
-            <Link
-              href={`/plans/${activePlan.plan_id}`}
-              className="text-sm text-[var(--accent)] hover:opacity-70"
-            >
-              View plan →
-            </Link>
-          </div>
 
-          <form action={handleChangeStartDate} className="flex items-end gap-3">
-            <input type="hidden" name="id" value={activePlan.id} />
-            <div className="space-y-1">
-              <label className="text-xs text-[var(--muted)]">Start date</label>
-              <input
-                type="date"
-                name="start_date"
-                defaultValue={activePlan.start_date}
-                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
-            >
-              Update
-            </button>
-          </form>
-
-          <div className="flex gap-2">
-            <form action={handlePause}>
+            <form action={handleChangeStartDate} className="flex items-end gap-3">
               <input type="hidden" name="id" value={activePlan.id} />
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--muted)]">Start date</label>
+                <input
+                  type="date"
+                  name="start_date"
+                  defaultValue={activePlan.start_date}
+                  className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
+                />
+              </div>
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
+                className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
               >
-                Pause
+                Update
               </button>
             </form>
-            <form action={handleComplete}>
-              <input type="hidden" name="id" value={activePlan.id} />
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors"
-              >
-                Mark completed
-              </button>
-            </form>
+
+            <div className="flex gap-2">
+              <form action={handlePause}>
+                <input type="hidden" name="id" value={activePlan.id} />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors"
+                >
+                  Pause
+                </button>
+              </form>
+              <form action={handleComplete}>
+                <input type="hidden" name="id" value={activePlan.id} />
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm text-green-600 hover:bg-green-50 dark:hover:bg-green-950 transition-colors"
+                >
+                  Mark completed
+                </button>
+              </form>
+            </div>
           </div>
+
+          {/* Full weekly plan view */}
+          {planWorkouts.length > 0 ? (
+            <div className="space-y-10 overflow-x-auto pb-4">
+              {weeks.map((weekNum) => (
+                <WeekGrid
+                  key={weekNum}
+                  weekNumber={weekNum}
+                  workouts={planWorkouts}
+                  paces={paces}
+                  mode="view"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center space-y-2">
+              <p className="text-sm text-[var(--muted)]">No workouts in this plan yet.</p>
+              <Link
+                href={`/plans/${activePlan.plan_id}/edit`}
+                className="text-sm text-[var(--accent)] hover:opacity-70"
+              >
+                Add workouts →
+              </Link>
+            </div>
+          )}
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-[var(--border)] p-10 text-center space-y-3">
@@ -142,7 +190,7 @@ export default async function MyPlanPage() {
               <div key={up.id} className="flex items-center justify-between px-4 py-3 gap-4">
                 <div>
                   <p className="text-sm font-medium">
-                    {(up.training_plans as { name: string })?.name}
+                    {(up.training_plans as unknown as TrainingPlan)?.name}
                   </p>
                   <p className="text-xs text-[var(--muted)] capitalize">
                     {up.status} · started {up.start_date}

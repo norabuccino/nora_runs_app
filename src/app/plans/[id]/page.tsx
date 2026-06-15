@@ -55,20 +55,22 @@ export default async function PlanDetailPage({ params }: Props) {
           >
             Edit plan
           </Link>
-          <form action={handleAssign} className="flex gap-2">
-            <input
-              type="date"
-              name="start_date"
-              required
-              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Use this plan
-            </button>
-          </form>
+          {!plan.source_plan_id && (
+            <form action={handleAssign} className="flex gap-2">
+              <input
+                type="date"
+                name="start_date"
+                required
+                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Use this plan
+              </button>
+            </form>
+          )}
         </div>
       </div>
 

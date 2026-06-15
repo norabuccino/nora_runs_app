@@ -28,6 +28,7 @@ export default function PlansPage() {
       const { data } = await supabase
         .from("training_plans")
         .select("*")
+        .is("source_plan_id", null)
         .order("created_at", { ascending: false });
       setPlans(data ?? []);
       setLoading(false);

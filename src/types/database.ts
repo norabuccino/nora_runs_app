@@ -18,6 +18,7 @@ export interface Database {
           description: string | null;
           total_weeks: number;
           created_at: string;
+          source_plan_id: string | null;
         };
         Insert: {
           id?: string;
@@ -27,6 +28,7 @@ export interface Database {
           description?: string | null;
           total_weeks: number;
           created_at?: string;
+          source_plan_id?: string | null;
         };
         Update: {
           id?: string;
@@ -36,6 +38,7 @@ export interface Database {
           description?: string | null;
           total_weeks?: number;
           created_at?: string;
+          source_plan_id?: string | null;
         };
       };
       plan_workouts: {

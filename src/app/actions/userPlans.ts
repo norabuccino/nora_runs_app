@@ -16,14 +16,80 @@ export async function assignPlan(planId: string, startDate: string) {
     .eq("user_id", user.id)
     .eq("status", "active");
 
+  // Load the source plan
+  const { data: sourcePlan } = await supabase
+    .from("training_plans")
+    .select("*")
+    .eq("id", planId)
+    .single();
+  if (!sourcePlan) throw new Error("Plan not found");
+
+  // Create a personal copy of the plan owned by this user
+  const { data: personalPlan, error: planError } = await supabase
+    .from("training_plans")
+    .insert({
+      user_id: user.id,
+      name: sourcePlan.name,
+      type: sourcePlan.type,
+      description: sourcePlan.description,
+      total_weeks: sourcePlan.total_weeks,
+      source_plan_id: planId,
+    })
+    .select()
+    .single();
+  if (planError) throw new Error(planError.message);
+
+  // Copy workouts from source plan into the personal copy
+  const { data: sourceWorkouts } = await supabase
+    .from("plan_workouts")
+    .select("*")
+    .eq("plan_id", planId)
+    .order("week_number")
+    .order("sort_order");
+
+  if (sourceWorkouts?.length) {
+    const { data: newWorkouts, error: workoutsError } = await supabase
+      .from("plan_workouts")
+      .insert(
+        sourceWorkouts.map(({ id: _id, plan_id: _pid, ...rest }) => ({
+          ...rest,
+          plan_id: personalPlan.id,
+        }))
+      )
+      .select("id");
+    if (workoutsError) throw new Error(workoutsError.message);
+
+    // Copy workout steps; rely on insertion order matching to build old→new ID map
+    if (newWorkouts?.length) {
+      const idMap: Record<string, string> = {};
+      sourceWorkouts.forEach((w, i) => { idMap[w.id] = newWorkouts[i].id; });
+
+      const { data: sourceSteps } = await supabase
+        .from("workout_steps")
+        .select("*")
+        .in("plan_workout_id", sourceWorkouts.map((w) => w.id))
+        .order("step_order");
+
+      if (sourceSteps?.length) {
+        const stepsToInsert = sourceSteps.map(({ id: _id, plan_workout_id, ...rest }) => ({
+          ...rest,
+          plan_workout_id: idMap[plan_workout_id!],
+        }));
+        const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
+        if (stepsError) throw new Error(stepsError.message);
+      }
+    }
+  }
+
+  // Link user_plan to the personal copy
   const { error } = await supabase.from("user_plans").insert({
     user_id: user.id,
-    plan_id: planId,
+    plan_id: personalPlan.id,
     start_date: startDate,
     status: "active",
   });
-
   if (error) throw new Error(error.message);
+
   revalidatePath("/my-plan");
   revalidatePath("/dashboard");
   redirect("/my-plan");
