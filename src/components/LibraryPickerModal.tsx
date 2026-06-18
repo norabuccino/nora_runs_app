@@ -25,6 +25,7 @@ export function LibraryPickerModal({
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
+  const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -53,7 +54,11 @@ export function LibraryPickerModal({
     });
   }
 
-  const filtered = applyWorkoutFilter(workouts, filter);
+  const filtered = applyWorkoutFilter(workouts, filter).filter((w) => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return w.title.toLowerCase().includes(q) || w.description?.toLowerCase().includes(q);
+  });
 
   const displayed = filter.type === "run"
     ? [...filtered].sort((a, b) => {
@@ -85,7 +90,15 @@ export function LibraryPickerModal({
           </button>
         </div>
 
-        <div className="p-4 border-b border-[var(--border)]">
+        <div className="p-4 border-b border-[var(--border)] space-y-3">
+          <input
+            type="search"
+            placeholder="Search workouts…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            autoFocus
+          />
           <WorkoutFilterBar filter={filter} onChange={setFilter} />
         </div>
 
