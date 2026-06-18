@@ -295,6 +295,31 @@ export default function WorkoutsPage() {
             sources={Array.from(new Set(workouts.map((w) => w.source).filter(Boolean))) as string[]}
           />
 
+          {selectMode && displayed.length > 0 && (
+            <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+              <button
+                onClick={() => setSelectedIds(new Set(displayed.map((w) => w.id)))}
+                className="hover:text-[var(--foreground)] transition-colors"
+              >
+                Select all ({displayed.length})
+              </button>
+              {selectedIds.size > 0 && (
+                <>
+                  <span>·</span>
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="hover:text-[var(--foreground)] transition-colors"
+                  >
+                    Deselect all
+                  </button>
+                </>
+              )}
+              {selectedIds.size > 0 && (
+                <span className="ml-auto">{selectedIds.size} selected</span>
+              )}
+            </div>
+          )}
+
           {displayed.length === 0 ? (
             <p className="text-sm text-[var(--muted)] py-8 text-center">
               No workouts match.
@@ -417,10 +442,10 @@ export default function WorkoutsPage() {
             Apply
           </button>
           <button
-            onClick={() => setSelectedIds(new Set())}
+            onClick={exitSelectMode}
             className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] whitespace-nowrap"
           >
-            Deselect all
+            Cancel
           </button>
         </div>
       )}
