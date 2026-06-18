@@ -4,6 +4,40 @@ import { createClient } from "@/lib/supabase/server";
 import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { getIsAdmin } from "@/lib/profile";
+import type { PlanWorkout } from "@/types/database";
+
+function toMiles(distance: number, unit: string): number {
+  if (unit === "km") return distance / 1.60934;
+  if (unit === "m") return distance / 1609.34;
+  return distance;
+}
+
+function weekMileageRange(weekWorkouts: PlanWorkout[]): { low: number; high: number } {
+  const byDay: Record<number, PlanWorkout[]> = {};
+  for (let d = 0; d < 7; d++) byDay[d] = [];
+  weekWorkouts.forEach((w) => { byDay[w.day_of_week].push(w); });
+
+  let low = 0;
+  let high = 0;
+
+  for (let d = 0; d < 7; d++) {
+    const day = byDay[d];
+    if (!day.length) continue;
+    const distances = day.map((w) =>
+      w.distance_miles ? toMiles(parseFloat(String(w.distance_miles)), w.distance_unit ?? "mi") : 0
+    );
+    if ((day[0].day_logic ?? "or") === "and") {
+      const sum = distances.reduce((a, b) => a + b, 0);
+      low += sum;
+      high += sum;
+    } else {
+      low += Math.min(...distances);
+      high += Math.max(...distances);
+    }
+  }
+
+  return { low, high };
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -85,14 +119,25 @@ export default async function PlanDetailPage({ params }: Props) {
       <div className="space-y-10">
         {weeks.map((weekNum) => {
           const weekWorkouts = (workouts ?? []).filter((w) => w.week_number === weekNum);
+          const { low, high } = weekMileageRange(weekWorkouts);
+          const mileageLabel = high === 0 ? null
+            : low === high ? `${low.toFixed(1)} mi`
+            : `${low.toFixed(1)} – ${high.toFixed(1)} mi`;
           return (
             <div key={weekNum} className="space-y-3">
-              <div className="flex items-baseline gap-3">
-                <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide whitespace-nowrap">
-                  Week {weekNum}
-                </h2>
-                {weekNotes[weekNum] && (
-                  <p className="text-sm text-[var(--muted)] italic">{weekNotes[weekNum]}</p>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="flex items-baseline gap-3 min-w-0">
+                  <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide whitespace-nowrap">
+                    Week {weekNum}
+                  </h2>
+                  {weekNotes[weekNum] && (
+                    <p className="text-sm text-[var(--muted)] italic truncate">{weekNotes[weekNum]}</p>
+                  )}
+                </div>
+                {mileageLabel && (
+                  <span className="text-sm font-medium text-[var(--muted)] whitespace-nowrap shrink-0">
+                    {mileageLabel}
+                  </span>
                 )}
               </div>
               <div className="rounded-xl border border-[var(--border)] overflow-hidden">
