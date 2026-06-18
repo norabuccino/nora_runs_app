@@ -158,13 +158,13 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
                     );
                   }
                   return (
-                    <div key={i} className="rounded-lg border-2 border-[var(--accent)]">
-                      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--accent)]">
-                        <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">Repeat</span>
-                        <span className="text-xs text-[var(--accent)]">×</span>
-                        <span className="text-xs font-semibold text-[var(--accent)]">{seg.repeatCount}</span>
+                    <div key={i} className="rounded-lg border border-[var(--border)]">
+                      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)]">
+                        <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Repeat</span>
+                        <span className="text-xs text-[var(--muted)]">×</span>
+                        <span className="text-xs font-semibold text-[var(--muted)]">{seg.repeatCount}</span>
                       </div>
-                      <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--accent)] ml-2">
+                      <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--border)] ml-2">
                         {seg.steps.map((step, j) => (
                           <StepRow key={j} step={step} />
                         ))}
