@@ -29,6 +29,7 @@ import {
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
+  allWorkouts?: LibraryWorkoutWithSteps[];
   paces?: RunningPace[];
   onSave: (data: WorkoutLibraryFormData) => Promise<void>;
   onCancel: () => void;
@@ -99,9 +100,10 @@ function segmentId(seg: ReturnType<typeof buildSegments>[number]): string {
   return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
 }
 
-export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: WorkoutLibraryFormProps) {
+export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, onCancel }: WorkoutLibraryFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<LibraryWorkoutWithSteps | null>(null);
   const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
 
   const [form, setForm] = useState<WorkoutLibraryFormData>(() => ({
@@ -298,12 +300,43 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
     };
   })();
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.title.trim()) {
-      setError("Title is required");
-      return;
-    }
+  function findContentMatch(): LibraryWorkoutWithSteps | null {
+    if (!allWorkouts?.length) return null;
+
+    const formDistMi = (() => {
+      if (totalDistInUnit > 0)
+        return convertDistance(totalDistInUnit, form.distance_unit as DistanceUnit, "mi");
+      const v = parseFloat(form.distance_miles);
+      return !isNaN(v) && v > 0
+        ? convertDistance(v, form.distance_unit as DistanceUnit, "mi")
+        : null;
+    })();
+    const formDur = totalDurationMin > 0
+      ? totalDurationMin
+      : (() => { const v = parseFloat(form.duration_minutes); return !isNaN(v) && v > 0 ? v : null; })();
+
+    if (!formDistMi && !formDur) return null;
+
+    return allWorkouts.find((w) => {
+      if (w.id === existing?.id) return false;
+      if (w.type !== form.type) return false;
+      if (form.type === "run" && (w.run_type ?? "") !== (form.run_type || "")) return false;
+
+      const wDistMi = w.distance_miles
+        ? convertDistance(parseFloat(String(w.distance_miles)), (w.distance_unit as DistanceUnit) || "mi", "mi")
+        : null;
+      const wDur = w.duration_minutes ?? null;
+
+      const distClose = formDistMi !== null && wDistMi !== null
+        && Math.abs(formDistMi - wDistMi) / Math.max(formDistMi, wDistMi) < 0.1;
+      const durClose = formDur !== null && wDur !== null
+        && Math.abs(formDur - wDur) / Math.max(formDur, wDur) < 0.1;
+
+      return distClose || durClose;
+    }) ?? null;
+  }
+
+  async function doSave() {
     setSaving(true);
     setError(null);
     try {
@@ -320,6 +353,37 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
       setError(err instanceof Error ? err.message : "Failed to save");
       setSaving(false);
     }
+  }
+
+  async function handleSaveAnyway() {
+    await doSave();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setDuplicateWarning(null);
+
+    if (!form.title.trim()) {
+      setError("Title is required");
+      return;
+    }
+
+    const titleConflict = allWorkouts?.find(
+      (w) => w.id !== existing?.id &&
+      w.title.trim().toLowerCase() === form.title.trim().toLowerCase()
+    );
+    if (titleConflict) {
+      setError(`A workout named "${titleConflict.title}" already exists. Please choose a different title.`);
+      return;
+    }
+
+    const contentConflict = findContentMatch();
+    if (contentConflict) {
+      setDuplicateWarning(contentConflict);
+      return;
+    }
+
+    await doSave();
   }
 
   const isRun = form.type === "run";
@@ -540,6 +604,27 @@ export function WorkoutLibraryForm({ existing, paces = [], onSave, onCancel }: W
             </div>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+            {duplicateWarning && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950 dark:border-amber-700 p-3 space-y-2">
+                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  Similar workout already exists
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  &ldquo;{duplicateWarning.title}&rdquo; has a similar type
+                  {duplicateWarning.distance_miles ? " and distance" : ""}
+                  {duplicateWarning.duration_minutes ? " and duration" : ""}. Check it before adding a new one.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleSaveAnyway}
+                  disabled={saving}
+                  className="text-xs underline text-amber-800 dark:text-amber-200 hover:no-underline disabled:opacity-50"
+                >
+                  Save anyway
+                </button>
+              </div>
+            )}
 
             <div className="flex gap-2 pt-1">
               <button

@@ -279,6 +279,7 @@ export default function WorkoutsPage() {
       {formOpen && (
         <WorkoutLibraryForm
           existing={editing}
+          allWorkouts={workouts}
           paces={paces}
           onSave={handleSave}
           onCancel={() => { setFormOpen(false); setEditing(null); }}
