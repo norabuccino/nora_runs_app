@@ -15,7 +15,7 @@ import {
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS } from "@/lib/paceUtils";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
-type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc";
+type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
 function applySearch(items: LibraryWorkoutWithSteps[], query: string): LibraryWorkoutWithSteps[] {
   if (!query.trim()) return items;
@@ -45,6 +45,10 @@ function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWork
       return sorted.sort((a, b) => (b.duration_minutes ?? 0) - (a.duration_minutes ?? 0));
     case "duration_asc":
       return sorted.sort((a, b) => (a.duration_minutes ?? 0) - (b.duration_minutes ?? 0));
+    case "newest":
+      return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "oldest":
+      return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
     default:
       return sorted;
   }
@@ -228,6 +232,8 @@ export default function WorkoutsPage() {
               <option value="type">By type</option>
               <option value="duration_desc">Longest first</option>
               <option value="duration_asc">Shortest first</option>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
             </select>
           </div>
 
