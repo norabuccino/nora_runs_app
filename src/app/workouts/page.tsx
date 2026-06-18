@@ -67,7 +67,7 @@ export default function WorkoutsPage() {
   const [detail, setDetail] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState<SortKey>("az");
+  const [sort, setSort] = useState<SortKey>("newest");
   const [isPending, startTransition] = useTransition();
   const [compact, setCompact] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
