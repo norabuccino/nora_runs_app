@@ -154,6 +154,7 @@ export interface Database {
           pace_type: string | null;
           duration_minutes: number | null;
           notes: string | null;
+          source: string | null;
           created_at: string;
         };
         Insert: {
@@ -168,6 +169,7 @@ export interface Database {
           pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
+          source?: string | null;
           created_at?: string;
         };
         Update: {
@@ -182,6 +184,7 @@ export interface Database {
           pace_type?: string | null;
           duration_minutes?: number | null;
           notes?: string | null;
+          source?: string | null;
           created_at?: string;
         };
       };

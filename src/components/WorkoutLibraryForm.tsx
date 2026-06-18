@@ -45,6 +45,7 @@ export interface WorkoutLibraryFormData {
   pace_type: string;
   duration_minutes: string;
   notes: string;
+  source: string;
   steps: WorkoutStepFormRow[];
 }
 
@@ -115,6 +116,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     pace_type: existing?.pace_type ?? "",
     duration_minutes: existing?.duration_minutes?.toString() ?? "",
     notes: existing?.notes ?? "",
+    source: existing?.source ?? "",
     steps:
       existing?.workout_steps?.map((s) => ({
         step_type: s.step_type,
@@ -418,6 +420,17 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
                 rows={2}
                 className={`${inputClass} resize-none`}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Source <span className="text-[var(--muted)]">(optional — coach, book, etc.)</span></label>
+              <input
+                type="text"
+                value={form.source}
+                onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
+                placeholder="e.g. Jack Daniels, coach Sarah"
+                className={inputClass}
               />
             </div>
 

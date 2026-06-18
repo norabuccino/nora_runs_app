@@ -15,6 +15,7 @@ export interface LibraryWorkoutData {
   pace_type?: string | null;
   duration_minutes?: number | null;
   notes?: string | null;
+  source?: string | null;
   steps?: WorkoutStepData[];
 }
 

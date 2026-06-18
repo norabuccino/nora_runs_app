@@ -105,6 +105,7 @@ export default function WorkoutsPage() {
       pace_type: data.pace_type || null,
       duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
       notes: data.notes || null,
+      source: data.source || null,
       steps: data.steps.map((s) => ({
         step_type: s.step_type,
         label: s.label || null,
@@ -237,8 +238,12 @@ export default function WorkoutsPage() {
             </select>
           </div>
 
-          {/* Type filter */}
-          <WorkoutFilterBar filter={filter} onChange={setFilter} />
+          {/* Type + source filter */}
+          <WorkoutFilterBar
+            filter={filter}
+            onChange={setFilter}
+            sources={Array.from(new Set(workouts.map((w) => w.source).filter(Boolean))) as string[]}
+          />
 
           {displayed.length === 0 ? (
             <p className="text-sm text-[var(--muted)] py-8 text-center">
