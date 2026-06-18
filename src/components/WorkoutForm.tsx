@@ -238,6 +238,18 @@ export function SortableStepCard({
   const [newPaceStr, setNewPaceStr] = useState("");
   const [paceError, setPaceError] = useState<string | null>(null);
   const [paceSaving, setPaceSaving] = useState(false);
+  const [customPaceMode, setCustomPaceMode] = useState(() => /^\d+:\d{2}$/.test(step.pace_type));
+
+  function switchToCustom() {
+    if (!/^\d+:\d{2}$/.test(step.pace_type)) onUpdate(actualIndex, "pace_type", "");
+    setCustomPaceMode(true);
+    setAddingPace(false);
+  }
+
+  function switchToSaved() {
+    if (/^\d+:\d{2}$/.test(step.pace_type)) onUpdate(actualIndex, "pace_type", "");
+    setCustomPaceMode(false);
+  }
 
   async function handleSavePace() {
     if (!newPaceName.trim()) { setPaceError("Name required"); return; }
@@ -296,27 +308,46 @@ export function SortableStepCard({
           </button>
         </div>
 
-        {/* Row 2: pace select + "+ New" toggle */}
+        {/* Row 2: pace (saved or custom) */}
         <div className="flex items-center gap-1">
-          <select
-            value={step.pace_type}
-            onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
-            className={`${ci} flex-1 min-w-0`}
-          >
-            <option value="">Pace: none</option>
-            {paces.map((p) => (
-              <option key={p.id} value={p.name}>
-                {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, unit)}
-              </option>
-            ))}
-          </select>
+          {customPaceMode ? (
+            <input
+              type="text"
+              placeholder="MM:SS"
+              value={step.pace_type}
+              onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
+              className={`${ci} flex-1 min-w-0 font-mono`}
+            />
+          ) : (
+            <select
+              value={step.pace_type}
+              onChange={(e) => onUpdate(actualIndex, "pace_type", e.target.value)}
+              className={`${ci} flex-1 min-w-0`}
+            >
+              <option value="">Pace: none</option>
+              {paces.map((p) => (
+                <option key={p.id} value={p.name}>
+                  {p.name} · {formatPaceForUnit(p.pace_seconds_per_mile, unit)}
+                </option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
-            onClick={() => { setAddingPace((v) => !v); setPaceError(null); }}
-            className="shrink-0 text-xs text-[var(--accent)] hover:underline leading-none"
+            onClick={customPaceMode ? switchToSaved : switchToCustom}
+            className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--foreground)] leading-none whitespace-nowrap"
           >
-            + New
+            {customPaceMode ? "Saved" : "Custom"}
           </button>
+          {!customPaceMode && (
+            <button
+              type="button"
+              onClick={() => { setAddingPace((v) => !v); setPaceError(null); }}
+              className="shrink-0 text-xs text-[var(--accent)] hover:underline leading-none"
+            >
+              + New
+            </button>
+          )}
         </div>
 
         {/* Inline pace creation */}
