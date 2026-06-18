@@ -783,7 +783,7 @@ export function WorkoutForm({
 
   const isRun = form.type === "run";
   const inputClass =
-    "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+    "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
   const labelClass = "text-xs text-[var(--muted)]";
 
   const segments = buildSegments(form.steps);
@@ -792,7 +792,7 @@ export function WorkoutForm({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90vh]">
-        <div className="p-6 space-y-5">
+        <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">
               {existing ? "Edit" : "Add"} workout — Wk {weekNumber},{" "}
@@ -806,7 +806,7 @@ export function WorkoutForm({
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* Type */}
             <div className="space-y-1">
               <label className={labelClass}>Type</label>
@@ -877,7 +877,7 @@ export function WorkoutForm({
             </div>
 
             {/* Steps */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
                 Steps
               </span>
@@ -895,7 +895,7 @@ export function WorkoutForm({
                 onDragEnd={onSegmentDragEnd}
               >
                 <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {segments.map((seg, si) => {
                       if (seg.type === "step") {
                         return (
@@ -943,7 +943,7 @@ export function WorkoutForm({
                 </SortableContext>
               </DndContext>
 
-              <div className="flex gap-3 pt-1">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={addStep}
@@ -963,7 +963,7 @@ export function WorkoutForm({
 
             {/* Totals (calculated from steps) + pace type */}
             {(totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
-              <div className="space-y-3 rounded-lg border border-[var(--border)] bg-[var(--card)] p-3">
+              <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
                 {(totalDistInUnit > 0 || totalDurationMin > 0) && (
                   <div className="flex flex-wrap gap-4">
                     {totalDistInUnit > 0 && (
