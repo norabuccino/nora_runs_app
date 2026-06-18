@@ -84,7 +84,7 @@ export function scheduledDate(startDate: string, weekNumber: number, dayOfWeek: 
   return start.toISOString().split("T")[0];
 }
 
-export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+export const DAY_NAMES = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
 
 export const WORKOUT_TYPE_LABELS: Record<string, string> = {
   run: "Run",

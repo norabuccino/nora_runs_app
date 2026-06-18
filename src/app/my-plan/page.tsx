@@ -56,11 +56,17 @@ export default async function MyPlanPage() {
     await updateUserPlan(id, { status: "completed" });
   }
 
-  async function handleChangeStartDate(formData: FormData) {
+  async function handleChangeRaceDate(formData: FormData) {
     "use server";
     const id = formData.get("id") as string;
-    const startDate = formData.get("start_date") as string;
-    if (startDate) await updateUserPlan(id, { start_date: startDate });
+    const raceDate = formData.get("race_date") as string;
+    if (raceDate && plan) {
+      const [y, m, d] = raceDate.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      date.setDate(date.getDate() - (plan.total_weeks * 7 - 1));
+      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      await updateUserPlan(id, { start_date: startDate });
+    }
   }
 
   async function handleDelete(formData: FormData) {
@@ -120,14 +126,19 @@ export default async function MyPlanPage() {
               </Link>
             </div>
 
-            <form action={handleChangeStartDate} className="flex items-end gap-3">
+            <form action={handleChangeRaceDate} className="flex items-end gap-3">
               <input type="hidden" name="id" value={activePlan.id} />
               <div className="space-y-1">
-                <label className="text-xs text-[var(--muted)]">Start date</label>
+                <label className="text-xs text-[var(--muted)]">Race date</label>
                 <input
                   type="date"
-                  name="start_date"
-                  defaultValue={activePlan.start_date}
+                  name="race_date"
+                  defaultValue={(() => {
+                    const [y, m, d] = activePlan.start_date.split("-").map(Number);
+                    const date = new Date(y, m - 1, d);
+                    date.setDate(date.getDate() + plan.total_weeks * 7 - 1);
+                    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                  })()}
                   className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
                 />
               </div>

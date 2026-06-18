@@ -65,8 +65,14 @@ export default async function PlanDetailPage({ params }: Props) {
 
   async function handleAssign(formData: FormData) {
     "use server";
-    const startDate = formData.get("start_date") as string;
-    if (startDate) await assignPlan(id, startDate);
+    const raceDate = formData.get("race_date") as string;
+    if (raceDate) {
+      const [y, m, d] = raceDate.split("-").map(Number);
+      const date = new Date(y, m - 1, d);
+      date.setDate(date.getDate() - (plan!.total_weeks * 7 - 1));
+      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      await assignPlan(id, startDate);
+    }
   }
 
   return (
@@ -99,13 +105,16 @@ export default async function PlanDetailPage({ params }: Props) {
             </Link>
           )}
           {!plan.source_plan_id && (
-            <form action={handleAssign} className="flex gap-2">
-              <input
-                type="date"
-                name="start_date"
-                required
-                className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
-              />
+            <form action={handleAssign} className="flex gap-2 items-end">
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--muted)]">Race date</label>
+                <input
+                  type="date"
+                  name="race_date"
+                  required
+                  className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
+                />
+              </div>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
@@ -145,7 +154,7 @@ export default async function PlanDetailPage({ params }: Props) {
                         .sort((a, b) => a.sort_order - b.sort_order);
                       return (
                         <div key={dayIndex} className="flex gap-4 px-4 py-3">
-                          <span className="text-xs font-medium text-[var(--muted)] w-8 shrink-0 pt-0.5">
+                          <span className="text-xs font-medium text-[var(--muted)] w-14 shrink-0 pt-0.5">
                             {DAY_NAMES[dayIndex]}
                           </span>
                           <div className="flex-1 space-y-1.5">
