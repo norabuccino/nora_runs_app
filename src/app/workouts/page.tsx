@@ -493,24 +493,23 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
 
   if (compact) {
     return (
-      <div className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
+      <div
+        onClick={() => onDetail(workout)}
+        className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors cursor-pointer hover:border-[var(--foreground)] ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
+      >
         {selectMode && (
           <input
             type="checkbox"
             checked={!!selected}
             onChange={() => onToggleSelect?.(workout.id)}
+            onClick={(e) => e.stopPropagation()}
             className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
           />
         )}
         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
           {typeLabel}
         </span>
-        <button
-          onClick={() => onDetail(workout)}
-          className="text-sm font-medium truncate flex-1 min-w-0 text-left hover:underline"
-        >
-          {workout.title}
-        </button>
+        <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
         {workout.source && (
           <span className="flex-shrink-0 text-xs text-[var(--muted)] border border-[var(--border)] rounded-full px-2 py-0.5 truncate max-w-[8rem]">
             {workout.source}
@@ -523,21 +522,21 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
           </div>
         )}
         <button
-          onClick={() => onEdit(workout)}
+          onClick={(e) => { e.stopPropagation(); onEdit(workout); }}
           title="Edit"
           className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
         >
           ✎
         </button>
         <button
-          onClick={() => onDuplicate(workout)}
+          onClick={(e) => { e.stopPropagation(); onDuplicate(workout); }}
           title="Duplicate"
           className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
         >
           ⧉
         </button>
         <button
-          onClick={() => onAddToPlan(workout)}
+          onClick={(e) => { e.stopPropagation(); onAddToPlan(workout); }}
           title="Add to plan"
           className="flex-shrink-0 w-7 h-7 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-base font-medium hover:opacity-90 transition-opacity flex items-center justify-center"
         >
@@ -551,13 +550,17 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
   if (workout.pace_type) meta.push(workout.pace_type);
 
   return (
-    <div className={`rounded-xl border bg-[var(--card)] p-4 space-y-3 flex flex-col transition-colors ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
+    <div
+      onClick={() => onDetail(workout)}
+      className={`rounded-xl border bg-[var(--card)] p-4 space-y-3 flex flex-col transition-colors cursor-pointer hover:border-[var(--foreground)] ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
+    >
       <div className="flex items-start justify-between gap-2">
         {selectMode && (
           <input
             type="checkbox"
             checked={!!selected}
             onChange={() => onToggleSelect?.(workout.id)}
+            onClick={(e) => e.stopPropagation()}
             className="mt-0.5 flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
           />
         )}
@@ -565,12 +568,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
           <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
             {typeLabel}
           </span>
-          <button
-            onClick={() => onDetail(workout)}
-            className="font-medium text-sm leading-snug truncate text-left hover:underline"
-          >
-            {workout.title}
-          </button>
+          <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
           {workout.source && (
             <p className="text-xs text-[var(--muted)]">from {workout.source}</p>
           )}
@@ -613,26 +611,26 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
 
       <div className="flex gap-2 pt-1 mt-auto">
         <button
-          onClick={() => onAddToPlan(workout)}
+          onClick={(e) => { e.stopPropagation(); onAddToPlan(workout); }}
           className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-1.5 text-xs font-medium hover:opacity-90 transition-opacity"
         >
           Add to plan
         </button>
         <button
-          onClick={() => onEdit(workout)}
+          onClick={(e) => { e.stopPropagation(); onEdit(workout); }}
           className="px-3 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
         >
           Edit
         </button>
         <button
-          onClick={() => onDuplicate(workout)}
+          onClick={(e) => { e.stopPropagation(); onDuplicate(workout); }}
           className="px-3 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
           title="Duplicate workout"
         >
           Duplicate
         </button>
         <button
-          onClick={() => onDelete(workout)}
+          onClick={(e) => { e.stopPropagation(); onDelete(workout); }}
           className="px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--muted)] hover:text-red-500 hover:border-red-300 transition-colors"
         >
           Delete
