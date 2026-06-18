@@ -109,6 +109,7 @@ interface WeekGridProps {
   logs?: WorkoutLog[];
   paces?: RunningPace[];
   mode?: "view" | "dashboard" | "edit";
+  purpose?: string;
   onComplete?: (workout: PlanWorkout) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
   onEdit?: (workout: PlanWorkout) => void;
@@ -117,6 +118,7 @@ interface WeekGridProps {
   onDayLogicChange?: (weekNumber: number, dayOfWeek: number, logic: "and" | "or") => void;
   onReorder?: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
   onCopy?: (workout: PlanWorkout) => void;
+  onPurposeChange?: (purpose: string) => void;
 }
 
 export function WeekGrid({
@@ -125,6 +127,7 @@ export function WeekGrid({
   logs = [],
   paces = [],
   mode = "view",
+  purpose,
   onComplete,
   onUnComplete,
   onEdit,
@@ -133,11 +136,15 @@ export function WeekGrid({
   onDayLogicChange,
   onReorder,
   onCopy,
+  onPurposeChange,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
     toDayMap(workouts.filter((w) => w.week_number === weekNumber))
   );
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [localPurpose, setLocalPurpose] = useState(purpose ?? "");
+
+  useEffect(() => { setLocalPurpose(purpose ?? ""); }, [purpose]);
 
   useEffect(() => {
     if (!activeId) {
@@ -296,7 +303,22 @@ export function WeekGrid({
   const byDay = Array.from({ length: 7 }, (_, i) => items[i] ?? []);
 
   const header = (
-    <h3 className="text-sm font-semibold text-[var(--muted)]">Week {weekNumber}</h3>
+    <div className="flex items-baseline gap-3 min-w-0">
+      <h3 className="text-sm font-semibold text-[var(--muted)] whitespace-nowrap">Week {weekNumber}</h3>
+      {mode === "edit" ? (
+        <input
+          type="text"
+          value={localPurpose}
+          onChange={(e) => setLocalPurpose(e.target.value)}
+          onBlur={() => onPurposeChange?.(localPurpose)}
+          placeholder="Add a goal for this week…"
+          maxLength={120}
+          className="flex-1 min-w-0 text-sm bg-transparent border-b border-transparent hover:border-[var(--border)] focus:border-[var(--accent)] focus:outline-none py-0 text-[var(--foreground)] placeholder:text-[var(--muted)]"
+        />
+      ) : localPurpose ? (
+        <p className="text-sm text-[var(--muted)] italic truncate">{localPurpose}</p>
+      ) : null}
+    </div>
   );
 
   // View / dashboard mode — no DnD

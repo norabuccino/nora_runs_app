@@ -21,9 +21,10 @@ export default async function MyPlanPage() {
   let planWorkouts: PlanWorkout[] = [];
   let paces: RunningPace[] = [];
   let sourcePlanName: string | null = null;
+  let weekNotesMap: Record<number, string> = {};
 
   if (activePlan && plan) {
-    const [{ data: w }, { data: p }, { data: sp }] = await Promise.all([
+    const [{ data: w }, { data: p }, { data: sp }, { data: wn }] = await Promise.all([
       supabase
         .from("plan_workouts")
         .select("*")
@@ -35,10 +36,12 @@ export default async function MyPlanPage() {
       plan.source_plan_id
         ? supabase.from("training_plans").select("name").eq("id", plan.source_plan_id).single()
         : Promise.resolve({ data: null, error: null }),
+      supabase.from("plan_week_notes").select("*").eq("plan_id", activePlan.plan_id),
     ]);
     planWorkouts = (w as PlanWorkout[]) ?? [];
     paces = p ?? [];
     sourcePlanName = (sp as { name: string } | null)?.name ?? null;
+    (wn ?? []).forEach((n: { week_number: number; purpose: string }) => { weekNotesMap[n.week_number] = n.purpose; });
   }
 
   async function handlePause(formData: FormData) {
@@ -177,6 +180,7 @@ export default async function MyPlanPage() {
                   workouts={planWorkouts}
                   paces={paces}
                   mode="view"
+                  purpose={weekNotesMap[weekNum]}
                 />
               ))}
             </div>

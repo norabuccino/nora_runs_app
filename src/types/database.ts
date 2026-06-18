@@ -301,6 +301,26 @@ export interface Database {
           created_at?: string;
         };
       };
+      plan_week_notes: {
+        Row: {
+          id: string;
+          plan_id: string;
+          week_number: number;
+          purpose: string;
+        };
+        Insert: {
+          id?: string;
+          plan_id: string;
+          week_number: number;
+          purpose?: string;
+        };
+        Update: {
+          id?: string;
+          plan_id?: string;
+          week_number?: number;
+          purpose?: string;
+        };
+      };
       strava_tokens: {
         Row: {
           user_id: string;
@@ -339,6 +359,7 @@ export type RunningPace = Database["public"]["Tables"]["running_paces"]["Row"];
 export type WorkoutLog = Database["public"]["Tables"]["workout_logs"]["Row"];
 export type WorkoutStep = Database["public"]["Tables"]["workout_steps"]["Row"];
 export type LibraryWorkout = Database["public"]["Tables"]["workouts"]["Row"];
+export type PlanWeekNote = Database["public"]["Tables"]["plan_week_notes"]["Row"];
 
 // Domain-specific union types
 export type WorkoutType = PlanWorkout["type"];

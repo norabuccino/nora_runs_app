@@ -10,7 +10,7 @@ import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
-import { updatePlan } from "@/app/actions/plans";
+import { updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
 import { DAY_NAMES } from "@/lib/paceUtils";
 import { CopyToDaysModal } from "@/components/CopyToDaysModal";
 
@@ -26,6 +26,7 @@ export default function EditPlanPage() {
   const [plan, setPlan] = useState<TrainingPlan | null>(null);
   const [workouts, setWorkouts] = useState<WorkoutWithSteps[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
+  const [weekNotes, setWeekNotes] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
   const [copying, setCopying] = useState<PlanWorkout | null>(null);
@@ -36,11 +37,12 @@ export default function EditPlanPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }, { data: s }, { data: pac }, { data: { user } }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: s }, { data: pac }, { data: notes }, { data: { user } }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
       supabase.from("plan_workouts").select("*").eq("plan_id", id).order("sort_order"),
       supabase.from("workout_steps").select("*").order("step_order"),
       supabase.from("running_paces").select("*").order("created_at"),
+      supabase.from("plan_week_notes").select("*").eq("plan_id", id),
       supabase.auth.getUser(),
     ]);
 
@@ -64,6 +66,9 @@ export default function EditPlanPage() {
       workout_steps: stepsMap[wk.id] ?? [],
     }));
 
+    const notesMap: Record<number, string> = {};
+    (notes ?? []).forEach((n) => { notesMap[n.week_number] = n.purpose; });
+
     setPlan(p);
     if (p) {
       setPlanName((prev) => prev || p.name);
@@ -71,6 +76,7 @@ export default function EditPlanPage() {
     }
     setWorkouts(workoutsWithSteps);
     setPaces(pac ?? []);
+    setWeekNotes(notesMap);
     setLoading(false);
   }
 
@@ -92,6 +98,11 @@ export default function EditPlanPage() {
   function openEdit(workout: PlanWorkout) {
     const full = workouts.find((w) => w.id === workout.id) ?? null;
     setFlow({ step: "form", weekNumber: workout.week_number, dayOfWeek: workout.day_of_week, existing: full });
+  }
+
+  async function handlePurposeChange(weekNumber: number, purpose: string) {
+    setWeekNotes((prev) => ({ ...prev, [weekNumber]: purpose }));
+    await upsertWeekPurpose(id, weekNumber, purpose);
   }
 
   function handleReorder(updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) {
@@ -235,6 +246,8 @@ export default function EditPlanPage() {
             weekNumber={weekNum}
             workouts={workouts}
             mode="edit"
+            purpose={weekNotes[weekNum] ?? ""}
+            onPurposeChange={(p) => handlePurposeChange(weekNum, p)}
             onEdit={openEdit}
             onDelete={handleDelete}
             onAddWorkout={openAdd}

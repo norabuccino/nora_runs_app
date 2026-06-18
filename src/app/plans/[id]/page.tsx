@@ -13,12 +13,16 @@ export default async function PlanDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: plan }, { data: workouts }, { data: paces }, isAdmin] = await Promise.all([
+  const [{ data: plan }, { data: workouts }, { data: paces }, { data: weekNotesData }, isAdmin] = await Promise.all([
     supabase.from("training_plans").select("*").eq("id", id).single(),
     supabase.from("plan_workouts").select("*").eq("plan_id", id).order("week_number").order("day_of_week").order("sort_order"),
     supabase.from("running_paces").select("*").order("created_at"),
+    supabase.from("plan_week_notes").select("*").eq("plan_id", id),
     getIsAdmin(),
   ]);
+
+  const weekNotes: Record<number, string> = {};
+  (weekNotesData ?? []).forEach((n) => { weekNotes[n.week_number] = n.purpose; });
 
   if (!plan) notFound();
 
@@ -83,9 +87,14 @@ export default async function PlanDetailPage({ params }: Props) {
           const weekWorkouts = (workouts ?? []).filter((w) => w.week_number === weekNum);
           return (
             <div key={weekNum} className="space-y-3">
-              <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
-                Week {weekNum}
-              </h2>
+              <div className="flex items-baseline gap-3">
+                <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide whitespace-nowrap">
+                  Week {weekNum}
+                </h2>
+                {weekNotes[weekNum] && (
+                  <p className="text-sm text-[var(--muted)] italic">{weekNotes[weekNum]}</p>
+                )}
+              </div>
               <div className="rounded-xl border border-[var(--border)] overflow-hidden">
                 {weekWorkouts.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-[var(--muted)]">No workouts scheduled.</p>

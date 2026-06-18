@@ -45,6 +45,29 @@ export async function updatePlan(
   revalidatePath(`/plans/${id}`);
 }
 
+export async function upsertWeekPurpose(planId: string, weekNumber: number, purpose: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  if (!purpose.trim()) {
+    await supabase
+      .from("plan_week_notes")
+      .delete()
+      .eq("plan_id", planId)
+      .eq("week_number", weekNumber);
+  } else {
+    await supabase
+      .from("plan_week_notes")
+      .upsert(
+        { plan_id: planId, week_number: weekNumber, purpose: purpose.trim() },
+        { onConflict: "plan_id,week_number" }
+      );
+  }
+  revalidatePath(`/plans/${planId}`);
+  revalidatePath(`/plans/${planId}/edit`);
+}
+
 export async function deletePlan(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

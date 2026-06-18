@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [todayPos, setTodayPos] = useState<{ weekNumber: number; dayOfWeek: number } | null>(null);
+  const [weekPurpose, setWeekPurpose] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
 
   async function load() {
@@ -54,6 +55,15 @@ export default function DashboardPage() {
       setLoading(false);
       return;
     }
+
+    // Fetch week purpose
+    const { data: noteData } = await supabase
+      .from("plan_week_notes")
+      .select("purpose")
+      .eq("plan_id", activePlan.plan_id)
+      .eq("week_number", pos.weekNumber)
+      .single();
+    setWeekPurpose(noteData?.purpose ?? undefined);
 
     // Fetch today's + this whole week's workouts
     const { data: workoutsData } = await supabase
@@ -198,6 +208,7 @@ export default function DashboardPage() {
                 logs={logs}
                 paces={paces}
                 mode="view"
+                purpose={weekPurpose}
               />
             </div>
           </div>
