@@ -115,7 +115,7 @@ export async function updateWorkout(id: string, data: Partial<WorkoutData>) {
   const { steps, ...workoutRow } = data;
   const { error } = await supabase
     .from("plan_workouts")
-    .update(workoutRow)
+    .update({ ...workoutRow, library_workout_id: null })
     .eq("id", id);
 
   if (error) throw new Error(error.message);

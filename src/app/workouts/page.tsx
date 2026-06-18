@@ -6,6 +6,7 @@ import type { LibraryWorkoutWithSteps, RunningPace, WorkoutType, RunType } from 
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
 import { WorkoutImportModal } from "@/components/WorkoutImportModal";
+import { WorkoutDetailModal } from "@/components/WorkoutDetailModal";
 import {
   createLibraryWorkout,
   updateLibraryWorkout,
@@ -63,6 +64,7 @@ export default function WorkoutsPage() {
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
   const [addToPlan, setAddToPlan] = useState<LibraryWorkoutWithSteps | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [detail, setDetail] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("az");
@@ -334,6 +336,7 @@ export default function WorkoutsPage() {
                   selectMode={selectMode}
                   selected={selectedIds.has(workout.id)}
                   onToggleSelect={toggleSelect}
+                  onDetail={setDetail}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
@@ -350,6 +353,7 @@ export default function WorkoutsPage() {
                   selectMode={selectMode}
                   selected={selectedIds.has(workout.id)}
                   onToggleSelect={toggleSelect}
+                  onDetail={setDetail}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
@@ -375,6 +379,14 @@ export default function WorkoutsPage() {
           paces={paces}
           onSave={handleSave}
           onCancel={() => { setFormOpen(false); setEditing(null); }}
+        />
+      )}
+
+      {detail && (
+        <WorkoutDetailModal
+          workout={detail}
+          onClose={() => setDetail(null)}
+          onEdit={(w) => { setDetail(null); handleEdit(w); }}
         />
       )}
 
@@ -459,13 +471,14 @@ interface WorkoutLibraryCardProps {
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
+  onDetail: (w: LibraryWorkoutWithSteps) => void;
   onEdit: (w: LibraryWorkoutWithSteps) => void;
   onDelete: (w: LibraryWorkoutWithSteps) => void;
   onDuplicate: (w: LibraryWorkoutWithSteps) => void;
   onAddToPlan: (w: LibraryWorkoutWithSteps) => void;
 }
 
-function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
+function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
   const typeBadge = workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
@@ -492,7 +505,12 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
           {typeLabel}
         </span>
-        <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
+        <button
+          onClick={() => onDetail(workout)}
+          className="text-sm font-medium truncate flex-1 min-w-0 text-left hover:underline"
+        >
+          {workout.title}
+        </button>
         {workout.source && (
           <span className="flex-shrink-0 text-xs text-[var(--muted)] border border-[var(--border)] rounded-full px-2 py-0.5 truncate max-w-[8rem]">
             {workout.source}
@@ -547,7 +565,12 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
           <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
             {typeLabel}
           </span>
-          <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
+          <button
+            onClick={() => onDetail(workout)}
+            className="font-medium text-sm leading-snug truncate text-left hover:underline"
+          >
+            {workout.title}
+          </button>
           {workout.source && (
             <p className="text-xs text-[var(--muted)]">from {workout.source}</p>
           )}

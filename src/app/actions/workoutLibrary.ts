@@ -63,6 +63,39 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
     }
   }
 
+  // Cascade edits to all linked plan workouts
+  const { data: linked } = await supabase
+    .from("plan_workouts")
+    .select("id")
+    .eq("library_workout_id", id);
+
+  if (linked?.length) {
+    await supabase
+      .from("plan_workouts")
+      .update({
+        type: workoutRow.type,
+        run_type: workoutRow.run_type ?? null,
+        title: workoutRow.title,
+        description: workoutRow.description ?? null,
+        distance_miles: workoutRow.distance_miles ?? null,
+        distance_unit: workoutRow.distance_unit ?? "mi",
+        pace_type: workoutRow.pace_type ?? null,
+        duration_minutes: workoutRow.duration_minutes ?? null,
+        notes: workoutRow.notes ?? null,
+      })
+      .eq("library_workout_id", id);
+
+    if (steps !== undefined) {
+      for (const pw of linked) {
+        await supabase.from("workout_steps").delete().eq("plan_workout_id", pw.id);
+        if (steps.length) {
+          const stepsToInsert = steps.map((s, i) => ({ ...s, plan_workout_id: pw.id, workout_id: null, step_order: i }));
+          await supabase.from("workout_steps").insert(stepsToInsert);
+        }
+      }
+    }
+  }
+
   revalidatePath("/workouts");
 }
 
@@ -209,7 +242,7 @@ export async function addLibraryWorkoutToPlan(
     dayLogic = (existingOnDay![0].day_logic as "and" | "or") ?? "or";
   }
 
-  // Copy workout into plan_workouts
+  // Copy workout into plan_workouts, retaining the library link
   const { data: planWorkout, error } = await supabase
     .from("plan_workouts")
     .insert({
@@ -226,6 +259,7 @@ export async function addLibraryWorkoutToPlan(
       notes: workout.notes,
       sort_order: existingCount,
       day_logic: dayLogic,
+      library_workout_id: workout.id,
     })
     .select()
     .single();

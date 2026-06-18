@@ -58,6 +58,7 @@ export interface Database {
           notes: string | null;
           sort_order: number;
           day_logic: "and" | "or";
+          library_workout_id: string | null;
         };
         Insert: {
           id?: string;
@@ -75,6 +76,7 @@ export interface Database {
           notes?: string | null;
           sort_order?: number;
           day_logic?: "and" | "or";
+          library_workout_id?: string | null;
         };
         Update: {
           id?: string;
@@ -92,6 +94,7 @@ export interface Database {
           notes?: string | null;
           sort_order?: number;
           day_logic?: "and" | "or";
+          library_workout_id?: string | null;
         };
       };
       workout_steps: {
