@@ -55,6 +55,14 @@ export function LibraryPickerModal({
 
   const filtered = applyWorkoutFilter(workouts, filter);
 
+  const displayed = filter.type === "run"
+    ? [...filtered].sort((a, b) => {
+        const ad = a.distance_miles != null ? parseFloat(String(a.distance_miles)) : Infinity;
+        const bd = b.distance_miles != null ? parseFloat(String(b.distance_miles)) : Infinity;
+        return ad - bd;
+      })
+    : filtered;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[85vh]">
@@ -81,15 +89,15 @@ export function LibraryPickerModal({
             </p>
           )}
 
-          {!loading && workouts.length > 0 && filtered.length === 0 && (
+          {!loading && workouts.length > 0 && displayed.length === 0 && (
             <p className="text-sm text-[var(--muted)] text-center py-8">
               No workouts match this filter.
             </p>
           )}
 
-          {!loading && filtered.length > 0 && (
+          {!loading && displayed.length > 0 && (
             <div className="flex flex-col gap-1">
-              {filtered.map((workout) => {
+              {displayed.map((workout) => {
                 const typeBadge = workout.run_type
                   ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
                   : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
