@@ -2,8 +2,49 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LibraryWorkoutWithSteps } from "@/types/database";
+import type { LibraryWorkoutWithSteps, WorkoutStep } from "@/types/database";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, STEP_TYPE_LABELS, DAY_NAMES } from "@/lib/paceUtils";
+
+type StepSegment =
+  | { type: "step"; step: WorkoutStep }
+  | { type: "group"; repeatCount: number; steps: WorkoutStep[] };
+
+function groupSteps(steps: WorkoutStep[]): StepSegment[] {
+  const segments: StepSegment[] = [];
+  let i = 0;
+  while (i < steps.length) {
+    const gid = steps[i].repeat_group_id;
+    if (gid === null) {
+      segments.push({ type: "step", step: steps[i] });
+      i++;
+    } else {
+      const group: WorkoutStep[] = [];
+      while (i < steps.length && steps[i].repeat_group_id === gid) {
+        group.push(steps[i]);
+        i++;
+      }
+      segments.push({ type: "group", repeatCount: group[0].repeat_count, steps: group });
+    }
+  }
+  return segments;
+}
+
+function StepRow({ step }: { step: WorkoutStep }) {
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 text-xs">
+      <span className="text-[var(--muted)] w-20 shrink-0">
+        {STEP_TYPE_LABELS[step.step_type] ?? step.step_type}
+      </span>
+      <span className="flex-1 flex flex-wrap gap-2 text-[var(--muted)]">
+        {step.duration_minutes && <span>{step.duration_minutes} min</span>}
+        {step.distance_miles && (
+          <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
+        )}
+        {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
+      </span>
+    </div>
+  );
+}
 
 interface PlanUsage {
   id: string;
@@ -107,22 +148,30 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           {workout.workout_steps.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Steps</p>
-              <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-                {workout.workout_steps.map((step, i) => (
-                  <div key={i} className="flex items-center gap-3 px-3 py-2 text-xs">
-                    <span className="text-[var(--muted)] capitalize w-20 shrink-0">
-                      {STEP_TYPE_LABELS[step.step_type] ?? step.step_type}
-                    </span>
-                    <span className="flex-1 flex flex-wrap gap-2 text-[var(--muted)]">
-                      {step.duration_minutes && <span>{step.duration_minutes} min</span>}
-                      {step.distance_miles && (
-                        <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
-                      )}
-                      {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
-                      {step.repeat_count > 1 && <span className="text-[var(--accent)]">×{step.repeat_count}</span>}
-                    </span>
-                  </div>
-                ))}
+              <div className="space-y-1.5">
+                {groupSteps(workout.workout_steps).map((seg, i) => {
+                  if (seg.type === "step") {
+                    return (
+                      <div key={i} className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+                        <StepRow step={seg.step} />
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} className="rounded-lg border-2 border-[var(--accent)]">
+                      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--accent)]">
+                        <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">Repeat</span>
+                        <span className="text-xs text-[var(--accent)]">×</span>
+                        <span className="text-xs font-semibold text-[var(--accent)]">{seg.repeatCount}</span>
+                      </div>
+                      <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--accent)] ml-2">
+                        {seg.steps.map((step, j) => (
+                          <StepRow key={j} step={step} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
