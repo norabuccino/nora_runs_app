@@ -67,7 +67,16 @@ export function LibraryPickerModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[85vh]">
         <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-          <h2 className="font-semibold">Add from library</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onCancel}
+              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              title="Back"
+            >
+              ←
+            </button>
+            <h2 className="font-semibold">Add from library</h2>
+          </div>
           <button
             onClick={onCancel}
             className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"

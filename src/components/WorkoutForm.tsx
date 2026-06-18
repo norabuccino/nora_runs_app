@@ -531,6 +531,7 @@ interface WorkoutFormProps {
   showSaveToLibrary?: boolean;
   onSave: (data: WorkoutFormData) => Promise<void>;
   onCancel: () => void;
+  onBack?: () => void;
 }
 
 export function WorkoutForm({
@@ -542,6 +543,7 @@ export function WorkoutForm({
   showSaveToLibrary = false,
   onSave,
   onCancel,
+  onBack,
 }: WorkoutFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -794,10 +796,22 @@ export function WorkoutForm({
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90vh]">
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">
-              {existing ? "Edit" : "Add"} workout — Wk {weekNumber},{" "}
-              {DAY_NAMES[dayOfWeek]}
-            </h2>
+            <div className="flex items-center gap-2">
+              {onBack && (
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                  title="Back"
+                >
+                  ←
+                </button>
+              )}
+              <h2 className="font-semibold">
+                {existing ? "Edit" : "Add"} workout — Wk {weekNumber},{" "}
+                {DAY_NAMES[dayOfWeek]}
+              </h2>
+            </div>
             <button
               onClick={onCancel}
               className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"

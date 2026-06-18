@@ -314,6 +314,7 @@ export default function EditPlanPage() {
           paces={paces}
           showSaveToLibrary={!flow.existing}
           onSave={handleSave}
+          onBack={!flow.existing ? () => setFlow({ step: "picking", weekNumber: flow.weekNumber, dayOfWeek: flow.dayOfWeek }) : undefined}
           onCancel={() => setFlow({ step: "idle" })}
         />
       )}
