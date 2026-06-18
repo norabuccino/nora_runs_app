@@ -344,6 +344,11 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, o
           {typeLabel}
         </span>
         <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
+        {workout.source && (
+          <span className="flex-shrink-0 text-xs text-[var(--muted)] border border-[var(--border)] rounded-full px-2 py-0.5 truncate max-w-[8rem]">
+            {workout.source}
+          </span>
+        )}
         {(distanceLabel || durationLabel) && (
           <div className="flex-shrink-0 text-right">
             {distanceLabel && <p className="text-xs font-medium leading-tight">{distanceLabel}</p>}
@@ -386,6 +391,9 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, o
             {typeLabel}
           </span>
           <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
+          {workout.source && (
+            <p className="text-xs text-[var(--muted)]">from {workout.source}</p>
+          )}
         </div>
         {(distanceLabel || durationLabel) && (
           <div className="text-right flex-shrink-0 space-y-0.5">
