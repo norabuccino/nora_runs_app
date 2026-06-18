@@ -204,6 +204,7 @@ export async function copyWorkoutToDays(
         notes: source.notes,
         sort_order: existingCount,
         day_logic: dayLogic,
+        library_workout_id: source.library_workout_id ?? null,
       })
       .select()
       .single();
