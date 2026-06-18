@@ -393,11 +393,12 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 >
                   <option value="">— Select —</option>
                   <option value="easy_run">Easy Run</option>
+                  <option value="long_run">Long Run</option>
+                  <option value="mp_hmp_run">MP/HMP Run</option>
                   <option value="interval_run">Interval Run</option>
                   <option value="threshold_run">Threshold Run</option>
                   <option value="recovery_run">Recovery Run</option>
                   <option value="race">Race</option>
-                  <option value="long_run">Long Run</option>
                 </select>
               </div>
             )}

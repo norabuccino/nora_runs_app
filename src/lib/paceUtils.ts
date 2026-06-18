@@ -133,6 +133,7 @@ export const RUN_TYPE_LABELS: Record<string, string> = {
   recovery_run: "Recovery Run",
   race: "Race",
   long_run: "Long Run",
+  mp_hmp_run: "MP/HMP Run",
 };
 
 export const RUN_TYPE_COLORS: Record<string, string> = {
@@ -142,6 +143,7 @@ export const RUN_TYPE_COLORS: Record<string, string> = {
   recovery_run: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   race: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
   long_run: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
+  mp_hmp_run: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
 };
 
 export const STEP_TYPE_LABELS: Record<string, string> = {

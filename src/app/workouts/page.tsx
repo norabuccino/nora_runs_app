@@ -434,6 +434,7 @@ export default function WorkoutsPage() {
             <option value="">Run type: no change</option>
             <option value="easy_run">Easy Run</option>
             <option value="long_run">Long Run</option>
+            <option value="mp_hmp_run">MP/HMP Run</option>
             <option value="interval_run">Interval Run</option>
             <option value="threshold_run">Threshold Run</option>
             <option value="recovery_run">Recovery Run</option>

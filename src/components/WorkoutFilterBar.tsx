@@ -39,6 +39,7 @@ const RUN_TYPE_PILLS: { value: RunType | "all"; label: string }[] = [
   { value: "all", label: "All runs" },
   { value: "easy_run", label: RUN_TYPE_LABELS.easy_run },
   { value: "long_run", label: RUN_TYPE_LABELS.long_run },
+  { value: "mp_hmp_run", label: RUN_TYPE_LABELS.mp_hmp_run },
   { value: "interval_run", label: RUN_TYPE_LABELS.interval_run },
   { value: "threshold_run", label: RUN_TYPE_LABELS.threshold_run },
   { value: "recovery_run", label: RUN_TYPE_LABELS.recovery_run },
