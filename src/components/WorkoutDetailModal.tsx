@@ -72,7 +72,17 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
         .select("id, week_number, day_of_week, plan_id, training_plans(id, name)")
         .eq("library_workout_id", workout.id)
         .order("week_number");
-      setUsage((data ?? []) as unknown as PlanUsage[]);
+      // Deduplicate by plan — if a workout appears multiple times in the same plan, show it once
+      const rows = (data ?? []) as unknown as PlanUsage[];
+      const seen = new Map<string, PlanUsage & { count: number }>();
+      for (const row of rows) {
+        if (seen.has(row.plan_id)) {
+          seen.get(row.plan_id)!.count++;
+        } else {
+          seen.set(row.plan_id, { ...row, count: 1 });
+        }
+      }
+      setUsage(Array.from(seen.values()) as unknown as PlanUsage[]);
       setLoadingUsage(false);
     }
     fetchUsage();
@@ -193,14 +203,19 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
               <p className="text-xs text-[var(--muted)]">Not added to any plan yet.</p>
             ) : (
               <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-                {usage.map((u) => (
-                  <div key={u.id} className="flex items-center justify-between px-3 py-2 text-xs">
-                    <span className="font-medium">{u.training_plans?.name ?? "Unknown plan"}</span>
-                    <span className="text-[var(--muted)]">
-                      Week {u.week_number}, {DAY_NAMES[u.day_of_week]}
-                    </span>
-                  </div>
-                ))}
+                {usage.map((u) => {
+                  const entry = u as PlanUsage & { count?: number };
+                  return (
+                    <div key={u.plan_id} className="flex items-center justify-between px-3 py-2 text-xs">
+                      <span className="font-medium">{u.training_plans?.name ?? "Unknown plan"}</span>
+                      <span className="text-[var(--muted)]">
+                        {(entry.count ?? 1) > 1
+                          ? "Multiple days"
+                          : `Week ${u.week_number}, ${DAY_NAMES[u.day_of_week]}`}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
