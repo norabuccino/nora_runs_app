@@ -5,6 +5,7 @@ import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, 
 import { assignPlan } from "@/app/actions/userPlans";
 import { getIsAdmin } from "@/lib/profile";
 import type { PlanWorkout } from "@/types/database";
+import { WeekMileageLabel } from "@/components/WeekMileageLabel";
 
 function toMiles(distance: number, unit: string): number {
   if (unit === "km") return distance / 1.60934;
@@ -120,9 +121,6 @@ export default async function PlanDetailPage({ params }: Props) {
         {weeks.map((weekNum) => {
           const weekWorkouts = (workouts ?? []).filter((w) => w.week_number === weekNum);
           const { low, high } = weekMileageRange(weekWorkouts);
-          const mileageLabel = high === 0 ? null
-            : low === high ? `${low.toFixed(1)} mi`
-            : `${low.toFixed(1)} – ${high.toFixed(1)} mi`;
           return (
             <div key={weekNum} className="space-y-3">
               <div className="flex items-baseline justify-between gap-3">
@@ -134,11 +132,7 @@ export default async function PlanDetailPage({ params }: Props) {
                     <p className="text-sm text-[var(--muted)] italic truncate">{weekNotes[weekNum]}</p>
                   )}
                 </div>
-                {mileageLabel && (
-                  <span className="text-sm font-medium text-[var(--muted)] whitespace-nowrap shrink-0">
-                    {mileageLabel}
-                  </span>
-                )}
+                <WeekMileageLabel lowMi={low} highMi={high} />
               </div>
               <div className="rounded-xl border border-[var(--border)] overflow-hidden">
                 {weekWorkouts.length === 0 ? (
