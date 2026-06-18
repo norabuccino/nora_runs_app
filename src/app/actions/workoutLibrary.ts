@@ -121,6 +121,25 @@ export async function importLibraryWorkouts(rows: LibraryImportRow[]): Promise<{
   return { imported };
 }
 
+export async function bulkUpdateLibraryWorkouts(
+  ids: string[],
+  updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null }
+) {
+  if (!ids.length) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("workouts")
+    .update(updates)
+    .in("id", ids)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/workouts");
+}
+
 export async function duplicateLibraryWorkout(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

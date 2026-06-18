@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
+import type { LibraryWorkoutWithSteps, RunningPace, WorkoutType, RunType } from "@/types/database";
 import { WorkoutLibraryForm, type WorkoutLibraryFormData } from "@/components/WorkoutLibraryForm";
 import { AddToPlanModal } from "@/components/AddToPlanModal";
 import { WorkoutImportModal } from "@/components/WorkoutImportModal";
@@ -11,6 +11,7 @@ import {
   updateLibraryWorkout,
   deleteLibraryWorkout,
   duplicateLibraryWorkout,
+  bulkUpdateLibraryWorkouts,
 } from "@/app/actions/workoutLibrary";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS } from "@/lib/paceUtils";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
@@ -67,6 +68,11 @@ export default function WorkoutsPage() {
   const [sort, setSort] = useState<SortKey>("az");
   const [isPending, startTransition] = useTransition();
   const [compact, setCompact] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkType, setBulkType] = useState("");
+  const [bulkRunType, setBulkRunType] = useState("");
+  const [bulkSource, setBulkSource] = useState("");
 
   useEffect(() => {
     setCompact(window.matchMedia("(max-width: 640px)").matches);
@@ -149,6 +155,40 @@ export default function WorkoutsPage() {
     });
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkType("");
+    setBulkRunType("");
+    setBulkSource("");
+  }
+
+  function handleBulkApply() {
+    if (selectedIds.size === 0) return;
+    const updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null } = {};
+    if (bulkType) {
+      updates.type = bulkType as WorkoutType;
+      updates.run_type = bulkType === "run" ? ((bulkRunType as RunType) || null) : null;
+    } else if (bulkRunType) {
+      updates.run_type = bulkRunType as RunType;
+    }
+    if (bulkSource.trim()) updates.source = bulkSource.trim();
+    if (!Object.keys(updates).length) return;
+    startTransition(async () => {
+      await bulkUpdateLibraryWorkouts(Array.from(selectedIds), updates);
+      exitSelectMode();
+      await load();
+    });
+  }
+
   const displayed = applySort(
     applySearch(applyWorkoutFilter(workouts, filter), search),
     sort
@@ -169,6 +209,16 @@ export default function WorkoutsPage() {
             className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
           >
             Import
+          </button>
+          <button
+            onClick={() => { setSelectMode((m) => { if (m) exitSelectMode(); return !m; }); }}
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              selectMode
+                ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                : "border-[var(--border)] hover:bg-[var(--card)]"
+            }`}
+          >
+            {selectMode ? "Done" : "Select"}
           </button>
           <button
             onClick={() => setCompact((c) => !c)}
@@ -256,6 +306,9 @@ export default function WorkoutsPage() {
                   key={workout.id}
                   workout={workout}
                   compact
+                  selectMode={selectMode}
+                  selected={selectedIds.has(workout.id)}
+                  onToggleSelect={toggleSelect}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
@@ -269,6 +322,9 @@ export default function WorkoutsPage() {
                 <WorkoutLibraryCard
                   key={workout.id}
                   workout={workout}
+                  selectMode={selectMode}
+                  selected={selectedIds.has(workout.id)}
+                  onToggleSelect={toggleSelect}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onDuplicate={handleDuplicate}
@@ -311,6 +367,63 @@ export default function WorkoutsPage() {
           Saving…
         </div>
       )}
+
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl p-3 flex flex-wrap items-center gap-2 max-w-[min(90vw,44rem)]">
+          <span className="text-sm font-medium whitespace-nowrap pr-1">
+            {selectedIds.size} selected
+          </span>
+          <select
+            value={bulkType}
+            onChange={(e) => { setBulkType(e.target.value); setBulkRunType(""); }}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+          >
+            <option value="">Type: no change</option>
+            <option value="run">Run</option>
+            <option value="strength">Strength</option>
+            <option value="bike">Bike</option>
+            <option value="swim">Swim</option>
+            <option value="yoga">Yoga</option>
+            <option value="elliptical">Elliptical</option>
+            <option value="cross_train">Cross-Train</option>
+            <option value="rest">Rest</option>
+          </select>
+          <select
+            value={bulkRunType}
+            onChange={(e) => setBulkRunType(e.target.value)}
+            disabled={bulkType !== "" && bulkType !== "run"}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none disabled:opacity-40"
+          >
+            <option value="">Run type: no change</option>
+            <option value="easy_run">Easy Run</option>
+            <option value="long_run">Long Run</option>
+            <option value="interval_run">Interval Run</option>
+            <option value="threshold_run">Threshold Run</option>
+            <option value="recovery_run">Recovery Run</option>
+            <option value="race">Race</option>
+          </select>
+          <input
+            type="text"
+            value={bulkSource}
+            onChange={(e) => setBulkSource(e.target.value)}
+            placeholder="Source: no change"
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none w-36"
+          />
+          <button
+            onClick={handleBulkApply}
+            disabled={isPending || (!bulkType && !bulkRunType && !bulkSource.trim())}
+            className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
+          >
+            Apply
+          </button>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] whitespace-nowrap"
+          >
+            Deselect all
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -318,13 +431,16 @@ export default function WorkoutsPage() {
 interface WorkoutLibraryCardProps {
   workout: LibraryWorkoutWithSteps;
   compact?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
   onEdit: (w: LibraryWorkoutWithSteps) => void;
   onDelete: (w: LibraryWorkoutWithSteps) => void;
   onDuplicate: (w: LibraryWorkoutWithSteps) => void;
   onAddToPlan: (w: LibraryWorkoutWithSteps) => void;
 }
 
-function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
+function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
   const typeBadge = workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
@@ -339,7 +455,15 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, o
 
   if (compact) {
     return (
-      <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3">
+      <div className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(workout.id)}
+            className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
+          />
+        )}
         <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
           {typeLabel}
         </span>
@@ -384,9 +508,17 @@ function WorkoutLibraryCard({ workout, compact, onEdit, onDelete, onDuplicate, o
   if (workout.pace_type) meta.push(workout.pace_type);
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 flex flex-col">
+    <div className={`rounded-xl border bg-[var(--card)] p-4 space-y-3 flex flex-col transition-colors ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}>
       <div className="flex items-start justify-between gap-2">
-        <div className="space-y-1 min-w-0">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(workout.id)}
+            className="mt-0.5 flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
+          />
+        )}
+        <div className="space-y-1 min-w-0 flex-1">
           <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
             {typeLabel}
           </span>
