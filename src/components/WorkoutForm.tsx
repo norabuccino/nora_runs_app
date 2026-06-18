@@ -97,14 +97,33 @@ function segmentId(seg: RenderSegment): string {
   return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
 }
 
+const CUSTOM_PACE_RE = /^\d+:\d{2}$/;
+
+function customPaceToSecPerMile(paceStr: string): number | null {
+  const parsed = parsePace(paceStr);
+  if (!parsed) return null;
+  const unit = getStoredUnit();
+  return unit === "km" ? Math.round(parsed * 1.60934) : parsed;
+}
+
 // Distance in miles for a single step, using pace to fill in when distance is absent
 export function computeStepDistanceMi(step: WorkoutStepFormRow, paces: RunningPace[]): number {
   const d = parseFloat(step.distance_miles);
   if (!isNaN(d) && d > 0) return convertDistance(d, step.distance_unit, "mi");
   if (step.pace_type) {
-    const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
     const dur = parseFloat(step.duration_minutes);
-    if (pace && !isNaN(dur) && dur > 0) return (dur * 60) / pace.pace_seconds_per_mile;
+    const durSec = !isNaN(dur) && dur > 0
+      ? (step.duration_unit === "sec" ? dur : dur * 60)
+      : 0;
+    if (durSec > 0) {
+      if (CUSTOM_PACE_RE.test(step.pace_type)) {
+        const secPerMile = customPaceToSecPerMile(step.pace_type);
+        if (secPerMile) return durSec / secPerMile;
+      } else {
+        const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
+        if (pace) return durSec / pace.pace_seconds_per_mile;
+      }
+    }
   }
   return 0;
 }
@@ -114,11 +133,16 @@ export function computeStepDurationMin(step: WorkoutStepFormRow, paces: RunningP
   const dur = parseFloat(step.duration_minutes);
   if (!isNaN(dur) && dur > 0) return step.duration_unit === "sec" ? dur / 60 : dur;
   if (step.pace_type) {
-    const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
     const d = parseFloat(step.distance_miles);
-    if (pace && !isNaN(d) && d > 0) {
+    if (!isNaN(d) && d > 0) {
       const distMi = convertDistance(d, step.distance_unit, "mi");
-      return (distMi * pace.pace_seconds_per_mile) / 60;
+      if (CUSTOM_PACE_RE.test(step.pace_type)) {
+        const secPerMile = customPaceToSecPerMile(step.pace_type);
+        if (secPerMile) return (distMi * secPerMile) / 60;
+      } else {
+        const pace = paces.find((p) => p.name.toLowerCase() === step.pace_type.toLowerCase());
+        if (pace) return (distMi * pace.pace_seconds_per_mile) / 60;
+      }
     }
   }
   return 0;
