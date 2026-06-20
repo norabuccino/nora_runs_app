@@ -381,7 +381,7 @@ export function SortableStepCard({
                 placeholder="Reps"
                 value={step.reps}
                 onChange={(e) => onUpdate(actualIndex, "reps", e.target.value)}
-                className={`${ci} flex-1 min-w-0`}
+                className={`${ci} w-14`}
               />
             ) : (
               <>
@@ -392,7 +392,7 @@ export function SortableStepCard({
                   placeholder={step.duration_unit}
                   value={step.duration_minutes}
                   onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
-                  className={`${ci} flex-1 min-w-0`}
+                  className={`${ci} w-14`}
                 />
                 <UnitToggle
                   units={["min", "sec"]}
