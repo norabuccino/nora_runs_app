@@ -40,11 +40,16 @@ function groupSteps(steps: WorkoutStep[]): StepSegment[] {
 
 function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean }) {
   if (isStrength) {
-    const repInfo = step.reps
+    const perSet = step.reps
       ? `${step.reps} reps`
       : step.duration_minutes
       ? `${step.duration_minutes} min`
       : null;
+    const setsReps = step.sets && perSet
+      ? `${step.sets} × ${perSet}`
+      : step.sets
+      ? `${step.sets} sets`
+      : perSet ?? null;
 
     return (
       <div className="flex items-center gap-3 px-3 py-2 text-xs">
@@ -52,7 +57,7 @@ function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean 
           {step.label || "—"}
         </span>
         <span className="flex flex-wrap gap-2 text-[var(--muted)] shrink-0">
-          {repInfo && <span>{repInfo}</span>}
+          {setsReps && <span>{setsReps}</span>}
           {step.weight_suggestion && <span>{step.weight_suggestion}</span>}
         </span>
       </div>

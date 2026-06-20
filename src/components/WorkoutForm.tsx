@@ -35,6 +35,7 @@ export interface WorkoutStepFormRow {
   repeat_group_id: number | null;
   repeat_count: number;
   group_name: string;
+  sets: string;
   reps: string;
   weight_suggestion: string;
 }
@@ -46,6 +47,7 @@ export type StringStepKey =
   | "duration_minutes"
   | "distance_miles"
   | "notes"
+  | "sets"
   | "reps"
   | "weight_suggestion";
 
@@ -172,6 +174,7 @@ function blankStep(
     repeat_group_id: groupId,
     repeat_count: repeatCount,
     group_name: groupName,
+    sets: "",
     reps: "",
     weight_suggestion: "",
   };
@@ -347,8 +350,17 @@ export function SortableStepCard({
             </button>
           </div>
 
-          {/* Row 2: reps/time toggle + input */}
+          {/* Row 2: sets × reps/time */}
           <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min="1"
+              placeholder="Sets"
+              value={step.sets}
+              onChange={(e) => onUpdate(actualIndex, "sets", e.target.value)}
+              className={`${ci} w-14 shrink-0`}
+            />
+            <span className="text-xs text-[var(--muted)] shrink-0">×</span>
             <UnitToggle
               units={["reps", "time"] as ("reps" | "time")[]}
               active={repTimeMode}
@@ -758,6 +770,7 @@ export function WorkoutForm({
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
         group_name: s.group_name ?? "",
+        sets: s.sets?.toString() ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
       })) ?? [],

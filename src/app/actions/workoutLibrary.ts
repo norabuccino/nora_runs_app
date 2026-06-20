@@ -289,6 +289,7 @@ export async function addLibraryWorkoutToPlan(
       repeat_group_id: s.repeat_group_id,
       repeat_count: s.repeat_count ?? 1,
       group_name: s.group_name ?? null,
+      sets: s.sets ?? null,
       reps: s.reps ?? null,
       weight_suggestion: s.weight_suggestion ?? null,
     }));
