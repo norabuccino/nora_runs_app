@@ -350,17 +350,21 @@ export function SortableStepCard({
             </button>
           </div>
 
-          {/* Row 2: sets × reps/time */}
+          {/* Row 2: sets × reps/time (sets hidden when inside a group) */}
           <div className="flex items-center gap-1.5">
-            <input
-              type="number"
-              min="1"
-              placeholder="Sets"
-              value={step.sets}
-              onChange={(e) => onUpdate(actualIndex, "sets", e.target.value)}
-              className={`${ci} w-14 shrink-0`}
-            />
-            <span className="text-xs text-[var(--muted)] shrink-0">×</span>
+            {step.repeat_group_id === null && (
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="Sets"
+                  value={step.sets}
+                  onChange={(e) => onUpdate(actualIndex, "sets", e.target.value)}
+                  className={`${ci} w-14 shrink-0`}
+                />
+                <span className="text-xs text-[var(--muted)] shrink-0">×</span>
+              </>
+            )}
             <UnitToggle
               units={["reps", "time"] as ("reps" | "time")[]}
               active={repTimeMode}
