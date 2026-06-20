@@ -15,6 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
+import { STRENGTH_TYPE_LABELS } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
 import {
@@ -38,6 +39,7 @@ interface WorkoutLibraryFormProps {
 export interface WorkoutLibraryFormData {
   type: WorkoutType;
   run_type: RunType | "";
+  strength_type: string;
   title: string;
   description: string;
   distance_miles: string;
@@ -65,6 +67,8 @@ function blankStep(
     notes: "",
     repeat_group_id: groupId,
     repeat_count: repeatCount,
+    reps: "",
+    weight_suggestion: "",
   };
 }
 
@@ -109,6 +113,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   const [form, setForm] = useState<WorkoutLibraryFormData>(() => ({
     type: existing?.type ?? "run",
     run_type: existing?.run_type ?? "",
+    strength_type: existing?.strength_type ?? "",
     title: existing?.title ?? "",
     description: existing?.description ?? "",
     distance_miles: existing?.distance_miles?.toString() ?? "",
@@ -129,8 +134,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         notes: s.notes ?? "",
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
-      })) ?? [blankStep()],
+        reps: s.reps?.toString() ?? "",
+        weight_suggestion: s.weight_suggestion ?? "",
+      })) ?? [],
   }));
+
+  const isStrength = form.type === "strength";
+  const isRun = form.type === "run";
 
   function updateStep(index: number, key: StringStepKey, value: string) {
     setForm((prev) => {
@@ -187,12 +197,15 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     setForm((prev) => {
       const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
       const unit = prev.distance_unit as DistanceUnit;
+      const strength = prev.type === "strength";
       return {
         ...prev,
         steps: [
           ...prev.steps,
           blankStep(nextGroupId, 2, unit),
-          { ...blankStep(nextGroupId, 2, unit), step_type: "recovery" },
+          strength
+            ? blankStep(nextGroupId, 2, unit)
+            : { ...blankStep(nextGroupId, 2, unit), step_type: "recovery" },
         ],
       };
     });
@@ -277,6 +290,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   }
 
   const { totalDistInUnit, totalDurationMin } = (() => {
+    if (isStrength) return { totalDistInUnit: 0, totalDurationMin: 0 };
     const segs = buildSegments(form.steps);
     let distMiSum = 0;
     let durSum = 0;
@@ -323,11 +337,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
       await onSave({
         ...form,
         distance_miles:
-          totalDistInUnit > 0
+          !isStrength && totalDistInUnit > 0
             ? String(parseFloat(totalDistInUnit.toFixed(4)))
-            : form.distance_miles,
+            : isStrength ? "" : form.distance_miles,
         duration_minutes:
-          totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes,
+          !isStrength && totalDurationMin > 0
+            ? String(totalDurationMin)
+            : isStrength ? "" : form.duration_minutes,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -335,12 +351,17 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     }
   }
 
-  const isRun = form.type === "run";
   const inputClass =
     "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
   const labelClass = "text-xs text-[var(--muted)]";
   const segments = buildSegments(form.steps);
   const segmentIds = segments.map(segmentId);
+
+  const addStepLabel = isStrength ? "+ Add exercise" : "+ Add step";
+  const addGroupLabel = isStrength ? "+ Add superset" : "+ Add repeats";
+  const stepsEmptyText = isStrength
+    ? "No exercises yet. Add exercises to structure this workout."
+    : "No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -361,13 +382,15 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               <label className={labelClass}>Type</label>
               <select
                 value={form.type}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const newType = e.target.value as WorkoutType;
                   setForm((p) => ({
                     ...p,
-                    type: e.target.value as WorkoutType,
-                    run_type: e.target.value !== "run" ? "" : p.run_type,
-                  }))
-                }
+                    type: newType,
+                    run_type: newType !== "run" ? "" : p.run_type,
+                    strength_type: newType !== "strength" ? "" : p.strength_type,
+                  }));
+                }}
                 className={inputClass}
               >
                 <option value="run">Run</option>
@@ -403,13 +426,29 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               </div>
             )}
 
+            {isStrength && (
+              <div className="space-y-1">
+                <label className={labelClass}>Strength type</label>
+                <select
+                  value={form.strength_type}
+                  onChange={(e) => setForm((p) => ({ ...p, strength_type: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">— Select —</option>
+                  {Object.entries(STRENGTH_TYPE_LABELS).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-1">
               <label className={labelClass}>Title</label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={isRun ? "e.g. Easy 6 miles" : "e.g. Upper body strength"}
+                placeholder={isStrength ? "e.g. Upper body push day" : isRun ? "e.g. Easy 6 miles" : "e.g. Workout title"}
                 className={inputClass}
               />
             </div>
@@ -435,17 +474,14 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               />
             </div>
 
-            {/* Steps */}
+            {/* Steps / Exercises */}
             <div className="space-y-2">
               <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                Steps
+                {isStrength ? "Exercises" : "Steps"}
               </span>
 
               {form.steps.length === 0 && (
-                <p className="text-xs text-[var(--muted)] italic">
-                  No steps yet. Add steps to structure this workout (warm-up, intervals,
-                  cool-down, etc.).
-                </p>
+                <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
               )}
 
               <DndContext
@@ -464,6 +500,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
+                            isStrength={isStrength}
                             paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
@@ -483,6 +520,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
+                          isStrength={isStrength}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
@@ -508,20 +546,20 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                   onClick={addStep}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
-                  + Add step
+                  {addStepLabel}
                 </button>
                 <button
                   type="button"
                   onClick={addRepeatGroup}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
-                  + Add repeats
+                  {addGroupLabel}
                 </button>
               </div>
             </div>
 
-            {/* Totals (calculated from steps) + pace type */}
-            {(totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
+            {/* Totals (run workouts only) */}
+            {!isStrength && (totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
               <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
                 {(totalDistInUnit > 0 || totalDurationMin > 0) && (
                   <div className="flex flex-wrap gap-4">

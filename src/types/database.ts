@@ -49,6 +49,7 @@ export interface Database {
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type: string | null;
           title: string;
           description: string | null;
           distance_miles: number | null;
@@ -67,6 +68,7 @@ export interface Database {
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
           title: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -85,6 +87,7 @@ export interface Database {
           day_of_week?: number;
           type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
           title?: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -112,6 +115,8 @@ export interface Database {
           notes: string | null;
           repeat_group_id: number | null;
           repeat_count: number;
+          reps: number | null;
+          weight_suggestion: string | null;
         };
         Insert: {
           id?: string;
@@ -127,6 +132,8 @@ export interface Database {
           notes?: string | null;
           repeat_group_id?: number | null;
           repeat_count?: number;
+          reps?: number | null;
+          weight_suggestion?: string | null;
         };
         Update: {
           id?: string;
@@ -142,6 +149,8 @@ export interface Database {
           notes?: string | null;
           repeat_group_id?: number | null;
           repeat_count?: number;
+          reps?: number | null;
+          weight_suggestion?: string | null;
         };
       };
       workouts: {
@@ -150,6 +159,7 @@ export interface Database {
           user_id: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type: string | null;
           title: string;
           description: string | null;
           distance_miles: number | null;
@@ -165,6 +175,7 @@ export interface Database {
           user_id: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
           title: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -180,6 +191,7 @@ export interface Database {
           user_id?: string;
           type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
           title?: string;
           description?: string | null;
           distance_miles?: number | null;
@@ -374,3 +386,5 @@ export type UserPlanStatus = UserPlan["status"];
 // Extended types with steps loaded
 export type WorkoutWithSteps = PlanWorkout & { workout_steps: WorkoutStep[] };
 export type LibraryWorkoutWithSteps = LibraryWorkout & { workout_steps: WorkoutStep[] };
+
+export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | "plyometrics" | "mobility";

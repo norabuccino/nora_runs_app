@@ -1,22 +1,30 @@
 "use client";
 
-import type { WorkoutType, RunType } from "@/types/database";
-import { WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS } from "@/lib/paceUtils";
+import type { WorkoutType, RunType, StrengthType } from "@/types/database";
+import { WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS } from "@/lib/paceUtils";
 
 export interface WorkoutFilter {
   type: WorkoutType | "all";
   runType: RunType | "all";
+  strengthType: StrengthType | "all";
   source: string | "all";
 }
 
-export const DEFAULT_FILTER: WorkoutFilter = { type: "all", runType: "all", source: "all" };
+export const DEFAULT_FILTER: WorkoutFilter = {
+  type: "all",
+  runType: "all",
+  strengthType: "all",
+  source: "all",
+};
 
 export function applyWorkoutFilter<
-  T extends { type: string; run_type?: string | null; source?: string | null }
+  T extends { type: string; run_type?: string | null; strength_type?: string | null; source?: string | null }
 >(items: T[], filter: WorkoutFilter): T[] {
   return items.filter((w) => {
     if (filter.type !== "all" && w.type !== filter.type) return false;
     if (filter.type === "run" && filter.runType !== "all" && w.run_type !== filter.runType)
+      return false;
+    if (filter.type === "strength" && filter.strengthType !== "all" && w.strength_type !== filter.strengthType)
       return false;
     if (filter.source !== "all" && (w.source ?? null) !== filter.source) return false;
     return true;
@@ -46,6 +54,16 @@ const RUN_TYPE_PILLS: { value: RunType | "all"; label: string }[] = [
   { value: "race", label: RUN_TYPE_LABELS.race },
 ];
 
+const STRENGTH_TYPE_PILLS: { value: StrengthType | "all"; label: string }[] = [
+  { value: "all", label: "All strength" },
+  { value: "upper_body", label: STRENGTH_TYPE_LABELS.upper_body },
+  { value: "lower_body", label: STRENGTH_TYPE_LABELS.lower_body },
+  { value: "full_body", label: STRENGTH_TYPE_LABELS.full_body },
+  { value: "core", label: STRENGTH_TYPE_LABELS.core },
+  { value: "plyometrics", label: STRENGTH_TYPE_LABELS.plyometrics },
+  { value: "mobility", label: STRENGTH_TYPE_LABELS.mobility },
+];
+
 interface WorkoutFilterBarProps {
   filter: WorkoutFilter;
   onChange: (filter: WorkoutFilter) => void;
@@ -54,11 +72,15 @@ interface WorkoutFilterBarProps {
 
 export function WorkoutFilterBar({ filter, onChange, sources = [] }: WorkoutFilterBarProps) {
   function setType(type: WorkoutType | "all") {
-    onChange({ ...filter, type, runType: "all" });
+    onChange({ ...filter, type, runType: "all", strengthType: "all" });
   }
 
   function setRunType(runType: RunType | "all") {
     onChange({ ...filter, runType });
+  }
+
+  function setStrengthType(strengthType: StrengthType | "all") {
+    onChange({ ...filter, strengthType });
   }
 
   function setSource(source: string | "all") {
@@ -91,6 +113,24 @@ export function WorkoutFilterBar({ filter, onChange, sources = [] }: WorkoutFilt
               onClick={() => setRunType(value)}
               className={`px-3 py-1 rounded-full text-xs transition-colors ${
                 filter.runType === value
+                  ? "bg-[var(--accent)] text-white"
+                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filter.type === "strength" && (
+        <div className="flex flex-wrap gap-1.5">
+          {STRENGTH_TYPE_PILLS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setStrengthType(value)}
+              className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                filter.strengthType === value
                   ? "bg-[var(--accent)] text-white"
                   : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}

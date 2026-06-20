@@ -17,7 +17,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { WorkoutType, RunType, WorkoutWithSteps, RunningPace } from "@/types/database";
-import { DAY_NAMES, STEP_TYPE_LABELS, parsePace } from "@/lib/paceUtils";
+import { DAY_NAMES, STEP_TYPE_LABELS, STRENGTH_TYPE_LABELS, parsePace } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
 
@@ -34,6 +34,8 @@ export interface WorkoutStepFormRow {
   notes: string;
   repeat_group_id: number | null;
   repeat_count: number;
+  reps: string;
+  weight_suggestion: string;
 }
 
 export type StringStepKey =
@@ -42,7 +44,9 @@ export type StringStepKey =
   | "pace_type"
   | "duration_minutes"
   | "distance_miles"
-  | "notes";
+  | "notes"
+  | "reps"
+  | "weight_suggestion";
 
 export interface WorkoutFormData {
   plan_id: string;
@@ -50,6 +54,7 @@ export interface WorkoutFormData {
   day_of_week: number;
   type: WorkoutType;
   run_type: RunType | "";
+  strength_type: string;
   title: string;
   description: string;
   distance_miles: string;
@@ -164,6 +169,8 @@ function blankStep(
     notes: "",
     repeat_group_id: groupId,
     repeat_count: repeatCount,
+    reps: "",
+    weight_suggestion: "",
   };
 }
 
@@ -225,6 +232,7 @@ interface StepCardProps {
   step: WorkoutStepFormRow;
   actualIndex: number;
   label: string;
+  isStrength?: boolean;
   paces: RunningPace[];
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
@@ -240,6 +248,7 @@ export function SortableStepCard({
   step,
   actualIndex,
   label,
+  isStrength = false,
   paces,
   onRemove,
   onUpdate,
@@ -263,6 +272,9 @@ export function SortableStepCard({
   const [paceError, setPaceError] = useState<string | null>(null);
   const [paceSaving, setPaceSaving] = useState(false);
   const [customPaceMode, setCustomPaceMode] = useState(() => /^\d+:\d{2}$/.test(step.pace_type));
+  const [repTimeMode, setRepTimeMode] = useState<"reps" | "time">(() =>
+    step.duration_minutes !== "" ? "time" : "reps"
+  );
 
   function switchToCustom() {
     if (!/^\d+:\d{2}$/.test(step.pace_type)) onUpdate(actualIndex, "pace_type", "");
@@ -300,6 +312,96 @@ export function SortableStepCard({
 
   const unit = getStoredUnit();
 
+  // ── Strength step layout ───────────────────────────────────────────────────
+  if (isStrength) {
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        <div className="rounded-lg border border-[var(--border)] p-2 space-y-1.5 bg-[var(--card)]">
+          {/* Row 1: grip · exercise name · × */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              {...listeners}
+              className="text-[var(--muted)] hover:text-[var(--foreground)] cursor-grab active:cursor-grabbing touch-none flex items-center shrink-0"
+              aria-label="Drag to reorder"
+            >
+              <GripIcon />
+            </button>
+            <input
+              type="text"
+              placeholder="Exercise name (e.g. Squat, Push-up)"
+              value={step.label}
+              onChange={(e) => onUpdate(actualIndex, "label", e.target.value)}
+              className={`${ci} flex-1 min-w-0`}
+            />
+            <button
+              type="button"
+              onClick={() => onRemove(actualIndex)}
+              className="shrink-0 text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+              aria-label="Remove exercise"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Row 2: reps/time toggle + input */}
+          <div className="flex items-center gap-1.5">
+            <UnitToggle
+              units={["reps", "time"] as ("reps" | "time")[]}
+              active={repTimeMode}
+              onChange={(mode) => {
+                if (mode === "reps") {
+                  onUpdate(actualIndex, "duration_minutes", "");
+                  setRepTimeMode("reps");
+                } else {
+                  onUpdate(actualIndex, "reps", "");
+                  setRepTimeMode("time");
+                }
+              }}
+            />
+            {repTimeMode === "reps" ? (
+              <input
+                type="number"
+                min="1"
+                placeholder="Reps"
+                value={step.reps}
+                onChange={(e) => onUpdate(actualIndex, "reps", e.target.value)}
+                className={`${ci} flex-1 min-w-0`}
+              />
+            ) : (
+              <>
+                <input
+                  type="number"
+                  min="0"
+                  step={step.duration_unit === "sec" ? "1" : "0.5"}
+                  placeholder={step.duration_unit}
+                  value={step.duration_minutes}
+                  onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
+                  className={`${ci} flex-1 min-w-0`}
+                />
+                <UnitToggle
+                  units={["min", "sec"]}
+                  active={step.duration_unit}
+                  onChange={(u) => onSwitchDurationUnit(actualIndex, u)}
+                />
+              </>
+            )}
+          </div>
+
+          {/* Row 3: weight suggestion */}
+          <input
+            type="text"
+            placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+            value={step.weight_suggestion}
+            onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
+            className={`${ci} w-full`}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Run / default step layout ──────────────────────────────────────────────
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="rounded-lg border border-[var(--border)] p-2 space-y-1.5 bg-[var(--card)]">
@@ -457,6 +559,7 @@ interface GroupContainerProps {
   repeatCount: number;
   indices: number[];
   steps: WorkoutStepFormRow[];
+  isStrength?: boolean;
   paces: RunningPace[];
   onUpdateRepeatCount: (groupId: number, count: number) => void;
   onUngroup: (groupId: number) => void;
@@ -477,6 +580,7 @@ export function SortableGroupContainer({
   repeatCount,
   indices,
   steps,
+  isStrength = false,
   paces,
   onUpdateRepeatCount,
   onUngroup,
@@ -502,6 +606,10 @@ export function SortableGroupContainer({
   );
   const stepIds = indices.map((i) => `step-${i}`);
 
+  const groupLabel = isStrength ? "Superset" : "Repeat";
+  const countLabel = isStrength ? "sets" : "times";
+  const addLabel = isStrength ? "+ Add exercise to superset" : "+ Add step to group";
+
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="rounded-xl border-2 border-[var(--accent)] p-3 space-y-3">
@@ -515,7 +623,7 @@ export function SortableGroupContainer({
             <GripIcon />
           </button>
           <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">
-            Repeat
+            {groupLabel}
           </span>
           <span className="text-xs text-[var(--accent)]">×</span>
           <input
@@ -525,7 +633,7 @@ export function SortableGroupContainer({
             onChange={(e) => onUpdateRepeatCount(groupId, parseInt(e.target.value) || 1)}
             className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
           />
-          <span className="text-xs text-[var(--muted)] flex-1">times</span>
+          <span className="text-xs text-[var(--muted)] flex-1">{countLabel}</span>
           <button
             type="button"
             onClick={() => onUngroup(groupId)}
@@ -549,6 +657,7 @@ export function SortableGroupContainer({
                   step={steps[actualIndex]}
                   actualIndex={actualIndex}
                   label={`Step ${j + 1}`}
+                  isStrength={isStrength}
                   paces={paces}
                   onRemove={onRemove}
                   onUpdate={onUpdate}
@@ -568,7 +677,7 @@ export function SortableGroupContainer({
           onClick={() => onAddStepToGroup(groupId)}
           className="text-xs text-[var(--accent)] hover:underline"
         >
-          + Add step to group
+          {addLabel}
         </button>
       </div>
     </div>
@@ -611,6 +720,7 @@ export function WorkoutForm({
     day_of_week: dayOfWeek,
     type: existing?.type ?? "run",
     run_type: existing?.run_type ?? "",
+    strength_type: existing?.strength_type ?? "",
     title: existing?.title ?? "",
     description: existing?.description ?? "",
     distance_miles: existing?.distance_miles?.toString() ?? "",
@@ -631,7 +741,9 @@ export function WorkoutForm({
         notes: s.notes ?? "",
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
-      })) ?? [blankStep()],
+        reps: s.reps?.toString() ?? "",
+        weight_suggestion: s.weight_suggestion ?? "",
+      })) ?? [],
   }));
 
   // ── Step handlers ──
@@ -691,12 +803,15 @@ export function WorkoutForm({
     setForm((prev) => {
       const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
       const unit = prev.distance_unit as DistanceUnit;
+      const isStrength = prev.type === "strength";
       return {
         ...prev,
         steps: [
           ...prev.steps,
           blankStep(nextGroupId, 2, unit),
-          { ...blankStep(nextGroupId, 2, unit), step_type: "recovery" },
+          isStrength
+            ? blankStep(nextGroupId, 2, unit)
+            : { ...blankStep(nextGroupId, 2, unit), step_type: "recovery" },
         ],
       };
     });
@@ -784,9 +899,13 @@ export function WorkoutForm({
     setForm((prev) => ({ ...prev, steps: arrayMove(prev.steps, activeIdx, overIdx) }));
   }
 
-  // ── Computed totals from steps (respects repeat groups + pace interpolation) ──
+  // ── Computed totals from steps (run workouts only) ──
+
+  const isRun = form.type === "run";
+  const isStrength = form.type === "strength";
 
   const { totalDistInUnit, totalDurationMin } = (() => {
+    if (isStrength) return { totalDistInUnit: 0, totalDurationMin: 0 };
     const segs = buildSegments(form.steps);
     let distMiSum = 0;
     let durSum = 0;
@@ -825,11 +944,13 @@ export function WorkoutForm({
       await onSave({
         ...form,
         distance_miles:
-          totalDistInUnit > 0
+          !isStrength && totalDistInUnit > 0
             ? String(parseFloat(totalDistInUnit.toFixed(4)))
-            : form.distance_miles,
+            : isStrength ? "" : form.distance_miles,
         duration_minutes:
-          totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes,
+          !isStrength && totalDurationMin > 0
+            ? String(totalDurationMin)
+            : isStrength ? "" : form.duration_minutes,
         saveToLibrary: showSaveToLibrary ? saveToLibrary : undefined,
       });
     } catch (err) {
@@ -838,13 +959,18 @@ export function WorkoutForm({
     }
   }
 
-  const isRun = form.type === "run";
   const inputClass =
     "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
   const labelClass = "text-xs text-[var(--muted)]";
 
   const segments = buildSegments(form.steps);
   const segmentIds = segments.map(segmentId);
+
+  const addStepLabel = isStrength ? "+ Add exercise" : "+ Add step";
+  const addGroupLabel = isStrength ? "+ Add superset" : "+ Add repeats";
+  const stepsEmptyText = isStrength
+    ? "No exercises yet. Add exercises to structure this workout."
+    : "No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -882,10 +1008,12 @@ export function WorkoutForm({
               <select
                 value={form.type}
                 onChange={(e) => {
+                  const newType = e.target.value as WorkoutType;
                   setForm((p) => ({
                     ...p,
-                    type: e.target.value as WorkoutType,
-                    run_type: e.target.value !== "run" ? "" : p.run_type,
+                    type: newType,
+                    run_type: newType !== "run" ? "" : p.run_type,
+                    strength_type: newType !== "strength" ? "" : p.strength_type,
                   }));
                 }}
                 className={inputClass}
@@ -923,6 +1051,22 @@ export function WorkoutForm({
               </div>
             )}
 
+            {isStrength && (
+              <div className="space-y-1">
+                <label className={labelClass}>Strength type</label>
+                <select
+                  value={form.strength_type}
+                  onChange={(e) => setForm((p) => ({ ...p, strength_type: e.target.value }))}
+                  className={inputClass}
+                >
+                  <option value="">— Select —</option>
+                  {Object.entries(STRENGTH_TYPE_LABELS).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Title */}
             <div className="space-y-1">
               <label className={labelClass}>Title</label>
@@ -930,7 +1074,7 @@ export function WorkoutForm({
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={isRun ? "e.g. Easy run" : "e.g. Upper body strength"}
+                placeholder={isStrength ? "e.g. Upper body push day" : isRun ? "e.g. Easy run" : "e.g. Workout title"}
                 className={inputClass}
               />
             </div>
@@ -949,14 +1093,11 @@ export function WorkoutForm({
             {/* Steps */}
             <div className="space-y-2">
               <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                Steps
+                {isStrength ? "Exercises" : "Steps"}
               </span>
 
               {form.steps.length === 0 && (
-                <p className="text-xs text-[var(--muted)] italic">
-                  No steps yet. Add steps to structure this workout (warm-up, intervals,
-                  cool-down, etc.).
-                </p>
+                <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
               )}
 
               <DndContext
@@ -975,6 +1116,7 @@ export function WorkoutForm({
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
                             label={`Step ${si + 1}`}
+                            isStrength={isStrength}
                             paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
@@ -994,6 +1136,7 @@ export function WorkoutForm({
                           repeatCount={seg.repeatCount}
                           indices={seg.indices}
                           steps={form.steps}
+                          isStrength={isStrength}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUngroup={ungroup}
@@ -1019,20 +1162,20 @@ export function WorkoutForm({
                   onClick={addStep}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
-                  + Add step
+                  {addStepLabel}
                 </button>
                 <button
                   type="button"
                   onClick={addRepeatGroup}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
-                  + Add repeats
+                  {addGroupLabel}
                 </button>
               </div>
             </div>
 
-            {/* Totals (calculated from steps) + pace type */}
-            {(totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
+            {/* Totals (run workouts only) */}
+            {!isStrength && (totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
               <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
                 {(totalDistInUnit > 0 || totalDurationMin > 0) && (
                   <div className="flex flex-wrap gap-4">

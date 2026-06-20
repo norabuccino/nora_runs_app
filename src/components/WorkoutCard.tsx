@@ -6,6 +6,8 @@ import {
   WORKOUT_TYPE_COLORS,
   RUN_TYPE_LABELS,
   RUN_TYPE_COLORS,
+  STRENGTH_TYPE_LABELS,
+  STRENGTH_TYPE_COLORS,
   getWorkoutEstimate,
 } from "@/lib/paceUtils";
 
@@ -35,18 +37,27 @@ export function WorkoutCard({
   const isCompleted = !!log?.completed_at;
   const title = log?.custom_title ?? workout.title;
   const description = log?.custom_description ?? workout.description;
-  const estimate = getWorkoutEstimate(
-    workout.distance_miles,
-    workout.distance_unit ?? "mi",
-    workout.pace_type,
-    workout.duration_minutes,
-    paces
-  );
+  const isStrength = workout.type === "strength";
 
-  const tagColor = workout.run_type
+  const estimate = isStrength
+    ? null
+    : getWorkoutEstimate(
+        workout.distance_miles,
+        workout.distance_unit ?? "mi",
+        workout.pace_type,
+        workout.duration_minutes,
+        paces
+      );
+
+  const tagColor = workout.type === "strength" && workout.strength_type
+    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : WORKOUT_TYPE_COLORS[workout.type];
-  const tagLabel = workout.run_type
+
+  const tagLabel = workout.type === "strength" && workout.strength_type
+    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
+    : workout.run_type
     ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type])
     : WORKOUT_TYPE_LABELS[workout.type];
 
@@ -117,15 +128,17 @@ export function WorkoutCard({
         {description && (
           <p className="text-xs text-[var(--muted)] mt-0.5 leading-relaxed">{description}</p>
         )}
-        <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
-          {workout.distance_miles && (
-            <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
-          )}
-          {workout.pace_type && (
-            <span className="capitalize">{workout.pace_type} pace</span>
-          )}
-          {estimate && <span>~{estimate}</span>}
-        </div>
+        {!isStrength && (
+          <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
+            {workout.distance_miles && (
+              <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
+            )}
+            {workout.pace_type && (
+              <span className="capitalize">{workout.pace_type} pace</span>
+            )}
+            {estimate && <span>~{estimate}</span>}
+          </div>
+        )}
       </div>
 
       {mode === "dashboard" && (

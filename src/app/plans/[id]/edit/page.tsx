@@ -138,6 +138,8 @@ export default function EditPlanPage() {
       notes: s.notes || null,
       repeat_group_id: s.repeat_group_id ?? null,
       repeat_count: s.repeat_count ?? 1,
+      reps: s.reps ? parseInt(s.reps, 10) : null,
+      weight_suggestion: s.weight_suggestion || null,
     }));
 
     const payload = {
@@ -146,6 +148,7 @@ export default function EditPlanPage() {
       day_of_week: data.day_of_week,
       type: data.type,
       run_type: data.run_type || null,
+      strength_type: data.strength_type || null,
       title: data.title,
       description: data.description || null,
       distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,
@@ -171,6 +174,7 @@ export default function EditPlanPage() {
       await createLibraryWorkout({
         type: data.type,
         run_type: data.run_type || null,
+        strength_type: data.strength_type || null,
         title: data.title,
         description: data.description || null,
         distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,

@@ -146,6 +146,24 @@ export const RUN_TYPE_COLORS: Record<string, string> = {
   mp_hmp_run: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
 };
 
+export const STRENGTH_TYPE_LABELS: Record<string, string> = {
+  upper_body: "Upper Body",
+  lower_body: "Lower Body",
+  full_body: "Full Body",
+  core: "Core",
+  plyometrics: "Plyometrics",
+  mobility: "Mobility",
+};
+
+export const STRENGTH_TYPE_COLORS: Record<string, string> = {
+  upper_body: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
+  lower_body: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
+  full_body: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  core: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
+  plyometrics: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200",
+  mobility: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+};
+
 export const STEP_TYPE_LABELS: Record<string, string> = {
   warmup: "Warm-up",
   main: "Main",

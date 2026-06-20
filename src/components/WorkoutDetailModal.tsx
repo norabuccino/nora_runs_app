@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, WorkoutStep } from "@/types/database";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, STEP_TYPE_LABELS, DAY_NAMES } from "@/lib/paceUtils";
+import {
+  WORKOUT_TYPE_COLORS,
+  WORKOUT_TYPE_LABELS,
+  RUN_TYPE_COLORS,
+  RUN_TYPE_LABELS,
+  STRENGTH_TYPE_COLORS,
+  STRENGTH_TYPE_LABELS,
+  STEP_TYPE_LABELS,
+  DAY_NAMES,
+} from "@/lib/paceUtils";
 
 type StepSegment =
   | { type: "step"; step: WorkoutStep }
@@ -29,7 +38,27 @@ function groupSteps(steps: WorkoutStep[]): StepSegment[] {
   return segments;
 }
 
-function StepRow({ step }: { step: WorkoutStep }) {
+function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean }) {
+  if (isStrength) {
+    const repInfo = step.reps
+      ? `${step.reps} reps`
+      : step.duration_minutes
+      ? `${step.duration_minutes} min`
+      : null;
+
+    return (
+      <div className="flex items-center gap-3 px-3 py-2 text-xs">
+        <span className="flex-1 font-medium text-[var(--foreground)]">
+          {step.label || "—"}
+        </span>
+        <span className="flex flex-wrap gap-2 text-[var(--muted)] shrink-0">
+          {repInfo && <span>{repInfo}</span>}
+          {step.weight_suggestion && <span>{step.weight_suggestion}</span>}
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-3 px-3 py-2 text-xs">
       <span className="text-[var(--muted)] w-20 shrink-0">
@@ -72,7 +101,6 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
         .select("id, week_number, day_of_week, plan_id, training_plans(id, name)")
         .eq("library_workout_id", workout.id)
         .order("week_number");
-      // Deduplicate by plan — if a workout appears multiple times in the same plan, show it once
       const rows = (data ?? []) as unknown as PlanUsage[];
       const seen = new Map<string, PlanUsage & { count: number }>();
       for (const row of rows) {
@@ -88,17 +116,27 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
     fetchUsage();
   }, [workout.id]);
 
-  const typeBadge = workout.run_type
+  const isStrength = workout.type === "strength";
+
+  const typeBadge = isStrength && workout.strength_type
+    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
-  const typeLabel = workout.run_type
+
+  const typeLabel = isStrength && workout.strength_type
+    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
+    : workout.run_type
     ? RUN_TYPE_LABELS[workout.run_type]
     : WORKOUT_TYPE_LABELS[workout.type];
 
-  const distanceLabel = workout.distance_miles
-    ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
-    : null;
-  const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
+  const distanceLabel =
+    !isStrength && workout.distance_miles
+      ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+      : null;
+  const durationLabel = !isStrength && workout.duration_minutes ? `${workout.duration_minutes} min` : null;
+
+  const groupLabel = isStrength ? "Superset" : "Repeat";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -131,7 +169,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
             </div>
           </div>
 
-          {/* Distance / duration */}
+          {/* Distance / duration (non-strength only) */}
           {(distanceLabel || durationLabel) && (
             <div className="flex gap-4">
               {distanceLabel && (
@@ -154,29 +192,36 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
             <p className="text-sm text-[var(--muted)]">{workout.description}</p>
           )}
 
-          {/* Steps */}
+          {/* Steps / Exercises */}
           {workout.workout_steps.length > 0 && (
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Steps</p>
+              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                {isStrength ? "Exercises" : "Steps"}
+              </p>
               <div className="space-y-1.5">
                 {groupSteps(workout.workout_steps).map((seg, i) => {
                   if (seg.type === "step") {
                     return (
                       <div key={i} className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-                        <StepRow step={seg.step} />
+                        <StepRow step={seg.step} isStrength={isStrength} />
                       </div>
                     );
                   }
                   return (
                     <div key={i} className="rounded-lg border border-[var(--border)]">
                       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)]">
-                        <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">Repeat</span>
+                        <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">
+                          {groupLabel}
+                        </span>
                         <span className="text-xs text-[var(--muted)]">×</span>
                         <span className="text-xs font-semibold text-[var(--muted)]">{seg.repeatCount}</span>
+                        {isStrength && (
+                          <span className="text-xs text-[var(--muted)]">sets</span>
+                        )}
                       </div>
                       <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--border)] ml-2">
                         {seg.steps.map((step, j) => (
-                          <StepRow key={j} step={step} />
+                          <StepRow key={j} step={step} isStrength={isStrength} />
                         ))}
                       </div>
                     </div>

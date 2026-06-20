@@ -8,6 +8,7 @@ import type { WorkoutStepData } from "./workouts";
 export interface LibraryWorkoutData {
   type: WorkoutType;
   run_type?: RunType | null;
+  strength_type?: string | null;
   title: string;
   description?: string | null;
   distance_miles?: number | null;
@@ -75,6 +76,7 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
       .update({
         type: workoutRow.type,
         run_type: workoutRow.run_type ?? null,
+        strength_type: workoutRow.strength_type ?? null,
         title: workoutRow.title,
         description: workoutRow.description ?? null,
         distance_miles: workoutRow.distance_miles ?? null,
@@ -251,6 +253,7 @@ export async function addLibraryWorkoutToPlan(
       day_of_week: dayOfWeek,
       type: workout.type,
       run_type: workout.run_type,
+      strength_type: workout.strength_type ?? null,
       title: workout.title,
       description: workout.description,
       distance_miles: workout.distance_miles,
@@ -285,6 +288,8 @@ export async function addLibraryWorkoutToPlan(
       notes: s.notes,
       repeat_group_id: s.repeat_group_id,
       repeat_count: s.repeat_count ?? 1,
+      reps: s.reps ?? null,
+      weight_suggestion: s.weight_suggestion ?? null,
     }));
     const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
     if (stepsError) throw new Error(stepsError.message);

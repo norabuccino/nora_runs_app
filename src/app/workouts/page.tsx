@@ -106,6 +106,7 @@ export default function WorkoutsPage() {
     const payload = {
       type: data.type,
       run_type: data.run_type || null,
+      strength_type: data.strength_type || null,
       title: data.title,
       description: data.description || null,
       distance_miles: data.distance_miles ? parseFloat(data.distance_miles) : null,
@@ -124,6 +125,8 @@ export default function WorkoutsPage() {
         notes: s.notes || null,
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
+        reps: s.reps ? parseInt(s.reps, 10) : null,
+        weight_suggestion: s.weight_suggestion || null,
       })),
     };
 

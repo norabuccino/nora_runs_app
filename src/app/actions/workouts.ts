@@ -14,6 +14,8 @@ export interface WorkoutStepData {
   notes?: string | null;
   repeat_group_id?: number | null;
   repeat_count?: number;
+  reps?: number | null;
+  weight_suggestion?: string | null;
 }
 
 export interface WorkoutData {
@@ -22,6 +24,7 @@ export interface WorkoutData {
   day_of_week: number;
   type: WorkoutType;
   run_type?: RunType | null;
+  strength_type?: string | null;
   title: string;
   description?: string | null;
   distance_miles?: number | null;
@@ -195,6 +198,7 @@ export async function copyWorkoutToDays(
         day_of_week: dayOfWeek,
         type: source.type,
         run_type: source.run_type,
+        strength_type: source.strength_type ?? null,
         title: source.title,
         description: source.description,
         distance_miles: source.distance_miles,
@@ -224,6 +228,8 @@ export async function copyWorkoutToDays(
           notes: s.notes,
           repeat_group_id: s.repeat_group_id,
           repeat_count: s.repeat_count ?? 1,
+          reps: s.reps ?? null,
+          weight_suggestion: s.weight_suggestion ?? null,
         }))
       );
     }
