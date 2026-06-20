@@ -288,6 +288,7 @@ export async function addLibraryWorkoutToPlan(
       notes: s.notes,
       repeat_group_id: s.repeat_group_id,
       repeat_count: s.repeat_count ?? 1,
+      group_name: s.group_name ?? null,
       reps: s.reps ?? null,
       weight_suggestion: s.weight_suggestion ?? null,
     }));

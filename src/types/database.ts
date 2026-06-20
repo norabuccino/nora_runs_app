@@ -115,6 +115,7 @@ export interface Database {
           notes: string | null;
           repeat_group_id: number | null;
           repeat_count: number;
+          group_name: string | null;
           reps: number | null;
           weight_suggestion: string | null;
         };
@@ -132,6 +133,7 @@ export interface Database {
           notes?: string | null;
           repeat_group_id?: number | null;
           repeat_count?: number;
+          group_name?: string | null;
           reps?: number | null;
           weight_suggestion?: string | null;
         };
@@ -149,6 +151,7 @@ export interface Database {
           notes?: string | null;
           repeat_group_id?: number | null;
           repeat_count?: number;
+          group_name?: string | null;
           reps?: number | null;
           weight_suggestion?: string | null;
         };

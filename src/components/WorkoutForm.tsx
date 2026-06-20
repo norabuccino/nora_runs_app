@@ -34,6 +34,7 @@ export interface WorkoutStepFormRow {
   notes: string;
   repeat_group_id: number | null;
   repeat_count: number;
+  group_name: string;
   reps: string;
   weight_suggestion: string;
 }
@@ -156,7 +157,8 @@ export function computeStepDurationMin(step: WorkoutStepFormRow, paces: RunningP
 function blankStep(
   groupId: number | null = null,
   repeatCount = 1,
-  unit: DistanceUnit = getStoredUnit()
+  unit: DistanceUnit = getStoredUnit(),
+  groupName = ""
 ): WorkoutStepFormRow {
   return {
     step_type: "main",
@@ -169,6 +171,7 @@ function blankStep(
     notes: "",
     repeat_group_id: groupId,
     repeat_count: repeatCount,
+    group_name: groupName,
     reps: "",
     weight_suggestion: "",
   };
@@ -557,11 +560,13 @@ interface GroupContainerProps {
   id: string;
   groupId: number;
   repeatCount: number;
+  groupName: string;
   indices: number[];
   steps: WorkoutStepFormRow[];
   isStrength?: boolean;
   paces: RunningPace[];
   onUpdateRepeatCount: (groupId: number, count: number) => void;
+  onUpdateGroupName: (groupId: number, name: string) => void;
   onUngroup: (groupId: number) => void;
   onAddStepToGroup: (groupId: number) => void;
   onGroupDragEnd: (event: DragEndEvent) => void;
@@ -578,11 +583,13 @@ export function SortableGroupContainer({
   id,
   groupId,
   repeatCount,
+  groupName,
   indices,
   steps,
   isStrength = false,
   paces,
   onUpdateRepeatCount,
+  onUpdateGroupName,
   onUngroup,
   onAddStepToGroup,
   onGroupDragEnd,
@@ -606,9 +613,8 @@ export function SortableGroupContainer({
   );
   const stepIds = indices.map((i) => `step-${i}`);
 
-  const groupLabel = isStrength ? "Superset" : "Repeat";
   const countLabel = isStrength ? "sets" : "times";
-  const addLabel = isStrength ? "+ Add exercise to superset" : "+ Add step to group";
+  const addLabel = isStrength ? "+ Add exercise to group" : "+ Add step to group";
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
@@ -622,9 +628,19 @@ export function SortableGroupContainer({
           >
             <GripIcon />
           </button>
-          <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">
-            {groupLabel}
-          </span>
+          {isStrength ? (
+            <input
+              type="text"
+              placeholder="Group name (e.g. Warm Up, Main Set)"
+              value={groupName}
+              onChange={(e) => onUpdateGroupName(groupId, e.target.value)}
+              className="flex-1 min-w-0 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)] placeholder:font-normal placeholder:text-[var(--muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+            />
+          ) : (
+            <span className="text-xs font-semibold text-[var(--accent)] uppercase tracking-wide">
+              Repeat
+            </span>
+          )}
           <span className="text-xs text-[var(--accent)]">×</span>
           <input
             type="number"
@@ -633,7 +649,7 @@ export function SortableGroupContainer({
             onChange={(e) => onUpdateRepeatCount(groupId, parseInt(e.target.value) || 1)}
             className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
           />
-          <span className="text-xs text-[var(--muted)] flex-1">{countLabel}</span>
+          <span className="text-xs text-[var(--muted)]">{countLabel}</span>
           <button
             type="button"
             onClick={() => onUngroup(groupId)}
@@ -741,6 +757,7 @@ export function WorkoutForm({
         notes: s.notes ?? "",
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
+        group_name: s.group_name ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
       })) ?? [],
@@ -838,6 +855,26 @@ export function WorkoutForm({
         s.repeat_group_id === groupId ? { ...s, repeat_count: count } : s
       ),
     }));
+  }
+
+  function updateGroupName(groupId: number, name: string) {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.map((s) =>
+        s.repeat_group_id === groupId ? { ...s, group_name: name } : s
+      ),
+    }));
+  }
+
+  function addSection() {
+    setForm((prev) => {
+      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+      const unit = prev.distance_unit as DistanceUnit;
+      return {
+        ...prev,
+        steps: [...prev.steps, blankStep(nextGroupId, 1, unit)],
+      };
+    });
   }
 
   function ungroup(groupId: number) {
@@ -969,7 +1006,7 @@ export function WorkoutForm({
   const addStepLabel = isStrength ? "+ Add exercise" : "+ Add step";
   const addGroupLabel = isStrength ? "+ Add superset" : "+ Add repeats";
   const stepsEmptyText = isStrength
-    ? "No exercises yet. Add exercises to structure this workout."
+    ? "No exercises yet. Add exercises below, or create a named group (e.g. Warm Up) to organize them."
     : "No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).";
 
   return (
@@ -1134,11 +1171,13 @@ export function WorkoutForm({
                           id={`group-${seg.groupId}`}
                           groupId={seg.groupId}
                           repeatCount={seg.repeatCount}
+                          groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
                           indices={seg.indices}
                           steps={form.steps}
                           isStrength={isStrength}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
+                          onUpdateGroupName={updateGroupName}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
                           onGroupDragEnd={onGroupDragEnd}
@@ -1156,7 +1195,7 @@ export function WorkoutForm({
                 </SortableContext>
               </DndContext>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <button
                   type="button"
                   onClick={addStep}
@@ -1171,6 +1210,15 @@ export function WorkoutForm({
                 >
                   {addGroupLabel}
                 </button>
+                {isStrength && (
+                  <button
+                    type="button"
+                    onClick={addSection}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
+                    + Add named group
+                  </button>
+                )}
               </div>
             </div>
 

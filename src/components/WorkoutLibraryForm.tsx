@@ -54,7 +54,8 @@ export interface WorkoutLibraryFormData {
 function blankStep(
   groupId: number | null = null,
   repeatCount = 1,
-  unit: DistanceUnit = getStoredUnit()
+  unit: DistanceUnit = getStoredUnit(),
+  groupName = ""
 ): WorkoutStepFormRow {
   return {
     step_type: "main",
@@ -67,6 +68,7 @@ function blankStep(
     notes: "",
     repeat_group_id: groupId,
     repeat_count: repeatCount,
+    group_name: groupName,
     reps: "",
     weight_suggestion: "",
   };
@@ -134,6 +136,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         notes: s.notes ?? "",
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
+        group_name: s.group_name ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
       })) ?? [],
@@ -232,6 +235,26 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         s.repeat_group_id === groupId ? { ...s, repeat_count: count } : s
       ),
     }));
+  }
+
+  function updateGroupName(groupId: number, name: string) {
+    setForm((prev) => ({
+      ...prev,
+      steps: prev.steps.map((s) =>
+        s.repeat_group_id === groupId ? { ...s, group_name: name } : s
+      ),
+    }));
+  }
+
+  function addSection() {
+    setForm((prev) => {
+      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+      const unit = prev.distance_unit as DistanceUnit;
+      return {
+        ...prev,
+        steps: [...prev.steps, blankStep(nextGroupId, 1, unit)],
+      };
+    });
   }
 
   function ungroup(groupId: number) {
@@ -518,11 +541,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                           id={`group-${seg.groupId}`}
                           groupId={seg.groupId}
                           repeatCount={seg.repeatCount}
+                          groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
                           indices={seg.indices}
                           steps={form.steps}
                           isStrength={isStrength}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
+                          onUpdateGroupName={updateGroupName}
                           onUngroup={ungroup}
                           onAddStepToGroup={addStepToGroup}
                           onGroupDragEnd={onGroupDragEnd}
@@ -540,7 +565,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 </SortableContext>
               </DndContext>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <button
                   type="button"
                   onClick={addStep}
@@ -555,6 +580,15 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 >
                   {addGroupLabel}
                 </button>
+                {isStrength && (
+                  <button
+                    type="button"
+                    onClick={addSection}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
+                    + Add named group
+                  </button>
+                )}
               </div>
             </div>
 

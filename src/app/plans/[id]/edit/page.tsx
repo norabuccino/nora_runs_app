@@ -138,6 +138,7 @@ export default function EditPlanPage() {
       notes: s.notes || null,
       repeat_group_id: s.repeat_group_id ?? null,
       repeat_count: s.repeat_count ?? 1,
+      group_name: s.group_name || null,
       reps: s.reps ? parseInt(s.reps, 10) : null,
       weight_suggestion: s.weight_suggestion || null,
     }));

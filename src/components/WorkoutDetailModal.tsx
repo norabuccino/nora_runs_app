@@ -211,13 +211,15 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
                     <div key={i} className="rounded-lg border border-[var(--border)]">
                       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)]">
                         <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wide">
-                          {groupLabel}
+                          {isStrength && seg.steps[0]?.group_name
+                            ? seg.steps[0].group_name
+                            : groupLabel}
                         </span>
                         <span className="text-xs text-[var(--muted)]">×</span>
                         <span className="text-xs font-semibold text-[var(--muted)]">{seg.repeatCount}</span>
-                        {isStrength && (
-                          <span className="text-xs text-[var(--muted)]">sets</span>
-                        )}
+                        <span className="text-xs text-[var(--muted)]">
+                          {isStrength ? "sets" : ""}
+                        </span>
                       </div>
                       <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--border)] ml-2">
                         {seg.steps.map((step, j) => (
