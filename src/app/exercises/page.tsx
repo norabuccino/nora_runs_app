@@ -258,47 +258,50 @@ export default function ExercisesPage() {
         <p className="text-sm text-[var(--muted)]">No exercises match your filters.</p>
       )}
 
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {displayed.map((exercise) => (
-          <div key={exercise.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-start gap-4">
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                {exercise.exercise_type && (
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
-                    {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
-                  </span>
-                )}
-                <p className="font-medium text-sm">{exercise.name}</p>
-              </div>
+          <div
+            key={exercise.id}
+            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3"
+          >
+            {exercise.exercise_type && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
+                {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
+              </span>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{exercise.name}</p>
               {exercise.description && (
-                <p className="text-xs text-[var(--muted)] leading-relaxed">{exercise.description}</p>
-              )}
-              {exercise.video_url && (
-                <a
-                  href={exercise.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-block text-xs text-[var(--accent)] hover:underline"
-                >
-                  ▶ Watch video
-                </a>
+                <p className="text-xs text-[var(--muted)] truncate">{exercise.description}</p>
               )}
             </div>
-            <div className="flex gap-1 shrink-0">
-              <button
-                onClick={() => { setEditing(exercise); setSaveError(null); }}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
+            {exercise.video_url && (
+              <a
+                href={exercise.video_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
+                title="Watch video"
               >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(exercise)}
-                disabled={isPending}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs text-[var(--muted)] hover:text-red-500 hover:border-red-300 transition-colors disabled:opacity-50"
-              >
-                Delete
-              </button>
-            </div>
+                ▶
+              </a>
+            )}
+            <button
+              onClick={() => { setEditing(exercise); setSaveError(null); }}
+              title="Edit"
+              className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+            >
+              ✎
+            </button>
+            <button
+              onClick={() => handleDelete(exercise)}
+              disabled={isPending}
+              title="Delete"
+              className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              ×
+            </button>
           </div>
         ))}
       </div>
