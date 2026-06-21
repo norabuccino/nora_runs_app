@@ -119,6 +119,7 @@ export interface Database {
           sets: number | null;
           reps: number | null;
           weight_suggestion: string | null;
+          video_url: string | null;
         };
         Insert: {
           id?: string;
@@ -138,6 +139,7 @@ export interface Database {
           sets?: number | null;
           reps?: number | null;
           weight_suggestion?: string | null;
+          video_url?: string | null;
         };
         Update: {
           id?: string;
@@ -157,6 +159,7 @@ export interface Database {
           sets?: number | null;
           reps?: number | null;
           weight_suggestion?: string | null;
+          video_url?: string | null;
         };
       };
       workouts: {

@@ -38,6 +38,7 @@ export interface WorkoutStepFormRow {
   sets: string;
   reps: string;
   weight_suggestion: string;
+  video_url: string;
 }
 
 export type StringStepKey =
@@ -49,7 +50,8 @@ export type StringStepKey =
   | "notes"
   | "sets"
   | "reps"
-  | "weight_suggestion";
+  | "weight_suggestion"
+  | "video_url";
 
 export interface WorkoutFormData {
   plan_id: string;
@@ -177,6 +179,7 @@ function blankStep(
     sets: "",
     reps: "",
     weight_suggestion: "",
+    video_url: "",
   };
 }
 
@@ -281,6 +284,7 @@ export function SortableStepCard({
   const [repTimeMode, setRepTimeMode] = useState<"reps" | "time">(() =>
     step.duration_minutes !== "" ? "time" : "reps"
   );
+  const [showVideoInput, setShowVideoInput] = useState(() => step.video_url !== "");
 
   function switchToCustom() {
     if (!/^\d+:\d{2}$/.test(step.pace_type)) onUpdate(actualIndex, "pace_type", "");
@@ -415,6 +419,38 @@ export function SortableStepCard({
             onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
             className={`${ci} w-full`}
           />
+
+          {/* Row 4: video link (toggle) */}
+          {showVideoInput ? (
+            <div className="flex items-center gap-1">
+              <input
+                type="url"
+                placeholder="Video URL (e.g. https://youtube.com/...)"
+                value={step.video_url}
+                onChange={(e) => onUpdate(actualIndex, "video_url", e.target.value)}
+                className={`${ci} flex-1 min-w-0`}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdate(actualIndex, "video_url", "");
+                  setShowVideoInput(false);
+                }}
+                className="shrink-0 text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+                aria-label="Remove video link"
+              >
+                ×
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowVideoInput(true)}
+              className="text-xs text-[var(--accent)] hover:underline text-left"
+            >
+              + Add video link
+            </button>
+          )}
         </div>
       </div>
     );
@@ -777,6 +813,7 @@ export function WorkoutForm({
         sets: s.sets?.toString() ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
+        video_url: s.video_url ?? "",
       })) ?? [],
   }));
 

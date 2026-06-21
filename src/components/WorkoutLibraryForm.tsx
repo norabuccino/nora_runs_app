@@ -72,6 +72,7 @@ function blankStep(
     sets: "",
     reps: "",
     weight_suggestion: "",
+    video_url: "",
   };
 }
 
@@ -141,6 +142,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         sets: s.sets?.toString() ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
+        video_url: s.video_url ?? "",
       })) ?? [],
   }));
 

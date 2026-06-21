@@ -142,6 +142,7 @@ export default function EditPlanPage() {
       sets: s.sets ? parseInt(s.sets, 10) : null,
       reps: s.reps ? parseInt(s.reps, 10) : null,
       weight_suggestion: s.weight_suggestion || null,
+      video_url: s.video_url || null,
     }));
 
     const payload = {

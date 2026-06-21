@@ -51,6 +51,17 @@ function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean 
         <span className="flex flex-wrap gap-2 text-[var(--muted)] shrink-0">
           {setsReps && <span>{setsReps}</span>}
           {step.weight_suggestion && <span>{step.weight_suggestion}</span>}
+          {step.video_url && (
+            <a
+              href={step.video_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--accent)] hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Watch video →
+            </a>
+          )}
         </span>
       </div>
     );

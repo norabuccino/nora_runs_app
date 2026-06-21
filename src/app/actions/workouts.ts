@@ -18,6 +18,7 @@ export interface WorkoutStepData {
   sets?: number | null;
   reps?: number | null;
   weight_suggestion?: string | null;
+  video_url?: string | null;
 }
 
 export interface WorkoutData {
@@ -234,6 +235,7 @@ export async function copyWorkoutToDays(
           sets: s.sets ?? null,
           reps: s.reps ?? null,
           weight_suggestion: s.weight_suggestion ?? null,
+          video_url: s.video_url ?? null,
         }))
       );
     }
