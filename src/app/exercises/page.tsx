@@ -23,6 +23,24 @@ const TYPE_FILTERS = [
   ...Object.entries(EXERCISE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
+type SortKey = "az" | "za" | "newest" | "oldest" | "type";
+
+function applySort(items: Exercise[], sort: SortKey): Exercise[] {
+  const sorted = [...items];
+  switch (sort) {
+    case "az":   return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case "za":   return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    case "newest": return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    case "oldest": return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    case "type": return sorted.sort((a, b) => {
+      const ta = a.exercise_type ?? "";
+      const tb = b.exercise_type ?? "";
+      return ta !== tb ? ta.localeCompare(tb) : a.name.localeCompare(b.name);
+    });
+    default: return sorted;
+  }
+}
+
 function ExerciseModal({
   title,
   initial,
@@ -129,6 +147,7 @@ export default function ExercisesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sort, setSort] = useState<SortKey>("az");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
@@ -144,14 +163,17 @@ export default function ExercisesPage() {
 
   useEffect(() => { load(); }, []);
 
-  const displayed = exercises.filter((e) => {
-    if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
-    if (!search.trim()) return true;
-    return (
-      e.name.toLowerCase().includes(search.toLowerCase()) ||
-      (e.description ?? "").toLowerCase().includes(search.toLowerCase())
-    );
-  });
+  const displayed = applySort(
+    exercises.filter((e) => {
+      if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
+      if (!search.trim()) return true;
+      return (
+        e.name.toLowerCase().includes(search.toLowerCase()) ||
+        (e.description ?? "").toLowerCase().includes(search.toLowerCase())
+      );
+    }),
+    sort
+  );
 
   async function handleCreate(data: ExerciseFormData) {
     if (!data.name.trim()) { setSaveError("Name is required"); return; }
@@ -219,13 +241,26 @@ export default function ExercisesPage() {
       </div>
 
       <div className="space-y-2">
-        <input
-          type="search"
-          placeholder="Search exercises…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className={inputClass}
-        />
+        <div className="flex gap-2">
+          <input
+            type="search"
+            placeholder="Search exercises…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={inputClass}
+          />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] shrink-0"
+          >
+            <option value="az">A → Z</option>
+            <option value="za">Z → A</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="type">By type</option>
+          </select>
+        </div>
         <div className="flex flex-wrap gap-1.5">
           {TYPE_FILTERS.map(({ value, label }) => (
             <button
