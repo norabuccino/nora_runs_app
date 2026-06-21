@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
+import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 
 interface ExerciseFormData {
   name: string;
@@ -148,6 +149,7 @@ export default function ExercisesPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sort, setSort] = useState<SortKey>("az");
+  const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
@@ -297,7 +299,8 @@ export default function ExercisesPage() {
         {displayed.map((exercise) => (
           <div
             key={exercise.id}
-            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3"
+            onClick={() => setDetail(exercise)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:border-[var(--foreground)] transition-colors"
           >
             {exercise.exercise_type && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
@@ -311,26 +314,17 @@ export default function ExercisesPage() {
               )}
             </div>
             {exercise.video_url && (
-              <a
-                href={exercise.video_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--accent)] transition-colors"
-                title="Watch video"
-              >
-                ▶
-              </a>
+              <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
             )}
             <button
-              onClick={() => { setEditing(exercise); setSaveError(null); }}
+              onClick={(e) => { e.stopPropagation(); setEditing(exercise); setSaveError(null); }}
               title="Edit"
               className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
             >
               ✎
             </button>
             <button
-              onClick={() => handleDelete(exercise)}
+              onClick={(e) => { e.stopPropagation(); handleDelete(exercise); }}
               disabled={isPending}
               title="Delete"
               className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
@@ -349,6 +343,14 @@ export default function ExercisesPage() {
           onCancel={() => { setCreating(false); setSaveError(null); }}
           saving={saving}
           error={saveError}
+        />
+      )}
+
+      {detail && (
+        <ExerciseDetailModal
+          exercise={detail}
+          onClose={() => setDetail(null)}
+          onEdit={(e) => { setDetail(null); setEditing(e); setSaveError(null); }}
         />
       )}
 
