@@ -150,6 +150,7 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   warm_up: "Warm Up",
   stretch: "Stretch",
   lift: "Lift",
+  plyos: "Plyos",
   mobility: "Mobility",
 };
 
@@ -160,6 +161,7 @@ export const EXERCISE_TYPE_COLORS: Record<string, string> = {
   warm_up: "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
   stretch: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   lift: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  plyos: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
   mobility: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 };
 
