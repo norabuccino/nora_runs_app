@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
-import { createExercise, updateExercise, deleteExercise } from "@/app/actions/exercises";
+import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 
@@ -12,9 +12,10 @@ interface ExerciseFormData {
   description: string;
   video_url: string;
   exercise_type: string;
+  source: string;
 }
 
-const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "" };
+const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "", source: "" };
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
@@ -107,6 +108,17 @@ function ExerciseModal({
             </div>
 
             <div className="space-y-1">
+              <label className={labelClass}>Source <span className="text-[var(--muted)]">(optional)</span></label>
+              <input
+                type="text"
+                value={form.source}
+                onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
+                placeholder="e.g. Coach, Book, YouTube…"
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1">
               <label className={labelClass}>Video URL <span className="text-[var(--muted)]">(optional)</span></label>
               <input
                 type="url"
@@ -148,6 +160,7 @@ export default function ExercisesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
   const [sort, setSort] = useState<SortKey>("az");
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
@@ -155,6 +168,10 @@ export default function ExercisesPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkType, setBulkType] = useState("");
+  const [bulkSource, setBulkSource] = useState("");
 
   async function load() {
     const supabase = createClient();
@@ -165,13 +182,19 @@ export default function ExercisesPage() {
 
   useEffect(() => { load(); }, []);
 
+  const availableSources = Array.from(
+    new Set(exercises.map((e) => e.source).filter(Boolean))
+  ) as string[];
+
   const displayed = applySort(
     exercises.filter((e) => {
       if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
+      if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
       if (!search.trim()) return true;
       return (
         e.name.toLowerCase().includes(search.toLowerCase()) ||
-        (e.description ?? "").toLowerCase().includes(search.toLowerCase())
+        (e.description ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (e.source ?? "").toLowerCase().includes(search.toLowerCase())
       );
     }),
     sort
@@ -187,6 +210,7 @@ export default function ExercisesPage() {
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
+        source: data.source.trim() || null,
       });
       setCreating(false);
       await load();
@@ -207,6 +231,7 @@ export default function ExercisesPage() {
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
+        source: data.source.trim() || null,
       });
       setEditing(null);
       await load();
@@ -225,6 +250,34 @@ export default function ExercisesPage() {
     });
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+    setBulkType("");
+    setBulkSource("");
+  }
+
+  function handleBulkApply() {
+    if (selectedIds.size === 0) return;
+    const updates: { exercise_type?: string | null; source?: string | null } = {};
+    if (bulkType !== "") updates.exercise_type = bulkType || null;
+    if (bulkSource.trim() !== "") updates.source = bulkSource.trim();
+    if (!Object.keys(updates).length) return;
+    startTransition(async () => {
+      await bulkUpdateExercises(Array.from(selectedIds), updates);
+      exitSelectMode();
+      await load();
+    });
+  }
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between">
@@ -234,12 +287,24 @@ export default function ExercisesPage() {
             Reusable exercises you can add to any strength workout.
           </p>
         </div>
-        <button
-          onClick={() => { setCreating(true); setSaveError(null); }}
-          className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-        >
-          + New exercise
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setSelectMode((m) => { if (m) exitSelectMode(); return !m; }); }}
+            className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+              selectMode
+                ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                : "border-[var(--border)] hover:bg-[var(--card)]"
+            }`}
+          >
+            {selectMode ? "Done" : "Select"}
+          </button>
+          <button
+            onClick={() => { setCreating(true); setSaveError(null); }}
+            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            + New exercise
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -263,6 +328,8 @@ export default function ExercisesPage() {
             <option value="type">By type</option>
           </select>
         </div>
+
+        {/* Type filter pills */}
         <div className="flex flex-wrap gap-1.5">
           {TYPE_FILTERS.map(({ value, label }) => (
             <button
@@ -278,6 +345,35 @@ export default function ExercisesPage() {
             </button>
           ))}
         </div>
+
+        {/* Source filter pills — only shown when sources exist */}
+        {availableSources.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setSourceFilter("all")}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                sourceFilter === "all"
+                  ? "bg-[var(--foreground)] text-[var(--background)]"
+                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+              }`}
+            >
+              All sources
+            </button>
+            {availableSources.map((src) => (
+              <button
+                key={src}
+                onClick={() => setSourceFilter(src)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  sourceFilter === src
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                {src}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
@@ -295,13 +391,48 @@ export default function ExercisesPage() {
         <p className="text-sm text-[var(--muted)]">No exercises match your filters.</p>
       )}
 
+      {/* Select all / deselect row */}
+      {selectMode && displayed.length > 0 && (
+        <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+          <button
+            onClick={() => setSelectedIds(new Set(displayed.map((e) => e.id)))}
+            className="hover:text-[var(--foreground)] transition-colors"
+          >
+            Select all ({displayed.length})
+          </button>
+          {selectedIds.size > 0 && (
+            <>
+              <span>·</span>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="hover:text-[var(--foreground)] transition-colors"
+              >
+                Deselect all
+              </button>
+              <span className="ml-auto">{selectedIds.size} selected</span>
+            </>
+          )}
+        </div>
+      )}
+
       <div className="space-y-1.5">
         {displayed.map((exercise) => (
           <div
             key={exercise.id}
-            onClick={() => setDetail(exercise)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 cursor-pointer hover:border-[var(--foreground)] transition-colors"
+            onClick={() => !selectMode && setDetail(exercise)}
+            className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors ${
+              selectMode ? "cursor-pointer" : "cursor-pointer hover:border-[var(--foreground)]"
+            } ${selectedIds.has(exercise.id) ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
           >
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={selectedIds.has(exercise.id)}
+                onChange={() => toggleSelect(exercise.id)}
+                onClick={(e) => e.stopPropagation()}
+                className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
+              />
+            )}
             {exercise.exercise_type && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
                 {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
@@ -309,28 +440,35 @@ export default function ExercisesPage() {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{exercise.name}</p>
-              {exercise.description && (
-                <p className="text-xs text-[var(--muted)] truncate">{exercise.description}</p>
+              {(exercise.description || exercise.source) && (
+                <p className="text-xs text-[var(--muted)] truncate">
+                  {exercise.source && <span className="font-medium">{exercise.source}{exercise.description ? " · " : ""}</span>}
+                  {exercise.description}
+                </p>
               )}
             </div>
             {exercise.video_url && (
               <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
             )}
-            <button
-              onClick={(e) => { e.stopPropagation(); setEditing(exercise); setSaveError(null); }}
-              title="Edit"
-              className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
-            >
-              ✎
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleDelete(exercise); }}
-              disabled={isPending}
-              title="Delete"
-              className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
-            >
-              ×
-            </button>
+            {!selectMode && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setEditing(exercise); setSaveError(null); }}
+                  title="Edit"
+                  className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+                >
+                  ✎
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleDelete(exercise); }}
+                  disabled={isPending}
+                  title="Delete"
+                  className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+                >
+                  ×
+                </button>
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -362,12 +500,53 @@ export default function ExercisesPage() {
             description: editing.description ?? "",
             video_url: editing.video_url ?? "",
             exercise_type: editing.exercise_type ?? "",
+            source: editing.source ?? "",
           }}
           onSave={handleUpdate}
           onCancel={() => { setEditing(null); setSaveError(null); }}
           saving={saving}
           error={saveError}
         />
+      )}
+
+      {/* Floating bulk edit toolbar */}
+      {selectMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl p-3 flex flex-wrap items-center gap-2 max-w-[min(90vw,44rem)]">
+          <span className="text-sm font-medium whitespace-nowrap pr-1">
+            {selectedIds.size} selected
+          </span>
+          <select
+            value={bulkType}
+            onChange={(e) => setBulkType(e.target.value)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+          >
+            <option value="">Type: no change</option>
+            <option value="">— clear type —</option>
+            {Object.entries(EXERCISE_TYPE_LABELS).map(([val, lbl]) => (
+              <option key={val} value={val}>{lbl}</option>
+            ))}
+          </select>
+          <input
+            type="text"
+            value={bulkSource}
+            onChange={(e) => setBulkSource(e.target.value)}
+            placeholder="Source: no change"
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none w-36"
+          />
+          <button
+            onClick={handleBulkApply}
+            disabled={isPending || (bulkType === "" && !bulkSource.trim())}
+            className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
+          >
+            Apply
+          </button>
+          <button
+            onClick={exitSelectMode}
+            className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] whitespace-nowrap"
+          >
+            Cancel
+          </button>
+        </div>
       )}
     </div>
   );

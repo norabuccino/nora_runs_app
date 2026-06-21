@@ -125,6 +125,13 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
             <p className="text-sm text-[var(--muted)] leading-relaxed">{exercise.description}</p>
           )}
 
+          {/* Source */}
+          {exercise.source && (
+            <p className="text-xs text-[var(--muted)]">
+              <span className="font-medium">Source:</span> {exercise.source}
+            </p>
+          )}
+
           {/* Video */}
           {exercise.video_url && (
             <a

@@ -9,6 +9,7 @@ export async function createExercise(data: {
   description?: string | null;
   video_url?: string | null;
   exercise_type?: string | null;
+  source?: string | null;
 }): Promise<Exercise> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -27,7 +28,7 @@ export async function createExercise(data: {
 
 export async function updateExercise(
   id: string,
-  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null }
+  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null; source?: string | null }
 ): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,6 +53,25 @@ export async function deleteExercise(id: string): Promise<void> {
     .from("exercises")
     .delete()
     .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/exercises");
+}
+
+export async function bulkUpdateExercises(
+  ids: string[],
+  data: { exercise_type?: string | null; source?: string | null }
+): Promise<void> {
+  if (!ids.length) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("exercises")
+    .update(data)
+    .in("id", ids)
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
 
