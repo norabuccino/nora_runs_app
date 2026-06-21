@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps } from "@/types/database";
 import { addLibraryWorkoutToPlan } from "@/app/actions/workoutLibrary";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS } from "@/lib/paceUtils";
+import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 interface LibraryPickerModalProps {
@@ -120,12 +120,6 @@ export function LibraryPickerModal({
           {!loading && displayed.length > 0 && (
             <div className="flex flex-col gap-1">
               {displayed.map((workout) => {
-                const typeBadge = workout.run_type
-                  ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-                  : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
-                const typeLabel = workout.run_type
-                  ? RUN_TYPE_LABELS[workout.run_type]
-                  : WORKOUT_TYPE_LABELS[workout.type];
                 const distanceLabel = workout.distance_miles
                   ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
                   : null;
@@ -140,9 +134,7 @@ export function LibraryPickerModal({
                     onClick={() => handleSelect(workout)}
                     className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 hover:border-[var(--foreground)] transition-colors text-left disabled:opacity-50"
                   >
-                    <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
-                      {typeLabel}
-                    </span>
+                    <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
                     <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
                     {(distanceLabel || durationLabel) && (
                       <div className="flex-shrink-0 text-right">

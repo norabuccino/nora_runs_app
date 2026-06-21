@@ -1,15 +1,8 @@
 "use client";
 
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import {
-  WORKOUT_TYPE_LABELS,
-  WORKOUT_TYPE_COLORS,
-  RUN_TYPE_LABELS,
-  RUN_TYPE_COLORS,
-  STRENGTH_TYPE_LABELS,
-  STRENGTH_TYPE_COLORS,
-  getWorkoutEstimate,
-} from "@/lib/paceUtils";
+import { WORKOUT_TYPE_COLORS, RUN_TYPE_COLORS, STRENGTH_TYPE_COLORS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 interface WorkoutCardProps {
   workout: PlanWorkout;
@@ -49,17 +42,12 @@ export function WorkoutCard({
         paces
       );
 
-  const tagColor = workout.type === "strength" && workout.strength_type
+  // still needed for edit mode pill which uses a single full-width color bar
+  const editColor = workout.type === "strength" && workout.strength_type
     ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : WORKOUT_TYPE_COLORS[workout.type];
-
-  const tagLabel = workout.type === "strength" && workout.strength_type
-    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
-    : workout.run_type
-    ? (RUN_TYPE_LABELS[workout.run_type] ?? WORKOUT_TYPE_LABELS[workout.type])
-    : WORKOUT_TYPE_LABELS[workout.type];
 
   if (workout.type === "rest" && mode !== "edit") {
     return (
@@ -72,8 +60,12 @@ export function WorkoutCard({
   if (mode === "edit") {
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
-        <div className={`px-2 py-1 text-xs font-medium text-center w-full ${tagColor}`}>
-          {tagLabel}
+        <div className={`px-2 py-1 text-xs font-medium text-center w-full ${editColor}`}>
+          {workout.type === "strength" && workout.strength_type
+            ? `Strength · ${workout.strength_type.replace(/_/g, " ")}`
+            : workout.run_type
+            ? workout.run_type.replace(/_/g, " ")
+            : workout.type}
         </div>
         <div className="px-2 pt-1.5 pb-2">
           <p className="text-xs font-medium leading-snug">{title}</p>
@@ -113,9 +105,11 @@ export function WorkoutCard({
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${tagColor}`}>
-            {tagLabel}
-          </span>
+          <WorkoutTypeBadges
+            type={workout.type}
+            run_type={workout.run_type}
+            strength_type={workout.strength_type}
+          />
           {isCompleted && (
             <span className="text-xs text-green-600 dark:text-green-400 font-medium">
               ✓ Done

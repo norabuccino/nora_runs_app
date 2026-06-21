@@ -14,7 +14,7 @@ import {
   duplicateLibraryWorkout,
   bulkUpdateLibraryWorkouts,
 } from "@/app/actions/workoutLibrary";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS, STRENGTH_TYPE_LABELS, STRENGTH_TYPE_COLORS } from "@/lib/paceUtils";
+import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
@@ -485,17 +485,6 @@ interface WorkoutLibraryCardProps {
 }
 
 function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
-  const typeBadge = workout.type === "strength" && workout.strength_type
-    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : workout.run_type
-    ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
-  const typeLabel = workout.type === "strength" && workout.strength_type
-    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
-    : workout.run_type
-    ? RUN_TYPE_LABELS[workout.run_type]
-    : WORKOUT_TYPE_LABELS[workout.type];
-
   const distanceLabel = workout.distance_miles
     ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
     : null;
@@ -516,9 +505,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
             className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
           />
         )}
-        <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${typeBadge}`}>
-          {typeLabel}
-        </span>
+        <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
         <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
         {(distanceLabel || durationLabel) && (
           <div className="flex-shrink-0 text-right">
@@ -567,9 +554,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
           />
         )}
         <div className="space-y-1 min-w-0 flex-1">
-          <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
-            {typeLabel}
-          </span>
+          <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
           <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
         </div>
         {(distanceLabel || durationLabel) && (

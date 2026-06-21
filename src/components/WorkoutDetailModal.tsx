@@ -3,16 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, WorkoutStep } from "@/types/database";
-import {
-  WORKOUT_TYPE_COLORS,
-  WORKOUT_TYPE_LABELS,
-  RUN_TYPE_COLORS,
-  RUN_TYPE_LABELS,
-  STRENGTH_TYPE_COLORS,
-  STRENGTH_TYPE_LABELS,
-  STEP_TYPE_LABELS,
-  DAY_NAMES,
-} from "@/lib/paceUtils";
+import { STEP_TYPE_LABELS, DAY_NAMES } from "@/lib/paceUtils";
+import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 type StepSegment =
   | { type: "step"; step: WorkoutStep }
@@ -123,18 +115,6 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
 
   const isStrength = workout.type === "strength";
 
-  const typeBadge = isStrength && workout.strength_type
-    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : workout.run_type
-    ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
-
-  const typeLabel = isStrength && workout.strength_type
-    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
-    : workout.run_type
-    ? RUN_TYPE_LABELS[workout.run_type]
-    : WORKOUT_TYPE_LABELS[workout.type];
-
   const distanceLabel =
     !isStrength && workout.distance_miles
       ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
@@ -150,9 +130,11 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0">
-              <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
-                {typeLabel}
-              </span>
+              <WorkoutTypeBadges
+                type={workout.type}
+                run_type={workout.run_type}
+                strength_type={workout.strength_type}
+              />
               <h2 className="font-semibold text-lg leading-snug">{workout.title}</h2>
               {workout.source && (
                 <p className="text-xs text-[var(--muted)]">from {workout.source}</p>
