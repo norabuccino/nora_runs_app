@@ -31,11 +31,11 @@ type SortKey = "az" | "za" | "newest" | "oldest" | "type";
 function applySort(items: Exercise[], sort: SortKey): Exercise[] {
   const sorted = [...items];
   switch (sort) {
-    case "az":   return sorted.sort((a, b) => a.name.localeCompare(b.name));
-    case "za":   return sorted.sort((a, b) => b.name.localeCompare(a.name));
+    case "az":    return sorted.sort((a, b) => a.name.localeCompare(b.name));
+    case "za":    return sorted.sort((a, b) => b.name.localeCompare(a.name));
     case "newest": return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
     case "oldest": return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
-    case "type": return sorted.sort((a, b) => {
+    case "type":  return sorted.sort((a, b) => {
       const ta = a.exercise_type ?? "";
       const tb = b.exercise_type ?? "";
       return ta !== tb ? ta.localeCompare(tb) : a.name.localeCompare(b.name);
@@ -163,6 +163,7 @@ export default function ExercisesPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [sort, setSort] = useState<SortKey>("az");
+  const [compact, setCompact] = useState(false);
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
@@ -174,6 +175,10 @@ export default function ExercisesPage() {
   const [bulkType, setBulkType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
   const [showImport, setShowImport] = useState(false);
+
+  useEffect(() => {
+    setCompact(window.matchMedia("(max-width: 640px)").matches);
+  }, []);
 
   async function load() {
     const supabase = createClient();
@@ -297,7 +302,7 @@ export default function ExercisesPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Exercise Library</h1>
@@ -315,7 +320,7 @@ export default function ExercisesPage() {
           </button>
           <button
             onClick={() => setShowImport(true)}
-            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
           >
             Import
           </button>
@@ -330,81 +335,28 @@ export default function ExercisesPage() {
             {selectMode ? "Done" : "Select"}
           </button>
           <button
+            onClick={() => setCompact((c) => !c)}
+            title={compact ? "Switch to card view" : "Switch to compact view"}
+            className="p-2 rounded-lg border border-[var(--border)] hover:bg-[var(--background)] transition-colors text-[var(--muted)]"
+          >
+            {compact ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" />
+                <rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
+          <button
             onClick={() => { setCreating(true); setSaveError(null); }}
             className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
           >
             + New exercise
           </button>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            type="search"
-            placeholder="Search exercises…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className={inputClass}
-          />
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] shrink-0"
-          >
-            <option value="az">A → Z</option>
-            <option value="za">Z → A</option>
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="type">By type</option>
-          </select>
-        </div>
-
-        {/* Type filter pills */}
-        <div className="flex flex-wrap gap-1.5">
-          {TYPE_FILTERS.map(({ value, label }) => (
-            <button
-              key={value}
-              onClick={() => setTypeFilter(value)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                typeFilter === value
-                  ? "bg-[var(--foreground)] text-[var(--background)]"
-                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Source filter pills — only shown when sources exist */}
-        {availableSources.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              onClick={() => setSourceFilter("all")}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                sourceFilter === "all"
-                  ? "bg-[var(--foreground)] text-[var(--background)]"
-                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-              }`}
-            >
-              All sources
-            </button>
-            {availableSources.map((src) => (
-              <button
-                key={src}
-                onClick={() => setSourceFilter(src)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  sourceFilter === src
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
-              >
-                {src}
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
@@ -415,94 +367,149 @@ export default function ExercisesPage() {
           <p className="text-sm text-[var(--muted)]">
             Add exercises here and reuse them across strength workouts.
           </p>
+          <button
+            onClick={() => { setCreating(true); setSaveError(null); }}
+            className="mt-2 px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+          >
+            Add your first exercise
+          </button>
         </div>
       )}
 
-      {!loading && exercises.length > 0 && displayed.length === 0 && (
-        <p className="text-sm text-[var(--muted)]">No exercises match your filters.</p>
-      )}
+      {!loading && exercises.length > 0 && (
+        <div className="space-y-4">
+          {/* Search + sort */}
+          <div className="flex gap-2 items-center">
+            <input
+              type="search"
+              placeholder="Search exercises…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            >
+              <option value="az">A → Z</option>
+              <option value="za">Z → A</option>
+              <option value="type">By type</option>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </div>
 
-      {/* Select all / deselect row */}
-      {selectMode && displayed.length > 0 && (
-        <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
-          <button
-            onClick={() => setSelectedIds(new Set(displayed.map((e) => e.id)))}
-            className="hover:text-[var(--foreground)] transition-colors"
-          >
-            Select all ({displayed.length})
-          </button>
-          {selectedIds.size > 0 && (
-            <>
-              <span>·</span>
+          {/* Type filter pills */}
+          <div className="flex flex-wrap gap-1.5">
+            {TYPE_FILTERS.map(({ value, label }) => (
               <button
-                onClick={() => setSelectedIds(new Set())}
+                key={value}
+                onClick={() => setTypeFilter(value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  typeFilter === value
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Source filter pills */}
+          {availableSources.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSourceFilter("all")}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  sourceFilter === "all"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                All sources
+              </button>
+              {availableSources.map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setSourceFilter(src)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    sourceFilter === src
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {src}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Select all / deselect row */}
+          {selectMode && displayed.length > 0 && (
+            <div className="flex items-center gap-3 text-xs text-[var(--muted)]">
+              <button
+                onClick={() => setSelectedIds(new Set(displayed.map((e) => e.id)))}
                 className="hover:text-[var(--foreground)] transition-colors"
               >
-                Deselect all
+                Select all ({displayed.length})
               </button>
-              <span className="ml-auto">{selectedIds.size} selected</span>
-            </>
+              {selectedIds.size > 0 && (
+                <>
+                  <span>·</span>
+                  <button
+                    onClick={() => setSelectedIds(new Set())}
+                    className="hover:text-[var(--foreground)] transition-colors"
+                  >
+                    Deselect all
+                  </button>
+                </>
+              )}
+              {selectedIds.size > 0 && (
+                <span className="ml-auto">{selectedIds.size} selected</span>
+              )}
+            </div>
+          )}
+
+          {displayed.length === 0 ? (
+            <p className="text-sm text-[var(--muted)] py-8 text-center">No exercises match.</p>
+          ) : compact ? (
+            <div className="flex flex-col gap-1">
+              {displayed.map((exercise) => (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  compact
+                  selectMode={selectMode}
+                  selected={selectedIds.has(exercise.id)}
+                  onToggleSelect={toggleSelect}
+                  onDetail={setDetail}
+                  onEdit={(e) => { setEditing(e); setSaveError(null); }}
+                  onDelete={handleDelete}
+                  isPending={isPending}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {displayed.map((exercise) => (
+                <ExerciseCard
+                  key={exercise.id}
+                  exercise={exercise}
+                  selectMode={selectMode}
+                  selected={selectedIds.has(exercise.id)}
+                  onToggleSelect={toggleSelect}
+                  onDetail={setDetail}
+                  onEdit={(e) => { setEditing(e); setSaveError(null); }}
+                  onDelete={handleDelete}
+                  isPending={isPending}
+                />
+              ))}
+            </div>
           )}
         </div>
       )}
-
-      <div className="space-y-1.5">
-        {displayed.map((exercise) => (
-          <div
-            key={exercise.id}
-            onClick={() => !selectMode && setDetail(exercise)}
-            className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors ${
-              selectMode ? "cursor-pointer" : "cursor-pointer hover:border-[var(--foreground)]"
-            } ${selectedIds.has(exercise.id) ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
-          >
-            {selectMode && (
-              <input
-                type="checkbox"
-                checked={selectedIds.has(exercise.id)}
-                onChange={() => toggleSelect(exercise.id)}
-                onClick={(e) => e.stopPropagation()}
-                className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
-              />
-            )}
-            {exercise.exercise_type && (
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
-                {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
-              </span>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{exercise.name}</p>
-              {(exercise.description || exercise.source) && (
-                <p className="text-xs text-[var(--muted)] truncate">
-                  {exercise.source && <span className="font-medium">{exercise.source}{exercise.description ? " · " : ""}</span>}
-                  {exercise.description}
-                </p>
-              )}
-            </div>
-            {exercise.video_url && (
-              <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
-            )}
-            {!selectMode && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setEditing(exercise); setSaveError(null); }}
-                  title="Edit"
-                  className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
-                >
-                  ✎
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(exercise); }}
-                  disabled={isPending}
-                  title="Delete"
-                  className="shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
-                >
-                  ×
-                </button>
-              </>
-            )}
-          </div>
-        ))}
-      </div>
 
       {creating && (
         <ExerciseModal
@@ -586,6 +593,118 @@ export default function ExercisesPage() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+interface ExerciseCardProps {
+  exercise: Exercise;
+  compact?: boolean;
+  selectMode?: boolean;
+  selected?: boolean;
+  isPending?: boolean;
+  onToggleSelect?: (id: string) => void;
+  onDetail: (e: Exercise) => void;
+  onEdit: (e: Exercise) => void;
+  onDelete: (e: Exercise) => void;
+}
+
+function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onToggleSelect, onDetail, onEdit, onDelete }: ExerciseCardProps) {
+  const typeBadge = exercise.exercise_type ? (
+    <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
+      {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
+    </span>
+  ) : null;
+
+  if (compact) {
+    return (
+      <div
+        onClick={() => onDetail(exercise)}
+        className={`rounded-lg border bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 transition-colors cursor-pointer hover:border-[var(--foreground)] ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
+      >
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(exercise.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
+          />
+        )}
+        {typeBadge}
+        <span className="text-sm font-medium truncate flex-1 min-w-0">{exercise.name}</span>
+        {exercise.source && (
+          <span className="flex-shrink-0 text-xs text-[var(--muted)]">{exercise.source}</span>
+        )}
+        {exercise.video_url && (
+          <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
+        )}
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
+          title="Edit"
+          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+        >
+          ✎
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(exercise); }}
+          disabled={isPending}
+          title="Delete"
+          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+        >
+          ×
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={() => onDetail(exercise)}
+      className={`rounded-xl border bg-[var(--card)] p-4 space-y-3 flex flex-col transition-colors cursor-pointer hover:border-[var(--foreground)] ${selected ? "border-[var(--accent)]" : "border-[var(--border)]"}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        {selectMode && (
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={() => onToggleSelect?.(exercise.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="mt-0.5 flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
+          />
+        )}
+        <div className="space-y-1 min-w-0 flex-1">
+          {typeBadge}
+          <h3 className="font-medium text-sm leading-snug truncate">{exercise.name}</h3>
+        </div>
+        {exercise.video_url && (
+          <span className="shrink-0 text-xs text-[var(--muted)] pt-0.5" title="Has video">▶</span>
+        )}
+      </div>
+
+      {exercise.description && (
+        <p className="text-xs text-[var(--muted)] line-clamp-2">{exercise.description}</p>
+      )}
+
+      {exercise.source && (
+        <p className="text-xs text-[var(--muted)]">{exercise.source}</p>
+      )}
+
+      <div className="flex gap-2 pt-1 mt-auto">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
+          className="flex-1 rounded-lg border border-[var(--border)] py-1.5 text-xs hover:bg-[var(--background)] transition-colors"
+        >
+          Edit
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(exercise); }}
+          disabled={isPending}
+          className="px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--muted)] hover:text-red-500 hover:border-red-300 transition-colors disabled:opacity-50"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 }
