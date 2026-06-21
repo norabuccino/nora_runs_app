@@ -153,11 +153,14 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   mobility: "Mobility",
 };
 
+// Colors distinct from all workout_type and run_type colors.
+// Tailwind has 22 color families for 25 label slots; the 3 unavoidable overlaps
+// land only between exercise_type and run_type, which never appear on the same card.
 export const EXERCISE_TYPE_COLORS: Record<string, string> = {
-  warm_up: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  stretch: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  warm_up: "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
+  stretch: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
   lift: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  mobility: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+  mobility: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
 };
 
 export const STRENGTH_TYPE_LABELS: Record<string, string> = {
@@ -169,13 +172,15 @@ export const STRENGTH_TYPE_LABELS: Record<string, string> = {
   mobility: "Mobility",
 };
 
+// All distinct from workout_type (blue/orange/gray/teal/cyan/sky/violet/lime)
+// and from run_type (green/red/amber/purple/pink/indigo/yellow).
 export const STRENGTH_TYPE_COLORS: Record<string, string> = {
   upper_body: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
-  lower_body: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
-  full_body: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  core: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
-  plyometrics: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200",
-  mobility: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  lower_body: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  full_body: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200",
+  core: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  plyometrics: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  mobility: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300",
 };
 
 export const STEP_TYPE_LABELS: Record<string, string> = {
