@@ -4,14 +4,19 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise } from "@/app/actions/exercises";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 
 interface ExerciseFormData {
   name: string;
   description: string;
   video_url: string;
+  exercise_type: string;
 }
 
-const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "" };
+const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "" };
+
+const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+const labelClass = "text-xs text-[var(--muted)]";
 
 function ExerciseForm({
   initial,
@@ -27,11 +32,22 @@ function ExerciseForm({
   error: string | null;
 }) {
   const [form, setForm] = useState(initial);
-  const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
-  const labelClass = "text-xs text-[var(--muted)]";
 
   return (
     <div className="space-y-3">
+      <div className="space-y-1">
+        <label className={labelClass}>Type</label>
+        <select
+          value={form.exercise_type}
+          onChange={(e) => setForm((p) => ({ ...p, exercise_type: e.target.value }))}
+          className={inputClass}
+        >
+          <option value="">— Select type —</option>
+          {Object.entries(EXERCISE_TYPE_LABELS).map(([val, lbl]) => (
+            <option key={val} value={val}>{lbl}</option>
+          ))}
+        </select>
+      </div>
       <div className="space-y-1">
         <label className={labelClass}>Name</label>
         <input
@@ -85,10 +101,16 @@ function ExerciseForm({
   );
 }
 
+const TYPE_FILTERS = [
+  { value: "all", label: "All" },
+  ...Object.entries(EXERCISE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+];
+
 export default function ExercisesPage() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
   const [saving, setSaving] = useState(false);
@@ -104,10 +126,14 @@ export default function ExercisesPage() {
 
   useEffect(() => { load(); }, []);
 
-  const displayed = exercises.filter((e) =>
-    !search.trim() || e.name.toLowerCase().includes(search.toLowerCase()) ||
-    (e.description ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+  const displayed = exercises.filter((e) => {
+    if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
+    if (!search.trim()) return true;
+    return (
+      e.name.toLowerCase().includes(search.toLowerCase()) ||
+      (e.description ?? "").toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   async function handleCreate(data: ExerciseFormData) {
     if (!data.name.trim()) { setSaveError("Name is required"); return; }
@@ -118,6 +144,7 @@ export default function ExercisesPage() {
         name: data.name.trim(),
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
+        exercise_type: data.exercise_type || null,
       });
       setCreating(false);
       await load();
@@ -137,6 +164,7 @@ export default function ExercisesPage() {
         name: data.name.trim(),
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
+        exercise_type: data.exercise_type || null,
       });
       setEditing(null);
       await load();
@@ -187,13 +215,30 @@ export default function ExercisesPage() {
       )}
 
       {!creating && (
-        <input
-          type="search"
-          placeholder="Search exercises…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-        />
+        <div className="space-y-2">
+          <input
+            type="search"
+            placeholder="Search exercises…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className={inputClass}
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {TYPE_FILTERS.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => setTypeFilter(value)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  typeFilter === value
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
@@ -208,7 +253,7 @@ export default function ExercisesPage() {
       )}
 
       {!loading && exercises.length > 0 && displayed.length === 0 && (
-        <p className="text-sm text-[var(--muted)]">No exercises match "{search}"</p>
+        <p className="text-sm text-[var(--muted)]">No exercises match your filters.</p>
       )}
 
       <div className="space-y-2">
@@ -217,7 +262,12 @@ export default function ExercisesPage() {
             <div key={exercise.id} className="rounded-xl border border-[var(--accent)] p-4 space-y-3">
               <p className="text-sm font-medium">Edit exercise</p>
               <ExerciseForm
-                initial={{ name: exercise.name, description: exercise.description ?? "", video_url: exercise.video_url ?? "" }}
+                initial={{
+                  name: exercise.name,
+                  description: exercise.description ?? "",
+                  video_url: exercise.video_url ?? "",
+                  exercise_type: exercise.exercise_type ?? "",
+                }}
                 onSave={handleUpdate}
                 onCancel={() => { setEditing(null); setSaveError(null); }}
                 saving={saving}
@@ -225,12 +275,16 @@ export default function ExercisesPage() {
               />
             </div>
           ) : (
-            <div
-              key={exercise.id}
-              className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-start gap-4"
-            >
-              <div className="flex-1 min-w-0 space-y-0.5">
-                <p className="font-medium text-sm">{exercise.name}</p>
+            <div key={exercise.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 flex items-start gap-4">
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {exercise.exercise_type && (
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
+                      {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
+                    </span>
+                  )}
+                  <p className="font-medium text-sm">{exercise.name}</p>
+                </div>
                 {exercise.description && (
                   <p className="text-xs text-[var(--muted)] leading-relaxed">{exercise.description}</p>
                 )}
@@ -239,7 +293,7 @@ export default function ExercisesPage() {
                     href={exercise.video_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block text-xs text-[var(--accent)] hover:underline mt-1"
+                    className="inline-block text-xs text-[var(--accent)] hover:underline"
                   >
                     ▶ Watch video
                   </a>

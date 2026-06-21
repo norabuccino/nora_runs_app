@@ -8,6 +8,7 @@ export async function createExercise(data: {
   name: string;
   description?: string | null;
   video_url?: string | null;
+  exercise_type?: string | null;
 }): Promise<Exercise> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -26,7 +27,7 @@ export async function createExercise(data: {
 
 export async function updateExercise(
   id: string,
-  data: { name?: string; description?: string | null; video_url?: string | null }
+  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null }
 ): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

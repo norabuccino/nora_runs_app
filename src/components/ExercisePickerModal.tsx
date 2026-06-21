@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise } from "@/app/actions/exercises";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 
 export interface ExercisePickResult {
   exercise_id: string;
@@ -22,12 +23,13 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [typeFilter, setTypeFilter] = useState("all");
 
   // Create new form state
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newVideoUrl, setNewVideoUrl] = useState("");
+  const [newExerciseType, setNewExerciseType] = useState("");
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -45,9 +47,11 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
     load();
   }, []);
 
-  const displayed = exercises.filter((e) =>
-    !search.trim() || e.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const displayed = exercises.filter((e) => {
+    if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
+    if (!search.trim()) return true;
+    return e.name.toLowerCase().includes(search.toLowerCase());
+  });
 
   function handleSelect(exercise: Exercise) {
     onSelect({
@@ -68,6 +72,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
           name: newName.trim(),
           description: newDescription.trim() || null,
           video_url: newVideoUrl.trim() || null,
+          exercise_type: newExerciseType || null,
         });
         onSelect({
           exercise_id: exercise.id,
@@ -90,6 +95,10 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   }
 
   const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+  const typeFilters = [
+    { value: "all", label: "All" },
+    ...Object.entries(EXERCISE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
+  ];
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -130,6 +139,24 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 autoFocus
               />
 
+              {/* Type filter pills */}
+              <div className="flex flex-wrap gap-1 shrink-0">
+                {typeFilters.map(({ value, label }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTypeFilter(value)}
+                    className={`px-2.5 py-0.5 rounded-full text-xs transition-colors ${
+                      typeFilter === value
+                        ? "bg-[var(--accent)] text-white"
+                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               <div className="overflow-y-auto flex-1 space-y-1">
                 {loading && <p className="text-xs text-[var(--muted)] text-center py-4">Loading…</p>}
 
@@ -147,7 +174,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 )}
 
                 {!loading && exercises.length > 0 && displayed.length === 0 && (
-                  <p className="text-xs text-[var(--muted)] text-center py-4">No exercises match "{search}"</p>
+                  <p className="text-xs text-[var(--muted)] text-center py-4">No exercises match your filters.</p>
                 )}
 
                 {displayed.map((exercise) => (
@@ -158,13 +185,20 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                     className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-start gap-3 hover:border-[var(--foreground)] transition-colors text-left"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">{exercise.name}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {exercise.exercise_type && (
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? ""}`}>
+                            {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
+                          </span>
+                        )}
+                        <p className="text-sm font-medium">{exercise.name}</p>
+                      </div>
                       {exercise.description && (
                         <p className="text-xs text-[var(--muted)] mt-0.5 line-clamp-1">{exercise.description}</p>
                       )}
                     </div>
                     {exercise.video_url && (
-                      <span className="text-xs text-[var(--muted)] shrink-0 mt-0.5">▶ video</span>
+                      <span className="text-xs text-[var(--muted)] shrink-0 mt-0.5">▶</span>
                     )}
                   </button>
                 ))}
@@ -174,6 +208,19 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
 
           {tab === "new" && (
             <div className="space-y-3 flex-1">
+              <div className="space-y-1">
+                <label className="text-xs text-[var(--muted)]">Type</label>
+                <select
+                  value={newExerciseType}
+                  onChange={(e) => setNewExerciseType(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">— Select type —</option>
+                  {Object.entries(EXERCISE_TYPE_LABELS).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </select>
+              </div>
               <div className="space-y-1">
                 <label className="text-xs text-[var(--muted)]">Name</label>
                 <input

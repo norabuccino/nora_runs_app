@@ -146,6 +146,20 @@ export const RUN_TYPE_COLORS: Record<string, string> = {
   mp_hmp_run: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
 };
 
+export const EXERCISE_TYPE_LABELS: Record<string, string> = {
+  warm_up: "Warm Up",
+  stretch: "Stretch",
+  lift: "Lift",
+  mobility: "Mobility",
+};
+
+export const EXERCISE_TYPE_COLORS: Record<string, string> = {
+  warm_up: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  stretch: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
+  lift: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  mobility: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
+};
+
 export const STRENGTH_TYPE_LABELS: Record<string, string> = {
   upper_body: "Upper Body",
   lower_body: "Lower Body",

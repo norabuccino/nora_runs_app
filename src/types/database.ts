@@ -172,6 +172,7 @@ export interface Database {
           name: string;
           description: string | null;
           video_url: string | null;
+          exercise_type: string | null;
           created_at: string;
         };
         Insert: {
@@ -180,6 +181,7 @@ export interface Database {
           name: string;
           description?: string | null;
           video_url?: string | null;
+          exercise_type?: string | null;
           created_at?: string;
         };
         Update: {
@@ -188,6 +190,7 @@ export interface Database {
           name?: string;
           description?: string | null;
           video_url?: string | null;
+          exercise_type?: string | null;
           created_at?: string;
         };
       };
