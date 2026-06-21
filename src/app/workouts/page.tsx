@@ -14,7 +14,7 @@ import {
   duplicateLibraryWorkout,
   bulkUpdateLibraryWorkouts,
 } from "@/app/actions/workoutLibrary";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS } from "@/lib/paceUtils";
+import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, RUN_TYPE_COLORS, STRENGTH_TYPE_LABELS, STRENGTH_TYPE_COLORS } from "@/lib/paceUtils";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
@@ -485,10 +485,14 @@ interface WorkoutLibraryCardProps {
 }
 
 function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
-  const typeBadge = workout.run_type
+  const typeBadge = workout.type === "strength" && workout.strength_type
+    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : workout.run_type
     ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
     : (WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600");
-  const typeLabel = workout.run_type
+  const typeLabel = workout.type === "strength" && workout.strength_type
+    ? (STRENGTH_TYPE_LABELS[workout.strength_type] ?? WORKOUT_TYPE_LABELS[workout.type])
+    : workout.run_type
     ? RUN_TYPE_LABELS[workout.run_type]
     : WORKOUT_TYPE_LABELS[workout.type];
 
