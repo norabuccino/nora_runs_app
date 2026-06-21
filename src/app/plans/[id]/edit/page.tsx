@@ -143,6 +143,7 @@ export default function EditPlanPage() {
       reps: s.reps ? parseInt(s.reps, 10) : null,
       weight_suggestion: s.weight_suggestion || null,
       video_url: s.video_url || null,
+      exercise_id: s.exercise_id || null,
     }));
 
     const payload = {

@@ -120,6 +120,7 @@ export interface Database {
           reps: number | null;
           weight_suggestion: string | null;
           video_url: string | null;
+          exercise_id: string | null;
         };
         Insert: {
           id?: string;
@@ -140,6 +141,7 @@ export interface Database {
           reps?: number | null;
           weight_suggestion?: string | null;
           video_url?: string | null;
+          exercise_id?: string | null;
         };
         Update: {
           id?: string;
@@ -160,6 +162,33 @@ export interface Database {
           reps?: number | null;
           weight_suggestion?: string | null;
           video_url?: string | null;
+          exercise_id?: string | null;
+        };
+      };
+      exercises: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string | null;
+          video_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          description?: string | null;
+          video_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          description?: string | null;
+          video_url?: string | null;
+          created_at?: string;
         };
       };
       workouts: {
@@ -397,3 +426,4 @@ export type WorkoutWithSteps = PlanWorkout & { workout_steps: WorkoutStep[] };
 export type LibraryWorkoutWithSteps = LibraryWorkout & { workout_steps: WorkoutStep[] };
 
 export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | "plyometrics" | "mobility";
+export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];

@@ -20,6 +20,7 @@ import type { WorkoutType, RunType, WorkoutWithSteps, RunningPace } from "@/type
 import { DAY_NAMES, STEP_TYPE_LABELS, STRENGTH_TYPE_LABELS, parsePace } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
+import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export interface WorkoutStepFormRow {
   notes: string;
   repeat_group_id: number | null;
   repeat_count: number;
+  exercise_id: string;
   group_name: string;
   sets: string;
   reps: string;
@@ -176,6 +178,7 @@ function blankStep(
     repeat_group_id: groupId,
     repeat_count: repeatCount,
     group_name: groupName,
+    exercise_id: "",
     sets: "",
     reps: "",
     weight_suggestion: "",
@@ -248,6 +251,7 @@ interface StepCardProps {
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
   onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
   onCreatePace: (name: string, secondsPerMile: number) => Promise<RunningPace>;
+  onOpenPicker?: (stepIndex: number) => void;
   inputClass: string;
   labelClass: string;
 }
@@ -264,6 +268,7 @@ export function SortableStepCard({
   onSwitchUnit,
   onSwitchDurationUnit,
   onCreatePace,
+  onOpenPicker,
   inputClass,
   labelClass,
 }: StepCardProps) {
@@ -324,10 +329,12 @@ export function SortableStepCard({
 
   // ── Strength step layout ───────────────────────────────────────────────────
   if (isStrength) {
+    const hasExercise = !!(step.exercise_id || step.label);
+
     return (
       <div ref={setNodeRef} style={style} {...attributes}>
         <div className="rounded-lg border border-[var(--border)] p-2 space-y-1.5 bg-[var(--card)]">
-          {/* Row 1: grip · exercise name · × */}
+          {/* Row 1: grip · exercise name/picker · × */}
           <div className="flex items-center gap-1.5">
             <button
               type="button"
@@ -337,13 +344,48 @@ export function SortableStepCard({
             >
               <GripIcon />
             </button>
-            <input
-              type="text"
-              placeholder="Exercise name (e.g. Squat, Push-up)"
-              value={step.label}
-              onChange={(e) => onUpdate(actualIndex, "label", e.target.value)}
-              className={`${ci} flex-1 min-w-0`}
-            />
+
+            {step.exercise_id ? (
+              // Library exercise — show name + Change button
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <span className="text-xs font-medium truncate flex-1">{step.label || "Exercise"}</span>
+                <button
+                  type="button"
+                  onClick={() => onOpenPicker?.(actualIndex)}
+                  className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Change
+                </button>
+              </div>
+            ) : step.label ? (
+              // Inline exercise (backward compat) — text input + library shortcut
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <input
+                  type="text"
+                  placeholder="Exercise name"
+                  value={step.label}
+                  onChange={(e) => onUpdate(actualIndex, "label", e.target.value)}
+                  className={`${ci} flex-1 min-w-0`}
+                />
+                <button
+                  type="button"
+                  onClick={() => onOpenPicker?.(actualIndex)}
+                  className="shrink-0 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors whitespace-nowrap"
+                >
+                  Library
+                </button>
+              </div>
+            ) : (
+              // Empty — prompt to select
+              <button
+                type="button"
+                onClick={() => onOpenPicker?.(actualIndex)}
+                className="flex-1 rounded border border-dashed border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] text-left transition-colors"
+              >
+                Select exercise…
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => onRemove(actualIndex)}
@@ -354,102 +396,105 @@ export function SortableStepCard({
             </button>
           </div>
 
-          {/* Row 2: sets × reps/time (sets hidden when inside a group) */}
-          <div className="flex items-center gap-1.5">
-            {step.repeat_group_id === null && (
-              <>
-                <input
-                  type="number"
-                  min="1"
-                  placeholder="Sets"
-                  value={step.sets}
-                  onChange={(e) => onUpdate(actualIndex, "sets", e.target.value)}
-                  className={`${ci} w-14 shrink-0`}
-                />
-                <span className="text-xs text-[var(--muted)] shrink-0">×</span>
-              </>
-            )}
-            <UnitToggle
-              units={["reps", "time"] as ("reps" | "time")[]}
-              active={repTimeMode}
-              onChange={(mode) => {
-                if (mode === "reps") {
-                  onUpdate(actualIndex, "duration_minutes", "");
-                  setRepTimeMode("reps");
-                } else {
-                  onUpdate(actualIndex, "reps", "");
-                  setRepTimeMode("time");
-                }
-              }}
-            />
-            {repTimeMode === "reps" ? (
-              <input
-                type="number"
-                min="1"
-                placeholder="Reps"
-                value={step.reps}
-                onChange={(e) => onUpdate(actualIndex, "reps", e.target.value)}
-                className={`${ci} w-14`}
-              />
-            ) : (
-              <>
-                <input
-                  type="number"
-                  min="0"
-                  step={step.duration_unit === "sec" ? "1" : "0.5"}
-                  placeholder={step.duration_unit}
-                  value={step.duration_minutes}
-                  onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
-                  className={`${ci} w-14`}
-                />
+          {/* Rows 2–4 only shown once an exercise is named */}
+          {hasExercise && (
+            <>
+              {/* Row 2: sets × reps/time (sets hidden when inside a group) */}
+              <div className="flex items-center gap-1.5">
+                {step.repeat_group_id === null && (
+                  <>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Sets"
+                      value={step.sets}
+                      onChange={(e) => onUpdate(actualIndex, "sets", e.target.value)}
+                      className={`${ci} w-14 shrink-0`}
+                    />
+                    <span className="text-xs text-[var(--muted)] shrink-0">×</span>
+                  </>
+                )}
                 <UnitToggle
-                  units={["min", "sec"]}
-                  active={step.duration_unit}
-                  onChange={(u) => onSwitchDurationUnit(actualIndex, u)}
+                  units={["reps", "time"] as ("reps" | "time")[]}
+                  active={repTimeMode}
+                  onChange={(mode) => {
+                    if (mode === "reps") {
+                      onUpdate(actualIndex, "duration_minutes", "");
+                      setRepTimeMode("reps");
+                    } else {
+                      onUpdate(actualIndex, "reps", "");
+                      setRepTimeMode("time");
+                    }
+                  }}
                 />
-              </>
-            )}
-          </div>
+                {repTimeMode === "reps" ? (
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Reps"
+                    value={step.reps}
+                    onChange={(e) => onUpdate(actualIndex, "reps", e.target.value)}
+                    className={`${ci} w-14`}
+                  />
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min="0"
+                      step={step.duration_unit === "sec" ? "1" : "0.5"}
+                      placeholder={step.duration_unit}
+                      value={step.duration_minutes}
+                      onChange={(e) => onUpdate(actualIndex, "duration_minutes", e.target.value)}
+                      className={`${ci} w-14`}
+                    />
+                    <UnitToggle
+                      units={["min", "sec"]}
+                      active={step.duration_unit}
+                      onChange={(u) => onSwitchDurationUnit(actualIndex, u)}
+                    />
+                  </>
+                )}
+              </div>
 
-          {/* Row 3: weight suggestion */}
-          <input
-            type="text"
-            placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
-            value={step.weight_suggestion}
-            onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
-            className={`${ci} w-full`}
-          />
-
-          {/* Row 4: video link (toggle) */}
-          {showVideoInput ? (
-            <div className="flex items-center gap-1">
+              {/* Row 3: weight suggestion */}
               <input
-                type="url"
-                placeholder="Video URL (e.g. https://youtube.com/...)"
-                value={step.video_url}
-                onChange={(e) => onUpdate(actualIndex, "video_url", e.target.value)}
-                className={`${ci} flex-1 min-w-0`}
+                type="text"
+                placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+                value={step.weight_suggestion}
+                onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
+                className={`${ci} w-full`}
               />
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdate(actualIndex, "video_url", "");
-                  setShowVideoInput(false);
-                }}
-                className="shrink-0 text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
-                aria-label="Remove video link"
-              >
-                ×
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowVideoInput(true)}
-              className="text-xs text-[var(--accent)] hover:underline text-left"
-            >
-              + Add video link
-            </button>
+
+              {/* Row 4: video link — only for inline exercises */}
+              {!step.exercise_id && (
+                showVideoInput ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="url"
+                      placeholder="Video URL"
+                      value={step.video_url}
+                      onChange={(e) => onUpdate(actualIndex, "video_url", e.target.value)}
+                      className={`${ci} flex-1 min-w-0`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { onUpdate(actualIndex, "video_url", ""); setShowVideoInput(false); }}
+                      className="shrink-0 text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoInput(true)}
+                    className="text-xs text-[var(--accent)] hover:underline text-left"
+                  >
+                    + Add video link
+                  </button>
+                )
+              )}
+            </>
           )}
         </div>
       </div>
@@ -621,6 +666,7 @@ interface GroupContainerProps {
   onUpdateGroupName: (groupId: number, name: string) => void;
   onUngroup: (groupId: number) => void;
   onAddStepToGroup: (groupId: number) => void;
+  onOpenPicker?: (stepIndex: number) => void;
   onGroupDragEnd: (event: DragEndEvent) => void;
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
@@ -644,6 +690,7 @@ export function SortableGroupContainer({
   onUpdateGroupName,
   onUngroup,
   onAddStepToGroup,
+  onOpenPicker,
   onGroupDragEnd,
   onRemove,
   onUpdate,
@@ -732,6 +779,7 @@ export function SortableGroupContainer({
                   onSwitchUnit={onSwitchUnit}
                   onSwitchDurationUnit={onSwitchDurationUnit}
                   onCreatePace={onCreatePace}
+                  onOpenPicker={onOpenPicker}
                   inputClass={inputClass}
                   labelClass={labelClass}
                 />
@@ -810,6 +858,7 @@ export function WorkoutForm({
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
         group_name: s.group_name ?? "",
+        exercise_id: s.exercise_id ?? "",
         sets: s.sets?.toString() ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
@@ -946,6 +995,58 @@ export function WorkoutForm({
     return created;
   }
 
+  // ── Exercise picker (strength workouts) ──
+
+  type PickerState =
+    | { action: "add" }
+    | { action: "addToGroup"; groupId: number }
+    | { action: "replace"; stepIndex: number };
+
+  const [exercisePicker, setExercisePicker] = useState<PickerState | null>(null);
+
+  function handlePickerSelect(result: ExercisePickResult) {
+    if (!exercisePicker) return;
+    const step = blankStep(null, 1, form.distance_unit as DistanceUnit);
+    const filled: WorkoutStepFormRow = {
+      ...step,
+      exercise_id: result.exercise_id,
+      label: result.name,
+      video_url: result.video_url,
+    };
+
+    setForm((prev) => {
+      if (exercisePicker.action === "add") {
+        return { ...prev, steps: [...prev.steps, filled] };
+      }
+      if (exercisePicker.action === "addToGroup") {
+        const { groupId } = exercisePicker;
+        const steps = [...prev.steps];
+        let lastIdx = -1;
+        for (let i = 0; i < steps.length; i++) {
+          if (steps[i].repeat_group_id === groupId) lastIdx = i;
+        }
+        const rc = lastIdx >= 0 ? steps[lastIdx].repeat_count : 2;
+        const gName = lastIdx >= 0 ? steps[lastIdx].group_name : "";
+        const u = lastIdx >= 0 ? steps[lastIdx].distance_unit : (prev.distance_unit as DistanceUnit);
+        const newStep = { ...blankStep(groupId, rc, u, gName), ...filled, repeat_group_id: groupId, repeat_count: rc, group_name: gName };
+        steps.splice(lastIdx + 1, 0, newStep);
+        return { ...prev, steps };
+      }
+      if (exercisePicker.action === "replace") {
+        const steps = [...prev.steps];
+        steps[exercisePicker.stepIndex] = {
+          ...steps[exercisePicker.stepIndex],
+          exercise_id: result.exercise_id,
+          label: result.name,
+          video_url: result.video_url,
+        };
+        return { ...prev, steps };
+      }
+      return prev;
+    });
+    setExercisePicker(null);
+  }
+
   // ── Workout-level unit ──
 
   function switchWorkoutUnit(newUnit: "mi" | "km") {
@@ -1059,11 +1160,35 @@ export function WorkoutForm({
 
   const addStepLabel = isStrength ? "+ Add exercise" : "+ Add step";
   const addGroupLabel = isStrength ? "+ Add superset" : "+ Add repeats";
+
+  function handleAddStep() {
+    if (isStrength) {
+      setExercisePicker({ action: "add" });
+    } else {
+      addStep();
+    }
+  }
+
+  function handleAddStepToGroup(groupId: number) {
+    if (isStrength) {
+      setExercisePicker({ action: "addToGroup", groupId });
+    } else {
+      addStepToGroup(groupId);
+    }
+  }
+
+  function handleAddSection() {
+    setForm((prev) => {
+      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+      return { ...prev, steps: [...prev.steps, blankStep(nextGroupId, 1, prev.distance_unit as DistanceUnit)] };
+    });
+  }
   const stepsEmptyText = isStrength
     ? "No exercises yet. Add exercises below, or create a named group (e.g. Warm Up) to organize them."
     : "No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).";
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90vh]">
         <div className="p-4 space-y-4">
@@ -1214,6 +1339,7 @@ export function WorkoutForm({
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
                             onCreatePace={handleCreatePace}
+                            onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -1233,7 +1359,8 @@ export function WorkoutForm({
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUpdateGroupName={updateGroupName}
                           onUngroup={ungroup}
-                          onAddStepToGroup={addStepToGroup}
+                          onAddStepToGroup={handleAddStepToGroup}
+                          onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                           onGroupDragEnd={onGroupDragEnd}
                           onRemove={removeStep}
                           onUpdate={updateStep}
@@ -1252,7 +1379,7 @@ export function WorkoutForm({
               <div className="flex gap-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={addStep}
+                  onClick={handleAddStep}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
                   {addStepLabel}
@@ -1267,7 +1394,7 @@ export function WorkoutForm({
                 {isStrength && (
                   <button
                     type="button"
-                    onClick={addSection}
+                    onClick={handleAddSection}
                     className="text-xs text-[var(--accent)] hover:underline"
                   >
                     + Add named group
@@ -1356,5 +1483,13 @@ export function WorkoutForm({
         </div>
       </div>
     </div>
+
+    {exercisePicker && (
+      <ExercisePickerModal
+        onSelect={handlePickerSelect}
+        onCancel={() => setExercisePicker(null)}
+      />
+    )}
+  </>
   );
 }

@@ -293,6 +293,7 @@ export async function addLibraryWorkoutToPlan(
       reps: s.reps ?? null,
       weight_suggestion: s.weight_suggestion ?? null,
       video_url: s.video_url ?? null,
+      exercise_id: s.exercise_id ?? null,
     }));
     const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
     if (stepsError) throw new Error(stepsError.message);

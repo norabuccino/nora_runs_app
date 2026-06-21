@@ -27,6 +27,7 @@ import {
   type WorkoutStepFormRow,
   type StringStepKey,
 } from "./WorkoutForm";
+import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
@@ -69,6 +70,7 @@ function blankStep(
     repeat_group_id: groupId,
     repeat_count: repeatCount,
     group_name: groupName,
+    exercise_id: "",
     sets: "",
     reps: "",
     weight_suggestion: "",
@@ -139,6 +141,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         repeat_group_id: s.repeat_group_id ?? null,
         repeat_count: s.repeat_count ?? 1,
         group_name: s.group_name ?? "",
+        exercise_id: s.exercise_id ?? "",
         sets: s.sets?.toString() ?? "",
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
@@ -276,6 +279,55 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     return created;
   }
 
+  // ── Exercise picker (strength) ──
+
+  type PickerState =
+    | { action: "add" }
+    | { action: "addToGroup"; groupId: number }
+    | { action: "replace"; stepIndex: number };
+
+  const [exercisePicker, setExercisePicker] = useState<PickerState | null>(null);
+
+  function handlePickerSelect(result: ExercisePickResult) {
+    if (!exercisePicker) return;
+    const base = blankStep();
+    const filled: WorkoutStepFormRow = { ...base, exercise_id: result.exercise_id, label: result.name, video_url: result.video_url };
+
+    setForm((prev) => {
+      if (exercisePicker.action === "add") {
+        return { ...prev, steps: [...prev.steps, filled] };
+      }
+      if (exercisePicker.action === "addToGroup") {
+        const { groupId } = exercisePicker;
+        const steps = [...prev.steps];
+        let lastIdx = -1;
+        for (let i = 0; i < steps.length; i++) if (steps[i].repeat_group_id === groupId) lastIdx = i;
+        const rc = lastIdx >= 0 ? steps[lastIdx].repeat_count : 2;
+        const gName = lastIdx >= 0 ? steps[lastIdx].group_name : "";
+        const newStep: WorkoutStepFormRow = { ...filled, repeat_group_id: groupId, repeat_count: rc, group_name: gName };
+        steps.splice(lastIdx + 1, 0, newStep);
+        return { ...prev, steps };
+      }
+      if (exercisePicker.action === "replace") {
+        const steps = [...prev.steps];
+        steps[exercisePicker.stepIndex] = { ...steps[exercisePicker.stepIndex], exercise_id: result.exercise_id, label: result.name, video_url: result.video_url };
+        return { ...prev, steps };
+      }
+      return prev;
+    });
+    setExercisePicker(null);
+  }
+
+  function handleAddStep() {
+    if (isStrength) setExercisePicker({ action: "add" });
+    else addStep();
+  }
+
+  function handleAddStepToGroup(groupId: number) {
+    if (isStrength) setExercisePicker({ action: "addToGroup", groupId });
+    else addStepToGroup(groupId);
+  }
+
   function switchWorkoutUnit(newUnit: "mi" | "km") {
     setForm((prev) => {
       const raw = parseFloat(prev.distance_miles);
@@ -391,6 +443,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     : "No steps yet. Add steps to structure this workout (warm-up, intervals, cool-down, etc.).";
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90vh]">
         <div className="p-4 space-y-4">
@@ -534,6 +587,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
                             onCreatePace={handleCreatePace}
+                            onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
@@ -553,7 +607,8 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUpdateGroupName={updateGroupName}
                           onUngroup={ungroup}
-                          onAddStepToGroup={addStepToGroup}
+                          onAddStepToGroup={handleAddStepToGroup}
+                          onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                           onGroupDragEnd={onGroupDragEnd}
                           onRemove={removeStep}
                           onUpdate={updateStep}
@@ -572,7 +627,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               <div className="flex gap-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={addStep}
+                  onClick={handleAddStep}
                   className="text-xs text-[var(--accent)] hover:underline"
                 >
                   {addStepLabel}
@@ -662,5 +717,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         </div>
       </div>
     </div>
+
+    {exercisePicker && (
+      <ExercisePickerModal
+        onSelect={handlePickerSelect}
+        onCancel={() => setExercisePicker(null)}
+      />
+    )}
+    </>
   );
 }
