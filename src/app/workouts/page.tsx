@@ -80,6 +80,33 @@ export default function WorkoutsPage() {
     setCompact(window.matchMedia("(max-width: 640px)").matches);
   }, []);
 
+  function handleExport() {
+    const csvEscape = (s: string | null | undefined) => s ? `"${s.replace(/"/g, '""')}"` : "";
+    const headers = "type,run_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes,source";
+    const rows = workouts.map((w) =>
+      [
+        w.type,
+        w.run_type ?? "",
+        csvEscape(w.title),
+        csvEscape(w.description),
+        w.distance_miles ?? "",
+        w.distance_unit ?? "mi",
+        w.pace_type ?? "",
+        w.duration_minutes ?? "",
+        csvEscape(w.notes),
+        csvEscape(w.source),
+      ].join(",")
+    );
+    const csv = [headers, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "workouts.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   async function load() {
     const supabase = createClient();
     const [{ data: ws }, { data: steps }, { data: pac }] = await Promise.all([
@@ -213,6 +240,13 @@ export default function WorkoutsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={workouts.length === 0}
+            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+          >
+            Export CSV
+          </button>
           <button
             onClick={() => setShowImport(true)}
             className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
