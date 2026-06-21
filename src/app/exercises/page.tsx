@@ -6,6 +6,7 @@ import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
+import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 
 interface ExerciseFormData {
   name: string;
@@ -172,6 +173,7 @@ export default function ExercisesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
+  const [showImport, setShowImport] = useState(false);
 
   async function load() {
     const supabase = createClient();
@@ -181,6 +183,22 @@ export default function ExercisesPage() {
   }
 
   useEffect(() => { load(); }, []);
+
+  function handleExport() {
+    const csvEscape = (s: string | null) => s ? `"${s.replace(/"/g, '""')}"` : "";
+    const headers = "name,exercise_type,description,video_url,source";
+    const rows = exercises.map((e) =>
+      [csvEscape(e.name), e.exercise_type ?? "", csvEscape(e.description), csvEscape(e.video_url), csvEscape(e.source)].join(",")
+    );
+    const csv = [headers, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "exercises.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   const availableSources = Array.from(
     new Set(exercises.map((e) => e.source).filter(Boolean))
@@ -288,6 +306,19 @@ export default function ExercisesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exercises.length === 0}
+            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+          >
+            Export CSV
+          </button>
+          <button
+            onClick={() => setShowImport(true)}
+            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+          >
+            Import
+          </button>
           <button
             onClick={() => { setSelectMode((m) => { if (m) exitSelectMode(); return !m; }); }}
             className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
@@ -506,6 +537,13 @@ export default function ExercisesPage() {
           onCancel={() => { setEditing(null); setSaveError(null); }}
           saving={saving}
           error={saveError}
+        />
+      )}
+
+      {showImport && (
+        <ExerciseImportModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false); load(); }}
         />
       )}
 

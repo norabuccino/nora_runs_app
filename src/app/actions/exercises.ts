@@ -4,6 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
 
+export type ExerciseImportRow = {
+  name: string;
+  exercise_type: string | null;
+  description: string | null;
+  video_url: string | null;
+  source: string | null;
+};
+
 export async function createExercise(data: {
   name: string;
   description?: string | null;
@@ -76,4 +84,26 @@ export async function bulkUpdateExercises(
   if (error) throw new Error(error.message);
 
   revalidatePath("/exercises");
+}
+
+export async function importExercises(rows: ExerciseImportRow[]): Promise<{ count: number }> {
+  if (!rows.length) return { count: 0 };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const inserts = rows.map((row) => ({
+    user_id: user.id,
+    name: row.name,
+    exercise_type: row.exercise_type,
+    description: row.description,
+    video_url: row.video_url,
+    source: row.source,
+  }));
+
+  const { error } = await supabase.from("exercises").insert(inserts);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/exercises");
+  return { count: rows.length };
 }
