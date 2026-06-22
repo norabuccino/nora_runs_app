@@ -102,9 +102,9 @@ function ExerciseModal({
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={2}
+                rows={4}
                 placeholder="Cues, muscles targeted, coaching notes…"
-                className={`${inputClass} resize-none`}
+                className={`${inputClass} resize-y`}
               />
             </div>
 

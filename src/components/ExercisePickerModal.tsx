@@ -238,8 +238,8 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                   placeholder="Cues, muscles targeted, etc."
                   value={newDescription}
                   onChange={(e) => setNewDescription(e.target.value)}
-                  rows={2}
-                  className={`${inputClass} resize-none`}
+                  rows={4}
+                  className={`${inputClass} resize-y`}
                 />
               </div>
               <div className="space-y-1">
