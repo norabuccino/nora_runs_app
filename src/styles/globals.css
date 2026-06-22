@@ -50,16 +50,16 @@ body {
   /* Plan types */
   --badge-plan-marathon-bg: #f3e8ff;
   --badge-plan-marathon-text: #6b21a8;
-  --badge-plan-half-marathon-bg: #dbeafe;
-  --badge-plan-half-marathon-text: #1e40af;
-  --badge-plan-5k-10k-bg: #dcfce7;
-  --badge-plan-5k-10k-text: #166534;
-  --badge-plan-base-building-bg: #ccfbf1;
-  --badge-plan-base-building-text: #115e59;
-  --badge-plan-strength-bg: #ffedd5;
-  --badge-plan-strength-text: #9a3412;
-  --badge-plan-custom-bg: #f3f4f6;
-  --badge-plan-custom-text: #374151;
+  --badge-plan-half-marathon-bg: #dce4ff;
+  --badge-plan-half-marathon-text: #1e3a8a;
+  --badge-plan-5k-10k-bg: #d0f4ea;
+  --badge-plan-5k-10k-text: #005c44;
+  --badge-plan-base-building-bg: #eef5c8;
+  --badge-plan-base-building-text: #4a6900;
+  --badge-plan-strength-bg: #f5ddd8;
+  --badge-plan-strength-text: #8c1f0f;
+  --badge-plan-custom-bg: #f0eaff;
+  --badge-plan-custom-text: #5c309a;
 
   /* Run types */
   --badge-run-easy-run-bg: #dcfce7;
@@ -68,8 +68,8 @@ body {
   --badge-run-interval-run-text: #991b1b;
   --badge-run-threshold-run-bg: #fef3c7;
   --badge-run-threshold-run-text: #92400e;
-  --badge-run-recovery-run-bg: #f3e8ff;
-  --badge-run-recovery-run-text: #6b21a8;
+  --badge-run-recovery-run-bg: #e5e0ff;
+  --badge-run-recovery-run-text: #4020b8;
   --badge-run-race-bg: #fce7f3;
   --badge-run-race-text: #9d174d;
   --badge-run-long-run-bg: #e0e7ff;
@@ -80,16 +80,16 @@ body {
   /* Exercise types */
   --badge-exercise-warm-up-bg: #f5f5f4;
   --badge-exercise-warm-up-text: #44403c;
-  --badge-exercise-stretch-bg: #dcfce7;
-  --badge-exercise-stretch-text: #166534;
-  --badge-exercise-lift-bg: #fee2e2;
-  --badge-exercise-lift-text: #991b1b;
-  --badge-exercise-plyos-bg: #fef9c3;
-  --badge-exercise-plyos-text: #854d0e;
+  --badge-exercise-stretch-bg: #e2f5e8;
+  --badge-exercise-stretch-text: #145c2a;
+  --badge-exercise-lift-bg: #ffd5da;
+  --badge-exercise-lift-text: #8c001e;
+  --badge-exercise-plyos-bg: #ffeab5;
+  --badge-exercise-plyos-text: #7a4800;
   --badge-exercise-core-bg: #f1f5f9;
   --badge-exercise-core-text: #334155;
-  --badge-exercise-mobility-bg: #fef3c7;
-  --badge-exercise-mobility-text: #92400e;
+  --badge-exercise-mobility-bg: #ffdecb;
+  --badge-exercise-mobility-text: #8b2600;
 
   /* Strength types */
   --badge-strength-upper-body-bg: #ffe4e6;
@@ -98,8 +98,8 @@ body {
   --badge-strength-lower-body-text: #065f46;
   --badge-strength-full-body-bg: #fae8ff;
   --badge-strength-full-body-text: #86198f;
-  --badge-strength-core-bg: #f1f5f9;
-  --badge-strength-core-text: #334155;
+  --badge-strength-core-bg: #dce8f8;
+  --badge-strength-core-text: #1a3d6b;
   --badge-strength-plyometrics-bg: #f4f4f5;
   --badge-strength-plyometrics-text: #3f3f46;
   --badge-strength-mobility-bg: #f5f5f5;
@@ -128,16 +128,16 @@ body {
   /* Plan types */
   --badge-plan-marathon-bg: #581c87;
   --badge-plan-marathon-text: #e9d5ff;
-  --badge-plan-half-marathon-bg: #1e3a8a;
-  --badge-plan-half-marathon-text: #bfdbfe;
-  --badge-plan-5k-10k-bg: #14532d;
-  --badge-plan-5k-10k-text: #bbf7d0;
-  --badge-plan-base-building-bg: #134e4a;
-  --badge-plan-base-building-text: #99f6e4;
-  --badge-plan-strength-bg: #7c2d12;
-  --badge-plan-strength-text: #fed7aa;
-  --badge-plan-custom-bg: #1f2937;
-  --badge-plan-custom-text: #d1d5db;
+  --badge-plan-half-marathon-bg: #1a2d70;
+  --badge-plan-half-marathon-text: #b8caff;
+  --badge-plan-5k-10k-bg: #003d2d;
+  --badge-plan-5k-10k-text: #80e8c8;
+  --badge-plan-base-building-bg: #2e4500;
+  --badge-plan-base-building-text: #c8e870;
+  --badge-plan-strength-bg: #621008;
+  --badge-plan-strength-text: #f5c0b5;
+  --badge-plan-custom-bg: #35186a;
+  --badge-plan-custom-text: #cbb8ff;
 
   /* Run types */
   --badge-run-easy-run-bg: #14532d;
@@ -146,8 +146,8 @@ body {
   --badge-run-interval-run-text: #fecaca;
   --badge-run-threshold-run-bg: #78350f;
   --badge-run-threshold-run-text: #fde68a;
-  --badge-run-recovery-run-bg: #581c87;
-  --badge-run-recovery-run-text: #e9d5ff;
+  --badge-run-recovery-run-bg: #251865;
+  --badge-run-recovery-run-text: #c5b8ff;
   --badge-run-race-bg: #831843;
   --badge-run-race-text: #fbcfe8;
   --badge-run-long-run-bg: #312e81;
@@ -158,16 +158,16 @@ body {
   /* Exercise types */
   --badge-exercise-warm-up-bg: #292524;
   --badge-exercise-warm-up-text: #d6d3d1;
-  --badge-exercise-stretch-bg: #14532d;
-  --badge-exercise-stretch-text: #bbf7d0;
-  --badge-exercise-lift-bg: #7f1d1d;
-  --badge-exercise-lift-text: #fecaca;
-  --badge-exercise-plyos-bg: #713f12;
-  --badge-exercise-plyos-text: #fef08a;
+  --badge-exercise-stretch-bg: #0c3d1c;
+  --badge-exercise-stretch-text: #a8e8b8;
+  --badge-exercise-lift-bg: #5c0015;
+  --badge-exercise-lift-text: #ffb0bb;
+  --badge-exercise-plyos-bg: #4d2c00;
+  --badge-exercise-plyos-text: #ffd880;
   --badge-exercise-core-bg: #1e293b;
   --badge-exercise-core-text: #cbd5e1;
-  --badge-exercise-mobility-bg: #78350f;
-  --badge-exercise-mobility-text: #fde68a;
+  --badge-exercise-mobility-bg: #5a1800;
+  --badge-exercise-mobility-text: #ffbfa0;
 
   /* Strength types */
   --badge-strength-upper-body-bg: #881337;
@@ -176,8 +176,8 @@ body {
   --badge-strength-lower-body-text: #a7f3d0;
   --badge-strength-full-body-bg: #701a75;
   --badge-strength-full-body-text: #f5d0fe;
-  --badge-strength-core-bg: #1e293b;
-  --badge-strength-core-text: #cbd5e1;
+  --badge-strength-core-bg: #0d2545;
+  --badge-strength-core-text: #a8c8f0;
   --badge-strength-plyometrics-bg: #27272a;
   --badge-strength-plyometrics-text: #d4d4d8;
   --badge-strength-mobility-bg: #262626;
