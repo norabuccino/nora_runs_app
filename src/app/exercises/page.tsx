@@ -162,6 +162,7 @@ export default function ExercisesPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
   const [compact, setCompact] = useState(false);
   const [detail, setDetail] = useState<Exercise | null>(null);
@@ -213,6 +214,7 @@ export default function ExercisesPage() {
     exercises.filter((e) => {
       if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
       if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
+      if (noDescriptionOnly && e.description?.trim()) return false;
       if (!search.trim()) return true;
       return (
         e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -445,6 +447,20 @@ export default function ExercisesPage() {
               ))}
             </div>
           )}
+
+          {/* No-description filter */}
+          <div className="flex">
+            <button
+              onClick={() => setNoDescriptionOnly((v) => !v)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                noDescriptionOnly
+                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+              }`}
+            >
+              No description
+            </button>
+          </div>
 
           {/* Select all / deselect row */}
           {selectMode && displayed.length > 0 && (
