@@ -44,6 +44,13 @@ export const BADGE_DEFAULTS: BadgeColorMap = {
   "strength-mobility":    { lightBg: "#f5f5f5", lightText: "#404040", darkBg: "#262626", darkText: "#d4d4d4" },
 };
 
+export type BadgeLayoutConfig = {
+  hidden: string[];
+  custom: { column: string; key: string; label: string }[];
+};
+
+export const DEFAULT_BADGE_LAYOUT: BadgeLayoutConfig = { hidden: [], custom: [] };
+
 export function buildBadgeColorStyle(overrides: BadgeColorMap): string {
   if (!Object.keys(overrides).length) return "";
   const lightVars = Object.entries(overrides)

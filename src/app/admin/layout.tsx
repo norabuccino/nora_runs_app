@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 const TABS = [
   { href: "/admin/users", label: "Users" },
-  { href: "/admin/badge-colors", label: "Badge Colors" },
+  { href: "/admin/badge-colors", label: "Badges" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
