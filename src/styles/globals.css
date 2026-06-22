@@ -9,6 +9,84 @@
   --border: #e5e7eb;
   --muted: #6b7280;
   --accent: #3b82f6;
+
+  /* Badge color palette — add new entries here for any new label type */
+
+  /* Workout types */
+  --badge-workout-run-bg: #dbeafe;
+  --badge-workout-run-text: #1e40af;
+  --badge-workout-strength-bg: #ffedd5;
+  --badge-workout-strength-text: #9a3412;
+  --badge-workout-rest-bg: #f3f4f6;
+  --badge-workout-rest-text: #4b5563;
+  --badge-workout-cross-train-bg: #ccfbf1;
+  --badge-workout-cross-train-text: #115e59;
+  --badge-workout-bike-bg: #cffafe;
+  --badge-workout-bike-text: #155e75;
+  --badge-workout-swim-bg: #e0f2fe;
+  --badge-workout-swim-text: #075985;
+  --badge-workout-yoga-bg: #ede9fe;
+  --badge-workout-yoga-text: #5b21b6;
+  --badge-workout-elliptical-bg: #ecfccb;
+  --badge-workout-elliptical-text: #3f6212;
+
+  /* Plan types */
+  --badge-plan-marathon-bg: #f3e8ff;
+  --badge-plan-marathon-text: #6b21a8;
+  --badge-plan-half-marathon-bg: #dbeafe;
+  --badge-plan-half-marathon-text: #1e40af;
+  --badge-plan-5k-10k-bg: #dcfce7;
+  --badge-plan-5k-10k-text: #166534;
+  --badge-plan-base-building-bg: #ccfbf1;
+  --badge-plan-base-building-text: #115e59;
+  --badge-plan-strength-bg: #ffedd5;
+  --badge-plan-strength-text: #9a3412;
+  --badge-plan-custom-bg: #f3f4f6;
+  --badge-plan-custom-text: #374151;
+
+  /* Run types */
+  --badge-run-easy-run-bg: #dcfce7;
+  --badge-run-easy-run-text: #166534;
+  --badge-run-interval-run-bg: #fee2e2;
+  --badge-run-interval-run-text: #991b1b;
+  --badge-run-threshold-run-bg: #fef3c7;
+  --badge-run-threshold-run-text: #92400e;
+  --badge-run-recovery-run-bg: #f3e8ff;
+  --badge-run-recovery-run-text: #6b21a8;
+  --badge-run-race-bg: #fce7f3;
+  --badge-run-race-text: #9d174d;
+  --badge-run-long-run-bg: #e0e7ff;
+  --badge-run-long-run-text: #3730a3;
+  --badge-run-mp-hmp-run-bg: #fef9c3;
+  --badge-run-mp-hmp-run-text: #854d0e;
+
+  /* Exercise types */
+  --badge-exercise-warm-up-bg: #f5f5f4;
+  --badge-exercise-warm-up-text: #44403c;
+  --badge-exercise-stretch-bg: #dcfce7;
+  --badge-exercise-stretch-text: #166534;
+  --badge-exercise-lift-bg: #fee2e2;
+  --badge-exercise-lift-text: #991b1b;
+  --badge-exercise-plyos-bg: #fef9c3;
+  --badge-exercise-plyos-text: #854d0e;
+  --badge-exercise-core-bg: #f1f5f9;
+  --badge-exercise-core-text: #334155;
+  --badge-exercise-mobility-bg: #fef3c7;
+  --badge-exercise-mobility-text: #92400e;
+
+  /* Strength types */
+  --badge-strength-upper-body-bg: #ffe4e6;
+  --badge-strength-upper-body-text: #9f1239;
+  --badge-strength-lower-body-bg: #d1fae5;
+  --badge-strength-lower-body-text: #065f46;
+  --badge-strength-full-body-bg: #fae8ff;
+  --badge-strength-full-body-text: #86198f;
+  --badge-strength-core-bg: #f1f5f9;
+  --badge-strength-core-text: #334155;
+  --badge-strength-plyometrics-bg: #f4f4f5;
+  --badge-strength-plyometrics-text: #3f3f46;
+  --badge-strength-mobility-bg: #f5f5f5;
+  --badge-strength-mobility-text: #404040;
 }
 
 .dark {
@@ -18,6 +96,82 @@
   --border: #1f2937;
   --muted: #9ca3af;
   --accent: #60a5fa;
+
+  /* Workout types */
+  --badge-workout-run-bg: #1e3a8a;
+  --badge-workout-run-text: #bfdbfe;
+  --badge-workout-strength-bg: #7c2d12;
+  --badge-workout-strength-text: #fed7aa;
+  --badge-workout-rest-bg: #1f2937;
+  --badge-workout-rest-text: #9ca3af;
+  --badge-workout-cross-train-bg: #134e4a;
+  --badge-workout-cross-train-text: #99f6e4;
+  --badge-workout-bike-bg: #164e63;
+  --badge-workout-bike-text: #a5f3fc;
+  --badge-workout-swim-bg: #0c4a6e;
+  --badge-workout-swim-text: #bae6fd;
+  --badge-workout-yoga-bg: #4c1d95;
+  --badge-workout-yoga-text: #ddd6fe;
+  --badge-workout-elliptical-bg: #365314;
+  --badge-workout-elliptical-text: #d9f99d;
+
+  /* Plan types */
+  --badge-plan-marathon-bg: #581c87;
+  --badge-plan-marathon-text: #e9d5ff;
+  --badge-plan-half-marathon-bg: #1e3a8a;
+  --badge-plan-half-marathon-text: #bfdbfe;
+  --badge-plan-5k-10k-bg: #14532d;
+  --badge-plan-5k-10k-text: #bbf7d0;
+  --badge-plan-base-building-bg: #134e4a;
+  --badge-plan-base-building-text: #99f6e4;
+  --badge-plan-strength-bg: #7c2d12;
+  --badge-plan-strength-text: #fed7aa;
+  --badge-plan-custom-bg: #1f2937;
+  --badge-plan-custom-text: #d1d5db;
+
+  /* Run types */
+  --badge-run-easy-run-bg: #14532d;
+  --badge-run-easy-run-text: #bbf7d0;
+  --badge-run-interval-run-bg: #7f1d1d;
+  --badge-run-interval-run-text: #fecaca;
+  --badge-run-threshold-run-bg: #78350f;
+  --badge-run-threshold-run-text: #fde68a;
+  --badge-run-recovery-run-bg: #581c87;
+  --badge-run-recovery-run-text: #e9d5ff;
+  --badge-run-race-bg: #831843;
+  --badge-run-race-text: #fbcfe8;
+  --badge-run-long-run-bg: #312e81;
+  --badge-run-long-run-text: #c7d2fe;
+  --badge-run-mp-hmp-run-bg: #713f12;
+  --badge-run-mp-hmp-run-text: #fef08a;
+
+  /* Exercise types */
+  --badge-exercise-warm-up-bg: #292524;
+  --badge-exercise-warm-up-text: #d6d3d1;
+  --badge-exercise-stretch-bg: #14532d;
+  --badge-exercise-stretch-text: #bbf7d0;
+  --badge-exercise-lift-bg: #7f1d1d;
+  --badge-exercise-lift-text: #fecaca;
+  --badge-exercise-plyos-bg: #713f12;
+  --badge-exercise-plyos-text: #fef08a;
+  --badge-exercise-core-bg: #1e293b;
+  --badge-exercise-core-text: #cbd5e1;
+  --badge-exercise-mobility-bg: #78350f;
+  --badge-exercise-mobility-text: #fde68a;
+
+  /* Strength types */
+  --badge-strength-upper-body-bg: #881337;
+  --badge-strength-upper-body-text: #fecdd3;
+  --badge-strength-lower-body-bg: #064e3b;
+  --badge-strength-lower-body-text: #a7f3d0;
+  --badge-strength-full-body-bg: #701a75;
+  --badge-strength-full-body-text: #f5d0fe;
+  --badge-strength-core-bg: #1e293b;
+  --badge-strength-core-text: #cbd5e1;
+  --badge-strength-plyometrics-bg: #27272a;
+  --badge-strength-plyometrics-text: #d4d4d8;
+  --badge-strength-mobility-bg: #262626;
+  --badge-strength-mobility-text: #d4d4d4;
 }
 
 body {

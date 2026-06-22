@@ -98,14 +98,14 @@ export const WORKOUT_TYPE_LABELS: Record<string, string> = {
 };
 
 export const WORKOUT_TYPE_COLORS: Record<string, string> = {
-  run: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  strength: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  rest: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",
-  cross_train: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-  bike: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
-  swim: "bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200",
-  yoga: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200",
-  elliptical: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200",
+  run: "bg-[var(--badge-workout-run-bg)] text-[var(--badge-workout-run-text)]",
+  strength: "bg-[var(--badge-workout-strength-bg)] text-[var(--badge-workout-strength-text)]",
+  rest: "bg-[var(--badge-workout-rest-bg)] text-[var(--badge-workout-rest-text)]",
+  cross_train: "bg-[var(--badge-workout-cross-train-bg)] text-[var(--badge-workout-cross-train-text)]",
+  bike: "bg-[var(--badge-workout-bike-bg)] text-[var(--badge-workout-bike-text)]",
+  swim: "bg-[var(--badge-workout-swim-bg)] text-[var(--badge-workout-swim-text)]",
+  yoga: "bg-[var(--badge-workout-yoga-bg)] text-[var(--badge-workout-yoga-text)]",
+  elliptical: "bg-[var(--badge-workout-elliptical-bg)] text-[var(--badge-workout-elliptical-text)]",
 };
 
 export const PLAN_TYPE_LABELS: Record<string, string> = {
@@ -118,12 +118,12 @@ export const PLAN_TYPE_LABELS: Record<string, string> = {
 };
 
 export const PLAN_TYPE_COLORS: Record<string, string> = {
-  marathon: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  half_marathon: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  "5k_10k": "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  base_building: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200",
-  strength: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200",
-  custom: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
+  marathon: "bg-[var(--badge-plan-marathon-bg)] text-[var(--badge-plan-marathon-text)]",
+  half_marathon: "bg-[var(--badge-plan-half-marathon-bg)] text-[var(--badge-plan-half-marathon-text)]",
+  "5k_10k": "bg-[var(--badge-plan-5k-10k-bg)] text-[var(--badge-plan-5k-10k-text)]",
+  base_building: "bg-[var(--badge-plan-base-building-bg)] text-[var(--badge-plan-base-building-text)]",
+  strength: "bg-[var(--badge-plan-strength-bg)] text-[var(--badge-plan-strength-text)]",
+  custom: "bg-[var(--badge-plan-custom-bg)] text-[var(--badge-plan-custom-text)]",
 };
 
 export const RUN_TYPE_LABELS: Record<string, string> = {
@@ -137,13 +137,13 @@ export const RUN_TYPE_LABELS: Record<string, string> = {
 };
 
 export const RUN_TYPE_COLORS: Record<string, string> = {
-  easy_run: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  interval_run: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  threshold_run: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  recovery_run: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-  race: "bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200",
-  long_run: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200",
-  mp_hmp_run: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  easy_run: "bg-[var(--badge-run-easy-run-bg)] text-[var(--badge-run-easy-run-text)]",
+  interval_run: "bg-[var(--badge-run-interval-run-bg)] text-[var(--badge-run-interval-run-text)]",
+  threshold_run: "bg-[var(--badge-run-threshold-run-bg)] text-[var(--badge-run-threshold-run-text)]",
+  recovery_run: "bg-[var(--badge-run-recovery-run-bg)] text-[var(--badge-run-recovery-run-text)]",
+  race: "bg-[var(--badge-run-race-bg)] text-[var(--badge-run-race-text)]",
+  long_run: "bg-[var(--badge-run-long-run-bg)] text-[var(--badge-run-long-run-text)]",
+  mp_hmp_run: "bg-[var(--badge-run-mp-hmp-run-bg)] text-[var(--badge-run-mp-hmp-run-text)]",
 };
 
 export const EXERCISE_TYPE_LABELS: Record<string, string> = {
@@ -155,16 +155,13 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   mobility: "Mobility",
 };
 
-// Colors distinct from all workout_type and run_type colors.
-// Tailwind has 22 color families for 25 label slots; the 3 unavoidable overlaps
-// land only between exercise_type and run_type, which never appear on the same card.
 export const EXERCISE_TYPE_COLORS: Record<string, string> = {
-  warm_up: "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-300",
-  stretch: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  lift: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-  plyos: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-  core: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  mobility: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  warm_up: "bg-[var(--badge-exercise-warm-up-bg)] text-[var(--badge-exercise-warm-up-text)]",
+  stretch: "bg-[var(--badge-exercise-stretch-bg)] text-[var(--badge-exercise-stretch-text)]",
+  lift: "bg-[var(--badge-exercise-lift-bg)] text-[var(--badge-exercise-lift-text)]",
+  plyos: "bg-[var(--badge-exercise-plyos-bg)] text-[var(--badge-exercise-plyos-text)]",
+  core: "bg-[var(--badge-exercise-core-bg)] text-[var(--badge-exercise-core-text)]",
+  mobility: "bg-[var(--badge-exercise-mobility-bg)] text-[var(--badge-exercise-mobility-text)]",
 };
 
 export const STRENGTH_TYPE_LABELS: Record<string, string> = {
@@ -176,15 +173,13 @@ export const STRENGTH_TYPE_LABELS: Record<string, string> = {
   mobility: "Mobility",
 };
 
-// All distinct from workout_type (blue/orange/gray/teal/cyan/sky/violet/lime)
-// and from run_type (green/red/amber/purple/pink/indigo/yellow).
 export const STRENGTH_TYPE_COLORS: Record<string, string> = {
-  upper_body: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200",
-  lower_body: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
-  full_body: "bg-fuchsia-100 text-fuchsia-800 dark:bg-fuchsia-900 dark:text-fuchsia-200",
-  core: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
-  plyometrics: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
-  mobility: "bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300",
+  upper_body: "bg-[var(--badge-strength-upper-body-bg)] text-[var(--badge-strength-upper-body-text)]",
+  lower_body: "bg-[var(--badge-strength-lower-body-bg)] text-[var(--badge-strength-lower-body-text)]",
+  full_body: "bg-[var(--badge-strength-full-body-bg)] text-[var(--badge-strength-full-body-text)]",
+  core: "bg-[var(--badge-strength-core-bg)] text-[var(--badge-strength-core-text)]",
+  plyometrics: "bg-[var(--badge-strength-plyometrics-bg)] text-[var(--badge-strength-plyometrics-text)]",
+  mobility: "bg-[var(--badge-strength-mobility-bg)] text-[var(--badge-strength-mobility-text)]",
 };
 
 export const STEP_TYPE_LABELS: Record<string, string> = {
