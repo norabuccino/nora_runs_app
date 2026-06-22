@@ -9,9 +9,26 @@
   --border: #e5e7eb;
   --muted: #6b7280;
   --accent: #3b82f6;
+}
 
-  /* Badge color palette — add new entries here for any new label type */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --card: #111827;
+  --border: #1f2937;
+  --muted: #9ca3af;
+  --accent: #60a5fa;
+}
 
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Badge color palette - add new entries here for any new label type */
+
+:root {
   /* Workout types */
   --badge-workout-run-bg: #dbeafe;
   --badge-workout-run-text: #1e40af;
@@ -90,13 +107,6 @@
 }
 
 .dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
-  --card: #111827;
-  --border: #1f2937;
-  --muted: #9ca3af;
-  --accent: #60a5fa;
-
   /* Workout types */
   --badge-workout-run-bg: #1e3a8a;
   --badge-workout-run-text: #bfdbfe;
@@ -172,10 +182,4 @@
   --badge-strength-plyometrics-text: #d4d4d8;
   --badge-strength-mobility-bg: #262626;
   --badge-strength-mobility-text: #d4d4d4;
-}
-
-body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: ui-sans-serif, system-ui, sans-serif;
 }
