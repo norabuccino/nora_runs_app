@@ -1301,8 +1301,8 @@ export function WorkoutForm({
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={2}
-                className={`${inputClass} resize-none`}
+                rows={4}
+                className={`${inputClass} resize-y`}
               />
             </div>
 
