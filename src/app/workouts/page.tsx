@@ -336,6 +336,7 @@ export default function WorkoutsPage() {
             filter={filter}
             onChange={setFilter}
             sources={Array.from(new Set(workouts.map((w) => w.source).filter(Boolean))) as string[]}
+            hasUnsourced={workouts.some((w) => !w.source)}
           />
 
           {selectMode && displayed.length > 0 && (

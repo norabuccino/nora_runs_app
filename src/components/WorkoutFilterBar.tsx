@@ -17,6 +17,8 @@ export const DEFAULT_FILTER: WorkoutFilter = {
   source: "all",
 };
 
+export const NO_SOURCE_SENTINEL = "__none__";
+
 export function applyWorkoutFilter<
   T extends { type: string; run_type?: string | null; strength_type?: string | null; source?: string | null }
 >(items: T[], filter: WorkoutFilter): T[] {
@@ -26,7 +28,8 @@ export function applyWorkoutFilter<
       return false;
     if (filter.type === "strength" && filter.strengthType !== "all" && w.strength_type !== filter.strengthType)
       return false;
-    if (filter.source !== "all" && (w.source ?? null) !== filter.source) return false;
+    if (filter.source === NO_SOURCE_SENTINEL && w.source) return false;
+    if (filter.source !== "all" && filter.source !== NO_SOURCE_SENTINEL && (w.source ?? null) !== filter.source) return false;
     return true;
   });
 }
@@ -68,9 +71,10 @@ interface WorkoutFilterBarProps {
   filter: WorkoutFilter;
   onChange: (filter: WorkoutFilter) => void;
   sources?: string[];
+  hasUnsourced?: boolean;
 }
 
-export function WorkoutFilterBar({ filter, onChange, sources = [] }: WorkoutFilterBarProps) {
+export function WorkoutFilterBar({ filter, onChange, sources = [], hasUnsourced = false }: WorkoutFilterBarProps) {
   function setType(type: WorkoutType | "all") {
     onChange({ ...filter, type, runType: "all", strengthType: "all" });
   }
@@ -141,7 +145,7 @@ export function WorkoutFilterBar({ filter, onChange, sources = [] }: WorkoutFilt
         </div>
       )}
 
-      {sources.length > 0 && (
+      {(sources.length > 0 || hasUnsourced) && (
         <div className="flex flex-wrap gap-1.5">
           <button
             onClick={() => setSource("all")}
@@ -166,6 +170,18 @@ export function WorkoutFilterBar({ filter, onChange, sources = [] }: WorkoutFilt
               {s}
             </button>
           ))}
+          {hasUnsourced && (
+            <button
+              onClick={() => setSource(NO_SOURCE_SENTINEL)}
+              className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                filter.source === NO_SOURCE_SENTINEL
+                  ? "bg-[var(--foreground)] text-[var(--background)]"
+                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+              }`}
+            >
+              No source
+            </button>
+          )}
         </div>
       )}
     </div>
