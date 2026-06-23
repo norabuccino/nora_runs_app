@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
+import { duplicatePlan } from "@/app/actions/plans";
 import { getIsAdmin } from "@/lib/profile";
 import type { PlanWorkout } from "@/types/database";
 import { WeekMileageLabel } from "@/components/WeekMileageLabel";
@@ -97,12 +98,25 @@ export default async function PlanDetailPage({ params }: Props) {
 
         <div className="flex gap-2 shrink-0">
           {isAdmin && (
-            <Link
-              href={`/plans/${id}/edit`}
-              className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
-            >
-              Edit plan
-            </Link>
+            <>
+              <form action={async () => {
+                "use server";
+                await duplicatePlan(id);
+              }}>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+                >
+                  Duplicate
+                </button>
+              </form>
+              <Link
+                href={`/plans/${id}/edit`}
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+              >
+                Edit plan
+              </Link>
+            </>
           )}
           {!plan.source_plan_id && (
             <form action={handleAssign} className="flex gap-2 items-end">
