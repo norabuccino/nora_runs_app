@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { WORKOUT_TYPE_COLORS, RUN_TYPE_COLORS, STRENGTH_TYPE_COLORS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 interface WorkoutCardProps {
@@ -42,12 +42,12 @@ export function WorkoutCard({
         paces
       );
 
-  // still needed for edit mode pill which uses a single full-width color bar
-  const editColor = workout.type === "strength" && workout.strength_type
-    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+  const editColor = WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600";
+  const editLabel = workout.type === "strength" && workout.strength_type
+    ? STRENGTH_TYPE_LABELS[workout.strength_type] ?? workout.strength_type
     : workout.run_type
-    ? (RUN_TYPE_COLORS[workout.run_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : WORKOUT_TYPE_COLORS[workout.type];
+    ? RUN_TYPE_LABELS[workout.run_type] ?? workout.run_type
+    : WORKOUT_TYPE_LABELS[workout.type] ?? workout.type;
 
   if (workout.type === "rest" && mode !== "edit") {
     return (
@@ -61,11 +61,7 @@ export function WorkoutCard({
     return (
       <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] overflow-hidden">
         <div className={`px-2 py-1 text-xs font-medium text-center w-full ${editColor}`}>
-          {workout.type === "strength" && workout.strength_type
-            ? `Strength · ${workout.strength_type.replace(/_/g, " ")}`
-            : workout.run_type
-            ? workout.run_type.replace(/_/g, " ")
-            : workout.type}
+          {editLabel}
         </div>
         <div className="px-2 pt-1.5 pb-2">
           <p className="text-xs font-medium leading-snug">{title}</p>
