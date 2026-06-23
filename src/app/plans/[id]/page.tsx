@@ -130,7 +130,7 @@ export default async function PlanDetailPage({ params }: Props) {
               </form>
               <Link
                 href={`/plans/${id}/edit`}
-                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+                className="self-start px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
               >
                 Edit plan
               </Link>
