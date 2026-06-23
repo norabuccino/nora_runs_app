@@ -126,6 +126,20 @@ export const PLAN_TYPE_COLORS: Record<string, string> = {
   custom: "bg-[var(--badge-plan-custom-bg)] text-[var(--badge-plan-custom-text)]",
 };
 
+export const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+const DEFAULT_DAY_MAPPINGS: Record<number, number[]> = {
+  2: [1, 3],
+  3: [0, 2, 4],
+  4: [0, 1, 3, 4],
+  5: [0, 1, 2, 3, 4],
+  6: [0, 1, 2, 3, 4, 5],
+  7: [0, 1, 2, 3, 4, 5, 6],
+};
+export function defaultDayMapping(daysPerWeek: number): number[] {
+  return DEFAULT_DAY_MAPPINGS[daysPerWeek] ?? Array.from({ length: daysPerWeek }, (_, i) => i);
+}
+
 export const DIFFICULTY_LABELS: Record<string, string> = {
   beginner: "Beginner",
   intermediate: "Intermediate",

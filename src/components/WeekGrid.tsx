@@ -28,12 +28,19 @@ import { WorkoutCard } from "./WorkoutCard";
 
 type DayMap = Record<number, PlanWorkout[]>;
 
-function toDayMap(weekWorkouts: PlanWorkout[]): DayMap {
+const GRID_COLS: Record<number, string> = {
+  2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4",
+  5: "grid-cols-5", 6: "grid-cols-6", 7: "grid-cols-7",
+};
+
+function toDayMap(weekWorkouts: PlanWorkout[], count = 7): DayMap {
   const map: DayMap = {};
-  for (let i = 0; i < 7; i++) map[i] = [];
+  for (let i = 0; i < count; i++) map[i] = [];
   weekWorkouts.forEach((w) => {
-    if (!map[w.day_of_week]) map[w.day_of_week] = [];
-    map[w.day_of_week].push(w);
+    if (w.day_of_week < count) {
+      if (!map[w.day_of_week]) map[w.day_of_week] = [];
+      map[w.day_of_week].push(w);
+    }
   });
   Object.values(map).forEach((day) => day.sort((a, b) => a.sort_order - b.sort_order));
   return map;
@@ -109,6 +116,7 @@ interface WeekGridProps {
   logs?: WorkoutLog[];
   paces?: RunningPace[];
   mode?: "view" | "dashboard" | "edit";
+  daysPerWeek?: number;
   purpose?: string;
   onComplete?: (workout: PlanWorkout) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
@@ -127,6 +135,7 @@ export function WeekGrid({
   logs = [],
   paces = [],
   mode = "view",
+  daysPerWeek = 7,
   purpose,
   onComplete,
   onUnComplete,
@@ -139,7 +148,7 @@ export function WeekGrid({
   onPurposeChange,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
-    toDayMap(workouts.filter((w) => w.week_number === weekNumber))
+    toDayMap(workouts.filter((w) => w.week_number === weekNumber), daysPerWeek)
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [localPurpose, setLocalPurpose] = useState(purpose ?? "");
@@ -148,9 +157,9 @@ export function WeekGrid({
 
   useEffect(() => {
     if (!activeId) {
-      setItems(toDayMap(workouts.filter((w) => w.week_number === weekNumber)));
+      setItems(toDayMap(workouts.filter((w) => w.week_number === weekNumber), daysPerWeek));
     }
-  }, [workouts, weekNumber, activeId]);
+  }, [workouts, weekNumber, activeId, daysPerWeek]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
@@ -189,7 +198,7 @@ export function WeekGrid({
 
       // Move item to target day
       const next: DayMap = {};
-      for (let i = 0; i < 7; i++) next[i] = [...(prev[i] ?? [])];
+      for (let i = 0; i < daysPerWeek; i++) next[i] = [...(prev[i] ?? [])];
 
       const movingItem = next[activeDay].find((w) => w.id === activeId)!;
       next[activeDay] = next[activeDay].filter((w) => w.id !== activeId);
@@ -219,7 +228,7 @@ export function WeekGrid({
 
     // Build final state
     const finalItems: DayMap = {};
-    for (let i = 0; i < 7; i++) finalItems[i] = [...(items[i] ?? [])];
+    for (let i = 0; i < daysPerWeek; i++) finalItems[i] = [...(items[i] ?? [])];
 
     // Find active day in finalItems
     let activeDay: number | null = null;
@@ -246,7 +255,7 @@ export function WeekGrid({
     // Cross-day: already applied in dragOver
 
     // Normalize sort_orders
-    for (let day = 0; day < 7; day++) {
+    for (let day = 0; day < daysPerWeek; day++) {
       finalItems[day] = finalItems[day].map((w, i) => ({ ...w, day_of_week: day, sort_order: i }));
     }
 
@@ -255,7 +264,7 @@ export function WeekGrid({
     // Compute which workouts actually changed position
     const original = workouts.filter((w) => w.week_number === weekNumber);
     const updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[] = [];
-    for (let day = 0; day < 7; day++) {
+    for (let day = 0; day < daysPerWeek; day++) {
       finalItems[day].forEach((w, i) => {
         const o = original.find((x) => x.id === w.id);
         if (!o || o.day_of_week !== day || o.sort_order !== i) {
@@ -300,7 +309,8 @@ export function WeekGrid({
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const byDay = Array.from({ length: 7 }, (_, i) => items[i] ?? []);
+  const byDay = Array.from({ length: daysPerWeek }, (_, i) => items[i] ?? []);
+  const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
 
   const header = (
     <div className="flex items-baseline gap-3 min-w-0">
@@ -326,7 +336,7 @@ export function WeekGrid({
     return (
       <div className="space-y-2">
         {header}
-        <div className="grid grid-cols-7 gap-2 overflow-x-auto">
+        <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
           {byDay.map((dayWorkouts, dayIndex) => {
             const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             return (
@@ -365,7 +375,7 @@ export function WeekGrid({
     >
       <div className="space-y-2">
         {header}
-        <div className="grid grid-cols-7 gap-2 overflow-x-auto">
+        <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
           {byDay.map((dayWorkouts, dayIndex) => {
             const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             const containerId = `day-${dayIndex}`;

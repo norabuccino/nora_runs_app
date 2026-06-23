@@ -9,6 +9,7 @@ export async function createPlan(data: {
   name: string;
   type: PlanType;
   difficulty?: DifficultyType | null;
+  days_per_week?: number | null;
   description: string;
   total_weeks: number;
 }) {
@@ -87,6 +88,7 @@ export async function duplicatePlan(id: string) {
       name: `Copy of ${source.name}`,
       type: source.type,
       difficulty: source.difficulty,
+      days_per_week: source.days_per_week,
       description: source.description,
       total_weeks: source.total_weeks,
     })

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-export async function assignPlan(planId: string, startDate: string) {
+export async function assignPlan(planId: string, startDate: string, dayMapping?: number[]) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
@@ -54,6 +54,7 @@ export async function assignPlan(planId: string, startDate: string) {
         sourceWorkouts.map(({ id: _id, plan_id: _pid, ...rest }) => ({
           ...rest,
           plan_id: personalPlan.id,
+          day_of_week: dayMapping ? (dayMapping[rest.day_of_week] ?? rest.day_of_week) : rest.day_of_week,
         }))
       )
       .select("id");

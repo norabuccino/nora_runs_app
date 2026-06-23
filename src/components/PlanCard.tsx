@@ -7,6 +7,8 @@ import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLOR
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 
+const needsDaySetup = (plan: TrainingPlan) => plan.type === "strength" && !!plan.days_per_week;
+
 interface PlanCardProps {
   plan: TrainingPlan;
   isAdmin?: boolean;
@@ -78,13 +80,22 @@ export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
             </button>
           </>
         )}
-        <button
-          onClick={handleAdd}
-          disabled={isPending}
-          className="flex-1 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-        >
-          {isPending ? "Adding…" : "Add to my plans"}
-        </button>
+        {needsDaySetup(plan) ? (
+          <Link
+            href={`/plans/${plan.id}`}
+            className="flex-1 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 transition-opacity text-center"
+          >
+            Set up plan →
+          </Link>
+        ) : (
+          <button
+            onClick={handleAdd}
+            disabled={isPending}
+            className="flex-1 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {isPending ? "Adding…" : "Add to my plans"}
+          </button>
+        )}
       </div>
     </div>
   );

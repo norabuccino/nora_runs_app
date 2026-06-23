@@ -12,6 +12,7 @@ export default function NewPlanPage() {
   const [name, setName] = useState("");
   const [type, setType] = useState<PlanType>("marathon");
   const [difficulty, setDifficulty] = useState<DifficultyType | "">("");
+  const [daysPerWeek, setDaysPerWeek] = useState("3");
   const [description, setDescription] = useState("");
   const [totalWeeks, setTotalWeeks] = useState("16");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,8 @@ export default function NewPlanPage() {
     }
     setError(null);
     startTransition(async () => {
-      await createPlan({ name: name.trim(), type, difficulty: difficulty || null, description, total_weeks: weeks });
+      const dpw = type === "strength" ? parseInt(daysPerWeek, 10) : null;
+      await createPlan({ name: name.trim(), type, difficulty: difficulty || null, days_per_week: dpw, description, total_weeks: weeks });
     });
   }
 
@@ -80,6 +82,23 @@ export default function NewPlanPage() {
             ))}
           </select>
         </div>
+
+        {type === "strength" && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Days per week</label>
+            <select
+              value={daysPerWeek}
+              onChange={(e) => setDaysPerWeek(e.target.value)}
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            >
+              <option value="2">2 days / week</option>
+              <option value="3">3 days / week</option>
+              <option value="4">4 days / week</option>
+              <option value="5">5 days / week</option>
+              <option value="6">6 days / week</option>
+            </select>
+          </div>
+        )}
 
         <div className="space-y-1">
           <label className="text-sm font-medium">Difficulty <span className="text-[var(--muted)] font-normal">(optional)</span></label>

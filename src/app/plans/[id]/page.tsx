@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate, DIFFICULTY_LABELS, DIFFICULTY_COLORS, WEEKDAY_NAMES, defaultDayMapping } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 import { getIsAdmin } from "@/lib/profile";
@@ -66,13 +66,23 @@ export default async function PlanDetailPage({ params }: Props) {
 
   async function handleAssign(formData: FormData) {
     "use server";
-    const raceDate = formData.get("race_date") as string;
-    if (raceDate) {
-      const [y, m, d] = raceDate.split("-").map(Number);
-      const date = new Date(y, m - 1, d);
-      date.setDate(date.getDate() - (plan!.total_weeks * 7 - 1));
-      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      await assignPlan(id, startDate);
+    if (plan?.type === "strength" && plan.days_per_week) {
+      const today = new Date().toISOString().split("T")[0];
+      const startDate = (formData.get("start_date") as string) || today;
+      const dayMapping: number[] = [];
+      for (let i = 0; i < plan.days_per_week; i++) {
+        dayMapping.push(parseInt(formData.get(`day_${i}`) as string));
+      }
+      await assignPlan(id, startDate, dayMapping);
+    } else {
+      const raceDate = formData.get("race_date") as string;
+      if (raceDate) {
+        const [y, m, d] = raceDate.split("-").map(Number);
+        const date = new Date(y, m - 1, d);
+        date.setDate(date.getDate() - (plan!.total_weeks * 7 - 1));
+        const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        await assignPlan(id, startDate);
+      }
     }
   }
 
@@ -126,7 +136,45 @@ export default async function PlanDetailPage({ params }: Props) {
               </Link>
             </>
           )}
-          {!plan.source_plan_id && (
+          {!plan.source_plan_id && plan.type === "strength" && plan.days_per_week ? (
+            <form action={handleAssign} className="space-y-3">
+              <div className="space-y-2">
+                {Array.from({ length: plan.days_per_week }, (_, i) => {
+                  const defaults = defaultDayMapping(plan.days_per_week!);
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs text-[var(--muted)] w-10 shrink-0">{DAY_NAMES[i]}</span>
+                      <select
+                        name={`day_${i}`}
+                        defaultValue={defaults[i] ?? i}
+                        className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none"
+                      >
+                        {WEEKDAY_NAMES.map((name, j) => (
+                          <option key={j} value={j}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 items-end flex-wrap">
+                <div className="space-y-1">
+                  <label className="text-xs text-[var(--muted)]">Start date</label>
+                  <input
+                    type="date"
+                    name="start_date"
+                    className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+                >
+                  Use this plan
+                </button>
+              </div>
+            </form>
+          ) : !plan.source_plan_id ? (
             <form action={handleAssign} className="flex gap-2 items-end">
               <div className="space-y-1">
                 <label className="text-xs text-[var(--muted)]">Race date</label>
@@ -144,7 +192,7 @@ export default async function PlanDetailPage({ params }: Props) {
                 Use this plan
               </button>
             </form>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -170,7 +218,7 @@ export default async function PlanDetailPage({ params }: Props) {
                   <p className="px-4 py-3 text-sm text-[var(--muted)]">No workouts scheduled.</p>
                 ) : (
                   <div className="divide-y divide-[var(--border)]">
-                    {Array.from({ length: 7 }, (_, dayIndex) => {
+                    {Array.from({ length: plan.days_per_week ?? 7 }, (_, dayIndex) => {
                       const dayWorkouts = weekWorkouts
                         .filter((w) => w.day_of_week === dayIndex)
                         .sort((a, b) => a.sort_order - b.sort_order);

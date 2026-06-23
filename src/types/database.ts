@@ -16,6 +16,7 @@ export interface Database {
           name: string;
           type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           difficulty: "beginner" | "intermediate" | "advanced" | null;
+          days_per_week: number | null;
           description: string | null;
           total_weeks: number;
           created_at: string;
@@ -27,6 +28,7 @@ export interface Database {
           name: string;
           type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           difficulty?: "beginner" | "intermediate" | "advanced" | null;
+          days_per_week?: number | null;
           description?: string | null;
           total_weeks: number;
           created_at?: string;
@@ -38,6 +40,7 @@ export interface Database {
           name?: string;
           type?: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
           difficulty?: "beginner" | "intermediate" | "advanced" | null;
+          days_per_week?: number | null;
           description?: string | null;
           total_weeks?: number;
           created_at?: string;

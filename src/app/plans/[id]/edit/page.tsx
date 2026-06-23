@@ -268,6 +268,7 @@ export default function EditPlanPage() {
             weekNumber={weekNum}
             workouts={workouts}
             mode="edit"
+            daysPerWeek={plan.days_per_week ?? 7}
             purpose={weekNotes[weekNum] ?? ""}
             onPurposeChange={(p) => handlePurposeChange(weekNum, p)}
             onEdit={openEdit}
