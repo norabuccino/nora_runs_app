@@ -146,7 +146,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
         video_url: s.video_url ?? "",
-      })) ?? [],
+      })) ?? [blankStep()],
   }));
 
   const isStrength = form.type === "strength";

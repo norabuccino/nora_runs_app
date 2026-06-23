@@ -863,7 +863,7 @@ export function WorkoutForm({
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
         video_url: s.video_url ?? "",
-      })) ?? [],
+      })) ?? [blankStep()],
   }));
 
   // ── Step handlers ──
