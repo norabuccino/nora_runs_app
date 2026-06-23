@@ -118,7 +118,7 @@ export default function PlansPage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} />
+                <PlanCard key={plan.id} plan={plan} isAdmin={isAdmin} />
               ))}
             </div>
           )}

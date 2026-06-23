@@ -5,18 +5,26 @@ import { useTransition } from "react";
 import type { TrainingPlan } from "@/types/database";
 import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
+import { duplicatePlan } from "@/app/actions/plans";
 
 interface PlanCardProps {
   plan: TrainingPlan;
+  isAdmin?: boolean;
 }
 
-export function PlanCard({ plan }: PlanCardProps) {
+export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleAdd() {
     const today = new Date().toISOString().split("T")[0];
     startTransition(async () => {
       await assignPlan(plan.id, today);
+    });
+  }
+
+  function handleDuplicate() {
+    startTransition(async () => {
+      await duplicatePlan(plan.id);
     });
   }
 
@@ -45,11 +53,28 @@ export function PlanCard({ plan }: PlanCardProps) {
           <p className="text-xs text-[var(--muted)]">{plan.total_weeks} weeks</p>
         </div>
       </Link>
-      <div className="border-t border-[var(--border)] px-4 py-3">
+      <div className="border-t border-[var(--border)] px-4 py-3 flex gap-2">
+        {isAdmin && (
+          <>
+            <Link
+              href={`/plans/${plan.id}/edit`}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
+            >
+              Edit
+            </Link>
+            <button
+              onClick={handleDuplicate}
+              disabled={isPending}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] disabled:opacity-50 transition-colors"
+            >
+              Duplicate
+            </button>
+          </>
+        )}
         <button
           onClick={handleAdd}
           disabled={isPending}
-          className="w-full py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="flex-1 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {isPending ? "Adding…" : "Add to my plans"}
         </button>
