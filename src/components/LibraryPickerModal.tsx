@@ -99,7 +99,12 @@ export function LibraryPickerModal({
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             autoFocus
           />
-          <WorkoutFilterBar filter={filter} onChange={setFilter} />
+          <WorkoutFilterBar
+            filter={filter}
+            onChange={setFilter}
+            sources={[...new Set(workouts.map((w) => w.source).filter((s): s is string => !!s))]}
+            hasUnsourced={workouts.some((w) => !w.source)}
+          />
         </div>
 
         <div className="overflow-y-auto flex-1 p-4">
