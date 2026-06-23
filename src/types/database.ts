@@ -127,6 +127,7 @@ export interface Database {
           weight_suggestion: string | null;
           video_url: string | null;
           exercise_id: string | null;
+          both_sides: boolean;
         };
         Insert: {
           id?: string;
@@ -148,6 +149,7 @@ export interface Database {
           weight_suggestion?: string | null;
           video_url?: string | null;
           exercise_id?: string | null;
+          both_sides?: boolean;
         };
         Update: {
           id?: string;
@@ -169,6 +171,7 @@ export interface Database {
           weight_suggestion?: string | null;
           video_url?: string | null;
           exercise_id?: string | null;
+          both_sides?: boolean;
         };
       };
       exercises: {

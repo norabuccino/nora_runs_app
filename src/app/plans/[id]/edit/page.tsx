@@ -148,6 +148,7 @@ export default function EditPlanPage() {
       weight_suggestion: s.weight_suggestion || null,
       video_url: s.video_url || null,
       exercise_id: s.exercise_id || null,
+      both_sides: s.both_sides ?? false,
     }));
 
     const payload = {

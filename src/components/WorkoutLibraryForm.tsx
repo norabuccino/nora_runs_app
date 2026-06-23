@@ -75,6 +75,7 @@ function blankStep(
     reps: "",
     weight_suggestion: "",
     video_url: "",
+    both_sides: false,
   };
 }
 
@@ -146,6 +147,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
         video_url: s.video_url ?? "",
+        both_sides: s.both_sides ?? false,
       })) ?? [blankStep()],
   }));
 
@@ -156,6 +158,14 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     setForm((prev) => {
       const steps = [...prev.steps];
       steps[index] = { ...steps[index], [key]: value };
+      return { ...prev, steps };
+    });
+  }
+
+  function toggleBothSides(index: number) {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      steps[index] = { ...steps[index], both_sides: !steps[index].both_sides };
       return { ...prev, steps };
     });
   }
@@ -584,6 +594,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                             paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
+                            onToggleBothSides={toggleBothSides}
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
                             onCreatePace={handleCreatePace}
@@ -612,6 +623,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                           onGroupDragEnd={onGroupDragEnd}
                           onRemove={removeStep}
                           onUpdate={updateStep}
+                          onToggleBothSides={toggleBothSides}
                           onSwitchUnit={switchStepUnit}
                           onSwitchDurationUnit={switchStepDurationUnit}
                           onCreatePace={handleCreatePace}

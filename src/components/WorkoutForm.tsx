@@ -41,6 +41,7 @@ export interface WorkoutStepFormRow {
   reps: string;
   weight_suggestion: string;
   video_url: string;
+  both_sides: boolean;
 }
 
 export type StringStepKey =
@@ -183,6 +184,7 @@ function blankStep(
     reps: "",
     weight_suggestion: "",
     video_url: "",
+    both_sides: false,
   };
 }
 
@@ -248,6 +250,7 @@ interface StepCardProps {
   paces: RunningPace[];
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
+  onToggleBothSides: (i: number) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
   onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
   onCreatePace: (name: string, secondsPerMile: number) => Promise<RunningPace>;
@@ -265,6 +268,7 @@ export function SortableStepCard({
   paces,
   onRemove,
   onUpdate,
+  onToggleBothSides,
   onSwitchUnit,
   onSwitchDurationUnit,
   onCreatePace,
@@ -456,14 +460,27 @@ export function SortableStepCard({
                 )}
               </div>
 
-              {/* Row 3: weight suggestion */}
-              <input
-                type="text"
-                placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
-                value={step.weight_suggestion}
-                onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
-                className={`${ci} w-full`}
-              />
+              {/* Row 3: weight suggestion + both sides toggle */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+                  value={step.weight_suggestion}
+                  onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
+                  className={`${ci} flex-1 min-w-0`}
+                />
+                <button
+                  type="button"
+                  onClick={() => onToggleBothSides(actualIndex)}
+                  className={`shrink-0 px-2 py-1 rounded text-xs font-medium border transition-colors whitespace-nowrap ${
+                    step.both_sides
+                      ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                      : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  Both sides
+                </button>
+              </div>
 
               {/* Row 4: video link — only for inline exercises */}
               {!step.exercise_id && (
@@ -670,6 +687,7 @@ interface GroupContainerProps {
   onGroupDragEnd: (event: DragEndEvent) => void;
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
+  onToggleBothSides: (i: number) => void;
   onSwitchUnit: (i: number, unit: DistanceUnit) => void;
   onSwitchDurationUnit: (i: number, unit: "min" | "sec") => void;
   onCreatePace: (name: string, secondsPerMile: number) => Promise<RunningPace>;
@@ -694,6 +712,7 @@ export function SortableGroupContainer({
   onGroupDragEnd,
   onRemove,
   onUpdate,
+  onToggleBothSides,
   onSwitchUnit,
   onSwitchDurationUnit,
   onCreatePace,
@@ -776,6 +795,7 @@ export function SortableGroupContainer({
                   paces={paces}
                   onRemove={onRemove}
                   onUpdate={onUpdate}
+                  onToggleBothSides={onToggleBothSides}
                   onSwitchUnit={onSwitchUnit}
                   onSwitchDurationUnit={onSwitchDurationUnit}
                   onCreatePace={onCreatePace}
@@ -863,6 +883,7 @@ export function WorkoutForm({
         reps: s.reps?.toString() ?? "",
         weight_suggestion: s.weight_suggestion ?? "",
         video_url: s.video_url ?? "",
+        both_sides: s.both_sides ?? false,
       })) ?? [blankStep()],
   }));
 
@@ -872,6 +893,14 @@ export function WorkoutForm({
     setForm((prev) => {
       const steps = [...prev.steps];
       steps[index] = { ...steps[index], [key]: value };
+      return { ...prev, steps };
+    });
+  }
+
+  function toggleBothSides(index: number) {
+    setForm((prev) => {
+      const steps = [...prev.steps];
+      steps[index] = { ...steps[index], both_sides: !steps[index].both_sides };
       return { ...prev, steps };
     });
   }
@@ -1336,6 +1365,7 @@ export function WorkoutForm({
                             paces={localPaces}
                             onRemove={removeStep}
                             onUpdate={updateStep}
+                            onToggleBothSides={toggleBothSides}
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
                             onCreatePace={handleCreatePace}
@@ -1364,6 +1394,7 @@ export function WorkoutForm({
                           onGroupDragEnd={onGroupDragEnd}
                           onRemove={removeStep}
                           onUpdate={updateStep}
+                          onToggleBothSides={toggleBothSides}
                           onSwitchUnit={switchStepUnit}
                           onSwitchDurationUnit={switchStepDurationUnit}
                           onCreatePace={handleCreatePace}
