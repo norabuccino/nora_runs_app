@@ -126,6 +126,18 @@ export const PLAN_TYPE_COLORS: Record<string, string> = {
   custom: "bg-[var(--badge-plan-custom-bg)] text-[var(--badge-plan-custom-text)]",
 };
 
+export const DIFFICULTY_LABELS: Record<string, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
+export const DIFFICULTY_COLORS: Record<string, string> = {
+  beginner: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  intermediate: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+  advanced: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+};
+
 export const RUN_TYPE_LABELS: Record<string, string> = {
   easy_run: "Easy Run",
   interval_run: "Interval Run",

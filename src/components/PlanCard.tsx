@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useTransition } from "react";
 import type { TrainingPlan } from "@/types/database";
-import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 
@@ -50,7 +50,14 @@ export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
               {plan.description}
             </p>
           )}
-          <p className="text-xs text-[var(--muted)]">{plan.total_weeks} weeks</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-[var(--muted)]">{plan.total_weeks} weeks</p>
+            {plan.difficulty && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[plan.difficulty]}`}>
+                {DIFFICULTY_LABELS[plan.difficulty]}
+              </span>
+            )}
+          </div>
         </div>
       </Link>
       <div className="border-t border-[var(--border)] px-4 py-3 flex gap-2">

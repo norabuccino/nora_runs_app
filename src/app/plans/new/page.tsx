@@ -3,14 +3,15 @@
 import { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createPlan } from "@/app/actions/plans";
-import type { PlanType } from "@/types/database";
-import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+import type { PlanType, DifficultyType } from "@/types/database";
+import { PLAN_TYPE_LABELS, DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import { createClient } from "@/lib/supabase/client";
 
 export default function NewPlanPage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [type, setType] = useState<PlanType>("marathon");
+  const [difficulty, setDifficulty] = useState<DifficultyType | "">("");
   const [description, setDescription] = useState("");
   const [totalWeeks, setTotalWeeks] = useState("16");
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export default function NewPlanPage() {
     }
     setError(null);
     startTransition(async () => {
-      await createPlan({ name: name.trim(), type, description, total_weeks: weeks });
+      await createPlan({ name: name.trim(), type, difficulty: difficulty || null, description, total_weeks: weeks });
     });
   }
 
@@ -76,6 +77,20 @@ export default function NewPlanPage() {
               <option key={value} value={value}>
                 {label}
               </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Difficulty <span className="text-[var(--muted)] font-normal">(optional)</span></label>
+          <select
+            value={difficulty}
+            onChange={(e) => setDifficulty(e.target.value as DifficultyType | "")}
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          >
+            <option value="">— Select —</option>
+            {Object.entries(DIFFICULTY_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </div>

@@ -3,11 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { PlanType } from "@/types/database";
+import type { PlanType, DifficultyType } from "@/types/database";
 
 export async function createPlan(data: {
   name: string;
   type: PlanType;
+  difficulty?: DifficultyType | null;
   description: string;
   total_weeks: number;
 }) {
@@ -28,7 +29,7 @@ export async function createPlan(data: {
 
 export async function updatePlan(
   id: string,
-  data: { name?: string; type?: PlanType; description?: string; total_weeks?: number }
+  data: { name?: string; type?: PlanType; difficulty?: DifficultyType | null; description?: string; total_weeks?: number }
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -85,6 +86,7 @@ export async function duplicatePlan(id: string) {
       user_id: user.id,
       name: `Copy of ${source.name}`,
       type: source.type,
+      difficulty: source.difficulty,
       description: source.description,
       total_weeks: source.total_weeks,
     })

@@ -15,6 +15,7 @@ export interface Database {
           user_id: string;
           name: string;
           type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
+          difficulty: "beginner" | "intermediate" | "advanced" | null;
           description: string | null;
           total_weeks: number;
           created_at: string;
@@ -25,6 +26,7 @@ export interface Database {
           user_id: string;
           name: string;
           type: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
+          difficulty?: "beginner" | "intermediate" | "advanced" | null;
           description?: string | null;
           total_weeks: number;
           created_at?: string;
@@ -35,6 +37,7 @@ export interface Database {
           user_id?: string;
           name?: string;
           type?: "marathon" | "half_marathon" | "strength" | "custom" | "5k_10k" | "base_building";
+          difficulty?: "beginner" | "intermediate" | "advanced" | null;
           description?: string | null;
           total_weeks?: number;
           created_at?: string;
@@ -432,4 +435,5 @@ export type WorkoutWithSteps = PlanWorkout & { workout_steps: WorkoutStep[] };
 export type LibraryWorkoutWithSteps = LibraryWorkout & { workout_steps: WorkoutStep[] };
 
 export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | "plyometrics" | "mobility";
+export type DifficultyType = "beginner" | "intermediate" | "advanced";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];

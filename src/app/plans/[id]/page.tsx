@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, DAY_NAMES, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_COLORS, RUN_TYPE_LABELS, getWorkoutEstimate, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 import { getIsAdmin } from "@/lib/profile";
@@ -86,10 +86,18 @@ export default async function PlanDetailPage({ params }: Props) {
             </Link>
           </div>
           <h1 className="text-2xl font-bold">{plan.name}</h1>
-          <div className="flex items-center gap-3 text-sm text-[var(--muted)]">
+          <div className="flex items-center gap-3 text-sm text-[var(--muted)] flex-wrap">
             <span>{PLAN_TYPE_LABELS[plan.type]}</span>
             <span>·</span>
             <span>{plan.total_weeks} weeks</span>
+            {plan.difficulty && (
+              <>
+                <span>·</span>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${DIFFICULTY_COLORS[plan.difficulty]}`}>
+                  {DIFFICULTY_LABELS[plan.difficulty]}
+                </span>
+              </>
+            )}
           </div>
           {plan.description && (
             <p className="text-sm text-[var(--muted)] max-w-xl">{plan.description}</p>
