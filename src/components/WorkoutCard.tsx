@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_COLORS, STRENGTH_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 interface WorkoutCardProps {
@@ -42,7 +42,9 @@ export function WorkoutCard({
         paces
       );
 
-  const editColor = WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600";
+  const editColor = workout.type === "strength" && workout.strength_type
+    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
+    : WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600";
   const editLabel = workout.type === "strength" && workout.strength_type
     ? STRENGTH_TYPE_LABELS[workout.strength_type] ?? workout.strength_type
     : workout.run_type
