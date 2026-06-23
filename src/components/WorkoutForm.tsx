@@ -427,6 +427,7 @@ export function SortableStepCard({
                       setRepTimeMode("reps");
                     } else {
                       onUpdate(actualIndex, "reps", "");
+                      if (isStrength) onSwitchDurationUnit(actualIndex, "sec");
                       setRepTimeMode("time");
                     }
                   }}
