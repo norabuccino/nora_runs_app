@@ -82,11 +82,12 @@ export default function WorkoutsPage() {
 
   function handleExport() {
     const csvEscape = (s: string | null | undefined) => s ? `"${s.replace(/"/g, '""')}"` : "";
-    const headers = "type,run_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes,source";
+    const headers = "type,run_type,strength_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes,source";
     const rows = workouts.map((w) =>
       [
         w.type,
         w.run_type ?? "",
+        w.strength_type ?? "",
         csvEscape(w.title),
         csvEscape(w.description),
         w.distance_miles ?? "",
@@ -103,6 +104,70 @@ export default function WorkoutsPage() {
     const a = document.createElement("a");
     a.href = url;
     a.download = "workouts.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleExportJSON() {
+    const data = workouts.map((w) => {
+      const steps = [...w.workout_steps].sort((a, b) => a.step_order - b.step_order);
+
+      // Re-group flat steps by repeat_group_id → nested { group_name, repeat_count, exercises } objects
+      const stepItems: unknown[] = [];
+      const groupExercises = new Map<number, Record<string, unknown>[]>();
+
+      for (const s of steps) {
+        const stepObj: Record<string, unknown> = {};
+        if (s.exercise_id && s.label) stepObj.exercise_name = s.label;
+        else if (s.label) stepObj.label = s.label;
+        if (s.step_type && s.step_type !== "main") stepObj.step_type = s.step_type;
+        if (s.pace_type) stepObj.pace_type = s.pace_type;
+        if (s.duration_minutes != null) stepObj.duration_minutes = s.duration_minutes;
+        if (s.distance_miles != null) stepObj.distance_miles = s.distance_miles;
+        if (s.distance_unit && s.distance_unit !== "mi") stepObj.distance_unit = s.distance_unit;
+        if (s.sets != null) stepObj.sets = s.sets;
+        if (s.reps != null) stepObj.reps = s.reps;
+        if (s.weight_suggestion) stepObj.weight_suggestion = s.weight_suggestion;
+        if (s.both_sides) stepObj.both_sides = s.both_sides;
+        if (s.notes) stepObj.notes = s.notes;
+
+        if (s.repeat_group_id != null) {
+          const existing = groupExercises.get(s.repeat_group_id);
+          if (existing) {
+            existing.push(stepObj);
+          } else {
+            const exercises: Record<string, unknown>[] = [stepObj];
+            groupExercises.set(s.repeat_group_id, exercises);
+            const groupObj: Record<string, unknown> = { exercises };
+            if (s.group_name) groupObj.group_name = s.group_name;
+            if (s.repeat_count && s.repeat_count > 1) groupObj.repeat_count = s.repeat_count;
+            stepItems.push(groupObj);
+          }
+        } else {
+          stepItems.push(stepObj);
+        }
+      }
+
+      const workout: Record<string, unknown> = { type: w.type, title: w.title };
+      if (w.run_type) workout.run_type = w.run_type;
+      if (w.strength_type) workout.strength_type = w.strength_type;
+      if (w.description) workout.description = w.description;
+      if (w.distance_miles != null) workout.distance_miles = w.distance_miles;
+      if (w.distance_unit && w.distance_unit !== "mi") workout.distance_unit = w.distance_unit;
+      if (w.pace_type) workout.pace_type = w.pace_type;
+      if (w.duration_minutes != null) workout.duration_minutes = w.duration_minutes;
+      if (w.notes) workout.notes = w.notes;
+      if (w.source) workout.source = w.source;
+      if (stepItems.length > 0) workout.steps = stepItems;
+      return workout;
+    });
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "workouts.json";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -247,6 +312,13 @@ export default function WorkoutsPage() {
             className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
           >
             Export CSV
+          </button>
+          <button
+            onClick={handleExportJSON}
+            disabled={workouts.length === 0}
+            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+          >
+            Export JSON
           </button>
           <button
             onClick={() => setShowImport(true)}
