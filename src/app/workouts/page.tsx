@@ -59,6 +59,7 @@ function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWork
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
@@ -174,11 +175,13 @@ export default function WorkoutsPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: ws }, { data: steps }, { data: pac }] = await Promise.all([
+    const [{ data: ws }, { data: steps }, { data: pac }, { data: profile }] = await Promise.all([
       supabase.from("workouts").select("*").order("created_at", { ascending: false }),
       supabase.from("workout_steps").select("*").not("workout_id", "is", null).order("step_order"),
       supabase.from("running_paces").select("*").order("created_at"),
+      supabase.from("profiles").select("role").single(),
     ]);
+    setIsAdmin(profile?.role === "admin");
 
     const stepsMap: Record<string, typeof steps> = {};
     (steps ?? []).forEach((s) => {
@@ -306,26 +309,30 @@ export default function WorkoutsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            disabled={workouts.length === 0}
-            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
-          >
-            Export CSV
-          </button>
-          <button
-            onClick={handleExportJSON}
-            disabled={workouts.length === 0}
-            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
-          >
-            Export JSON
-          </button>
-          <button
-            onClick={() => setShowImport(true)}
-            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
-          >
-            Import
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={handleExport}
+                disabled={workouts.length === 0}
+                className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={handleExportJSON}
+                disabled={workouts.length === 0}
+                className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+              >
+                Export JSON
+              </button>
+              <button
+                onClick={() => setShowImport(true)}
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+              >
+                Import
+              </button>
+            </>
+          )}
           <button
             onClick={() => { setSelectMode((m) => { if (m) exitSelectMode(); return !m; }); }}
             className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${

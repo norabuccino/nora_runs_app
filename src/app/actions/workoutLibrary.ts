@@ -155,6 +155,9 @@ export async function importLibraryWorkouts(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") throw new Error("Admin access required");
+
   // Build exercise name → id map for step linking
   const { data: exercises } = await supabase
     .from("exercises")
