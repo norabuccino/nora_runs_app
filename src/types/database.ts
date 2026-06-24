@@ -111,6 +111,7 @@ export interface Database {
           id: string;
           plan_workout_id: string | null;
           workout_id: string | null;
+          scheduled_workout_id: string | null;
           step_order: number;
           step_type: string;
           label: string | null;
@@ -133,6 +134,7 @@ export interface Database {
           id?: string;
           plan_workout_id?: string | null;
           workout_id?: string | null;
+          scheduled_workout_id?: string | null;
           step_order?: number;
           step_type?: string;
           label?: string | null;
@@ -155,6 +157,7 @@ export interface Database {
           id?: string;
           plan_workout_id?: string | null;
           workout_id?: string | null;
+          scheduled_workout_id?: string | null;
           step_order?: number;
           step_type?: string;
           label?: string | null;
@@ -172,6 +175,65 @@ export interface Database {
           video_url?: string | null;
           exercise_id?: string | null;
           both_sides?: boolean;
+        };
+      };
+      scheduled_workouts: {
+        Row: {
+          id: string;
+          user_id: string;
+          scheduled_date: string;
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type: string | null;
+          title: string;
+          description: string | null;
+          distance_miles: number | null;
+          distance_unit: string;
+          pace_type: string | null;
+          duration_minutes: number | null;
+          notes: string | null;
+          library_workout_id: string | null;
+          completed_at: string | null;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          scheduled_date: string;
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
+          title: string;
+          description?: string | null;
+          distance_miles?: number | null;
+          distance_unit?: string;
+          pace_type?: string | null;
+          duration_minutes?: number | null;
+          notes?: string | null;
+          library_workout_id?: string | null;
+          completed_at?: string | null;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          scheduled_date?: string;
+          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          strength_type?: string | null;
+          title?: string;
+          description?: string | null;
+          distance_miles?: number | null;
+          distance_unit?: string;
+          pace_type?: string | null;
+          duration_minutes?: number | null;
+          notes?: string | null;
+          library_workout_id?: string | null;
+          completed_at?: string | null;
+          sort_order?: number;
+          created_at?: string;
         };
       };
       exercises: {
@@ -428,6 +490,7 @@ export type WorkoutLog = Database["public"]["Tables"]["workout_logs"]["Row"];
 export type WorkoutStep = Database["public"]["Tables"]["workout_steps"]["Row"];
 export type LibraryWorkout = Database["public"]["Tables"]["workouts"]["Row"];
 export type PlanWeekNote = Database["public"]["Tables"]["plan_week_notes"]["Row"];
+export type ScheduledWorkout = Database["public"]["Tables"]["scheduled_workouts"]["Row"];
 
 // Domain-specific union types
 export type WorkoutType = PlanWorkout["type"];
@@ -439,6 +502,7 @@ export type UserPlanStatus = UserPlan["status"];
 // Extended types with steps loaded
 export type WorkoutWithSteps = PlanWorkout & { workout_steps: WorkoutStep[] };
 export type LibraryWorkoutWithSteps = LibraryWorkout & { workout_steps: WorkoutStep[] };
+export type ScheduledWorkoutWithSteps = ScheduledWorkout & { workout_steps: WorkoutStep[] };
 
 export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | "plyometrics" | "mobility";
 export type DifficultyType = "beginner" | "intermediate" | "advanced";

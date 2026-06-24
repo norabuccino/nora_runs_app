@@ -57,9 +57,10 @@ export type StringStepKey =
   | "video_url";
 
 export interface WorkoutFormData {
-  plan_id: string;
-  week_number: number;
-  day_of_week: number;
+  plan_id?: string;
+  week_number?: number;
+  day_of_week?: number;
+  scheduled_date?: string;
   type: WorkoutType;
   run_type: RunType | "";
   strength_type: string;
@@ -824,9 +825,12 @@ export function SortableGroupContainer({
 // ── WorkoutForm ───────────────────────────────────────────────────────────────
 
 interface WorkoutFormProps {
-  planId: string;
-  weekNumber: number;
-  dayOfWeek: number;
+  // Plan-linked mode: provide planId + weekNumber + dayOfWeek
+  planId?: string;
+  weekNumber?: number;
+  dayOfWeek?: number;
+  // Ad-hoc mode: provide scheduledDate instead
+  scheduledDate?: string;
   existing?: WorkoutWithSteps | null;
   paces?: RunningPace[];
   showSaveToLibrary?: boolean;
@@ -839,6 +843,7 @@ export function WorkoutForm({
   planId,
   weekNumber,
   dayOfWeek,
+  scheduledDate,
   existing,
   paces = [],
   showSaveToLibrary = false,
@@ -855,6 +860,7 @@ export function WorkoutForm({
     plan_id: planId,
     week_number: weekNumber,
     day_of_week: dayOfWeek,
+    scheduled_date: scheduledDate,
     type: existing?.type ?? "run",
     run_type: existing?.run_type ?? "",
     strength_type: existing?.strength_type ?? "",
@@ -1235,8 +1241,10 @@ export function WorkoutForm({
                 </button>
               )}
               <h2 className="font-semibold">
-                {existing ? "Edit" : "Add"} workout — Wk {weekNumber},{" "}
-                {DAY_NAMES[dayOfWeek]}
+                {existing ? "Edit" : "Add"} workout —{" "}
+                {scheduledDate
+                  ? new Date(scheduledDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : `Wk ${weekNumber}, ${DAY_NAMES[dayOfWeek ?? 0]}`}
               </h2>
             </div>
             <button

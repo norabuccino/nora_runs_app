@@ -3,15 +3,48 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { PlanWorkout, WorkoutLog, UserPlan, TrainingPlan, RunningPace } from "@/types/database";
+import type { PlanWorkout, WorkoutLog, UserPlan, TrainingPlan, RunningPace, ScheduledWorkoutWithSteps, ScheduledWorkout } from "@/types/database";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
+import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
+import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { getTodayPosition, scheduledDate, DAY_NAMES } from "@/lib/paceUtils";
 import { markWorkoutComplete, unmarkWorkoutComplete } from "@/app/actions/userPlans";
+import {
+  createScheduledWorkout,
+  markScheduledWorkoutComplete,
+  unmarkScheduledWorkoutComplete,
+  deleteScheduledWorkout,
+} from "@/app/actions/scheduledWorkouts";
+import type { WorkoutStepData } from "@/app/actions/workouts";
 
 interface ActivePlanData {
   userPlan: UserPlan;
   plan: TrainingPlan;
+}
+
+type AddMode = null | "choose" | "from-scratch" | "from-library";
+
+function adaptScheduled(sw: ScheduledWorkout): PlanWorkout {
+  return {
+    id: sw.id,
+    plan_id: "",
+    week_number: 0,
+    day_of_week: 0,
+    type: sw.type,
+    run_type: sw.run_type,
+    strength_type: sw.strength_type,
+    title: sw.title,
+    description: sw.description,
+    distance_miles: sw.distance_miles,
+    distance_unit: sw.distance_unit,
+    pace_type: sw.pace_type,
+    duration_minutes: sw.duration_minutes,
+    notes: sw.notes,
+    sort_order: sw.sort_order,
+    day_logic: "or",
+    library_workout_id: sw.library_workout_id,
+  };
 }
 
 export default function DashboardPage() {
@@ -23,21 +56,31 @@ export default function DashboardPage() {
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [todayPos, setTodayPos] = useState<{ weekNumber: number; dayOfWeek: number } | null>(null);
   const [weekPurpose, setWeekPurpose] = useState<string | undefined>(undefined);
+  const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkoutWithSteps[]>([]);
+  const [addMode, setAddMode] = useState<AddMode>(null);
   const [isPending, startTransition] = useTransition();
+
+  const todayISO = new Date().toISOString().split("T")[0];
 
   async function load() {
     const supabase = createClient();
 
-    const [{ data: userPlans }, { data: pacesData }] = await Promise.all([
+    const [{ data: userPlans }, { data: pacesData }, { data: scheduledData }] = await Promise.all([
       supabase
         .from("user_plans")
         .select("*, training_plans(*)")
         .eq("status", "active")
         .limit(1),
       supabase.from("running_paces").select("*").order("created_at"),
+      supabase
+        .from("scheduled_workouts")
+        .select("*, workout_steps(*)")
+        .eq("scheduled_date", todayISO)
+        .order("sort_order"),
     ]);
 
     setPaces(pacesData ?? []);
+    setScheduledWorkouts((scheduledData ?? []) as ScheduledWorkoutWithSteps[]);
 
     const activePlan = userPlans?.[0];
     if (!activePlan) {
@@ -56,7 +99,6 @@ export default function DashboardPage() {
       return;
     }
 
-    // Fetch week purpose
     const { data: noteData } = await supabase
       .from("plan_week_notes")
       .select("purpose")
@@ -65,7 +107,6 @@ export default function DashboardPage() {
       .single();
     setWeekPurpose(noteData?.purpose ?? undefined);
 
-    // Fetch today's + this whole week's workouts
     const { data: workoutsData } = await supabase
       .from("plan_workouts")
       .select("*")
@@ -78,7 +119,6 @@ export default function DashboardPage() {
     setWeekWorkouts(allWeekWorkouts);
     setTodayWorkouts(allWeekWorkouts.filter((w) => w.day_of_week === pos.dayOfWeek));
 
-    // Fetch logs for the whole week
     const weekStart = scheduledDate(activePlan.start_date, pos.weekNumber, 0);
     const weekEnd = scheduledDate(activePlan.start_date, pos.weekNumber, 6);
     const { data: logsData } = await supabase
@@ -111,11 +151,158 @@ export default function DashboardPage() {
     });
   }
 
+  function handleScheduledComplete(sw: ScheduledWorkoutWithSteps) {
+    startTransition(async () => {
+      await markScheduledWorkoutComplete(sw.id);
+      await load();
+    });
+  }
+
+  function handleScheduledUnComplete(sw: ScheduledWorkoutWithSteps) {
+    startTransition(async () => {
+      await unmarkScheduledWorkoutComplete(sw.id);
+      await load();
+    });
+  }
+
+  function handleScheduledDelete(sw: ScheduledWorkoutWithSteps) {
+    startTransition(async () => {
+      await deleteScheduledWorkout(sw.id);
+      await load();
+    });
+  }
+
+  async function handleCreateFromScratch(formData: WorkoutFormData) {
+    const steps: WorkoutStepData[] = formData.steps.map((s) => ({
+      step_type: s.step_type,
+      label: s.label || null,
+      pace_type: s.pace_type || null,
+      duration_minutes: s.duration_minutes ? parseFloat(s.duration_minutes) : null,
+      distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
+      distance_unit: s.distance_unit,
+      notes: s.notes || null,
+      repeat_group_id: s.repeat_group_id,
+      repeat_count: s.repeat_count,
+      group_name: s.group_name || null,
+      sets: s.sets ? parseInt(s.sets) : null,
+      reps: s.reps ? parseInt(s.reps) : null,
+      weight_suggestion: s.weight_suggestion || null,
+      video_url: s.video_url || null,
+      exercise_id: s.exercise_id || null,
+      both_sides: s.both_sides,
+    }));
+
+    await createScheduledWorkout({
+      scheduled_date: todayISO,
+      type: formData.type,
+      run_type: formData.run_type || null,
+      strength_type: formData.strength_type || null,
+      title: formData.title,
+      description: formData.description || null,
+      distance_miles: formData.distance_miles ? parseFloat(formData.distance_miles) : null,
+      distance_unit: formData.distance_unit,
+      pace_type: formData.pace_type || null,
+      duration_minutes: formData.duration_minutes ? parseFloat(formData.duration_minutes) : null,
+      notes: formData.notes || null,
+      steps,
+    });
+    setAddMode(null);
+    await load();
+  }
+
   if (loading) {
     return <div className="text-sm text-[var(--muted)]">Loading…</div>;
   }
 
   const today = new Date();
+
+  // Scheduled workouts for today — rendered in every state
+  const scheduledSection = scheduledWorkouts.length > 0 ? (
+    <div className="space-y-2">
+      {scheduledWorkouts.map((sw) => {
+        const adapted = adaptScheduled(sw);
+        const syntheticLog = sw.completed_at
+          ? { completed_at: sw.completed_at } as WorkoutLog
+          : null;
+        return (
+          <WorkoutCard
+            key={sw.id}
+            workout={adapted}
+            log={syntheticLog}
+            paces={paces}
+            mode="dashboard"
+            onComplete={() => handleScheduledComplete(sw)}
+            onUnComplete={() => handleScheduledUnComplete(sw)}
+          />
+        );
+      })}
+    </div>
+  ) : null;
+
+  // "Log a workout" button — shown in every state
+  const addWorkoutButton = (
+    <button
+      onClick={() => setAddMode("choose")}
+      className="text-xs text-[var(--accent)] hover:underline"
+    >
+      + Log a workout for today
+    </button>
+  );
+
+  // Add-mode modals — defined once, rendered in every branch
+  const addModeModals = (
+    <>
+      {addMode === "choose" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Log a workout for today</h2>
+              <button
+                onClick={() => setAddMode(null)}
+                className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setAddMode("from-library")}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-left hover:border-[var(--foreground)] transition-colors"
+              >
+                <p className="font-medium">From workout library</p>
+                <p className="text-xs text-[var(--muted)]">Pick one of your saved workouts</p>
+              </button>
+              <button
+                onClick={() => setAddMode("from-scratch")}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-left hover:border-[var(--foreground)] transition-colors"
+              >
+                <p className="font-medium">Create from scratch</p>
+                <p className="text-xs text-[var(--muted)]">Build a new workout now</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {addMode === "from-library" && (
+        <LibraryPickerModal
+          scheduledDate={todayISO}
+          onAdded={async () => { setAddMode(null); await load(); }}
+          onCancel={() => setAddMode("choose")}
+        />
+      )}
+
+      {addMode === "from-scratch" && (
+        <WorkoutForm
+          scheduledDate={todayISO}
+          paces={paces}
+          onSave={handleCreateFromScratch}
+          onCancel={() => setAddMode(null)}
+          onBack={() => setAddMode("choose")}
+        />
+      )}
+    </>
+  );
 
   if (!activePlanData) {
     return (
@@ -126,6 +313,9 @@ export default function DashboardPage() {
             {today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
         </div>
+
+        {scheduledSection}
+
         <p className="text-sm text-[var(--muted)]">No active training plan. How would you like to train?</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
@@ -142,13 +332,22 @@ export default function DashboardPage() {
             href="/workouts"
             className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-2 hover:border-[var(--foreground)] transition-colors"
           >
-            <p className="font-semibold">Add from workout library</p>
+            <p className="font-semibold">Workout library</p>
             <p className="text-sm text-[var(--muted)]">
-              Pick individual workouts from your saved library to add ad hoc — useful when you&apos;re between plans.
+              Browse your saved workouts, or log one for today directly from the library.
             </p>
             <p className="text-xs text-[var(--accent)] group-hover:underline">Go to workout library →</p>
           </Link>
         </div>
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-[var(--border)]" />
+          <span className="text-xs text-[var(--muted)]">or</span>
+          <div className="h-px flex-1 bg-[var(--border)]" />
+        </div>
+
+        {addWorkoutButton}
+        {addModeModals}
       </div>
     );
   }
@@ -167,7 +366,11 @@ export default function DashboardPage() {
         <div>
           <p className="text-sm text-[var(--muted)]">{dateStr}</p>
           <h1 className="text-2xl font-bold mt-0.5">
-            {todayPos ? `Week ${todayPos.weekNumber}, ${DAY_NAMES[todayPos.dayOfWeek]}` : planNotStarted ? "Plan not started" : "Plan complete"}
+            {todayPos
+              ? `Week ${todayPos.weekNumber}, ${DAY_NAMES[todayPos.dayOfWeek]}`
+              : planNotStarted
+              ? "Plan not started"
+              : "Plan complete"}
           </h1>
           <Link
             href={`/plans/${activePlanData.plan.id}`}
@@ -182,40 +385,53 @@ export default function DashboardPage() {
       </div>
 
       {(planEnded || planNotStarted) ? (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
-          {planNotStarted ? (
-            <>
-              <div className="space-y-1">
-                <p className="font-semibold">Your plan hasn&apos;t started yet</p>
-                <p className="text-sm text-[var(--muted)]">
-                  {activePlanData.plan.name} starts on {activePlanData.userPlan.start_date}. In the meantime, add individual workouts from your library.
-                </p>
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <Link href="/workouts" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
-                  Workout library
-                </Link>
-                <Link href="/my-plan" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
-                  View my plan
-                </Link>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="space-y-1">
-                <p className="font-semibold">You&apos;ve finished this plan!</p>
-                <p className="text-sm text-[var(--muted)]">Start a new plan or add workouts from your library to keep training.</p>
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <Link href="/plans" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
-                  Browse plans
-                </Link>
-                <Link href="/workouts" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
-                  Workout library
-                </Link>
-              </div>
-            </>
+        <div className="space-y-6">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
+            {planNotStarted ? (
+              <>
+                <div className="space-y-1">
+                  <p className="font-semibold">Your plan hasn&apos;t started yet</p>
+                  <p className="text-sm text-[var(--muted)]">
+                    {activePlanData.plan.name} starts on {activePlanData.userPlan.start_date}. In the meantime, add individual workouts from your library.
+                  </p>
+                </div>
+                <div className="flex gap-3 flex-wrap">
+                  <Link href="/workouts" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
+                    Workout library
+                  </Link>
+                  <Link href="/my-plan" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
+                    View my plan
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className="font-semibold">You&apos;ve finished this plan!</p>
+                  <p className="text-sm text-[var(--muted)]">Start a new plan or add workouts from your library to keep training.</p>
+                </div>
+                <div className="flex gap-3 flex-wrap">
+                  <Link href="/plans" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
+                    Browse plans
+                  </Link>
+                  <Link href="/workouts" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
+                    Workout library
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+
+          {scheduledSection && (
+            <div className="space-y-3">
+              <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
+                Today&apos;s workouts
+              </h2>
+              {scheduledSection}
+            </div>
           )}
+
+          {addWorkoutButton}
         </div>
       ) : (
         <>
@@ -223,9 +439,11 @@ export default function DashboardPage() {
             <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
               Today
             </h2>
-            {todayWorkouts.length === 0 ? (
-              <div className="rounded-xl border border-[var(--border)] p-6 text-center">
+
+            {todayWorkouts.length === 0 && !scheduledSection ? (
+              <div className="rounded-xl border border-[var(--border)] p-6 text-center space-y-3">
                 <p className="text-sm text-[var(--muted)]">Rest day — enjoy the recovery.</p>
+                {addWorkoutButton}
               </div>
             ) : (
               <div className="space-y-2">
@@ -243,6 +461,8 @@ export default function DashboardPage() {
                     />
                   );
                 })}
+                {scheduledSection}
+                {addWorkoutButton}
               </div>
             )}
           </div>
@@ -264,6 +484,8 @@ export default function DashboardPage() {
           </div>
         </>
       )}
+
+      {addModeModals}
     </div>
   );
 }

@@ -153,8 +153,8 @@ export default function EditPlanPage() {
 
     const payload = {
       plan_id: id,
-      week_number: data.week_number,
-      day_of_week: data.day_of_week,
+      week_number: data.week_number!,
+      day_of_week: data.day_of_week!,
       type: data.type,
       run_type: data.run_type || null,
       strength_type: data.strength_type || null,

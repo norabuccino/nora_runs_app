@@ -4,13 +4,17 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps } from "@/types/database";
 import { addLibraryWorkoutToPlan } from "@/app/actions/workoutLibrary";
+import { createScheduledWorkoutFromLibrary } from "@/app/actions/scheduledWorkouts";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 interface LibraryPickerModalProps {
-  planId: string;
-  weekNumber: number;
-  dayOfWeek: number;
+  // Plan-linked mode
+  planId?: string;
+  weekNumber?: number;
+  dayOfWeek?: number;
+  // Ad-hoc mode: provide scheduledDate instead
+  scheduledDate?: string;
   onAdded: () => void;
   onCancel: () => void;
 }
@@ -19,6 +23,7 @@ export function LibraryPickerModal({
   planId,
   weekNumber,
   dayOfWeek,
+  scheduledDate,
   onAdded,
   onCancel,
 }: LibraryPickerModalProps) {
@@ -49,7 +54,11 @@ export function LibraryPickerModal({
 
   function handleSelect(workout: LibraryWorkoutWithSteps) {
     startTransition(async () => {
-      await addLibraryWorkoutToPlan(workout.id, planId, weekNumber, dayOfWeek);
+      if (scheduledDate) {
+        await createScheduledWorkoutFromLibrary(workout.id, scheduledDate);
+      } else {
+        await addLibraryWorkoutToPlan(workout.id, planId!, weekNumber!, dayOfWeek!);
+      }
       onAdded();
     });
   }
