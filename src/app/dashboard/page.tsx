@@ -115,30 +115,51 @@ export default function DashboardPage() {
     return <div className="text-sm text-[var(--muted)]">Loading…</div>;
   }
 
+  const today = new Date();
+
   if (!activePlanData) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="rounded-xl border border-dashed border-[var(--border)] p-12 text-center space-y-3">
-          <p className="font-medium">No active training plan</p>
-          <p className="text-sm text-[var(--muted)]">
-            Assign a plan to start seeing your daily workouts here.
+        <div>
+          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <p className="text-sm text-[var(--muted)] mt-1">
+            {today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
+        </div>
+        <p className="text-sm text-[var(--muted)]">No active training plan. How would you like to train?</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Link
             href="/plans"
-            className="inline-block px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+            className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-2 hover:border-[var(--foreground)] transition-colors"
           >
-            Browse plans
+            <p className="font-semibold">Start a training plan</p>
+            <p className="text-sm text-[var(--muted)]">
+              Browse structured marathon, strength, or custom plans and assign one to follow week by week.
+            </p>
+            <p className="text-xs text-[var(--accent)] group-hover:underline">Browse plans →</p>
+          </Link>
+          <Link
+            href="/workouts"
+            className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-2 hover:border-[var(--foreground)] transition-colors"
+          >
+            <p className="font-semibold">Add from workout library</p>
+            <p className="text-sm text-[var(--muted)]">
+              Pick individual workouts from your saved library to add ad hoc — useful when you&apos;re between plans.
+            </p>
+            <p className="text-xs text-[var(--accent)] group-hover:underline">Go to workout library →</p>
           </Link>
         </div>
       </div>
     );
   }
 
-  const today = new Date();
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  const planEnded = !todayPos;
+  const planStartDate = new Date(activePlanData.userPlan.start_date);
+  planStartDate.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const planNotStarted = !todayPos && today < planStartDate;
+  const planEnded = !todayPos && !planNotStarted;
 
   return (
     <div className="space-y-8">
@@ -146,7 +167,7 @@ export default function DashboardPage() {
         <div>
           <p className="text-sm text-[var(--muted)]">{dateStr}</p>
           <h1 className="text-2xl font-bold mt-0.5">
-            {todayPos ? `Week ${todayPos.weekNumber}, ${DAY_NAMES[todayPos.dayOfWeek]}` : "Plan complete"}
+            {todayPos ? `Week ${todayPos.weekNumber}, ${DAY_NAMES[todayPos.dayOfWeek]}` : planNotStarted ? "Plan not started" : "Plan complete"}
           </h1>
           <Link
             href={`/plans/${activePlanData.plan.id}`}
@@ -160,12 +181,41 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {planEnded ? (
-        <div className="rounded-xl border border-[var(--border)] p-6 text-center space-y-2">
-          <p className="font-semibold">You&apos;ve finished this plan!</p>
-          <Link href="/my-plan" className="text-sm text-[var(--accent)] hover:opacity-70">
-            View plan history or start a new plan →
-          </Link>
+      {(planEnded || planNotStarted) ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
+          {planNotStarted ? (
+            <>
+              <div className="space-y-1">
+                <p className="font-semibold">Your plan hasn&apos;t started yet</p>
+                <p className="text-sm text-[var(--muted)]">
+                  {activePlanData.plan.name} starts on {activePlanData.userPlan.start_date}. In the meantime, add individual workouts from your library.
+                </p>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <Link href="/workouts" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
+                  Workout library
+                </Link>
+                <Link href="/my-plan" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
+                  View my plan
+                </Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="space-y-1">
+                <p className="font-semibold">You&apos;ve finished this plan!</p>
+                <p className="text-sm text-[var(--muted)]">Start a new plan or add workouts from your library to keep training.</p>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <Link href="/plans" className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity">
+                  Browse plans
+                </Link>
+                <Link href="/workouts" className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--background)] transition-colors">
+                  Workout library
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <>
