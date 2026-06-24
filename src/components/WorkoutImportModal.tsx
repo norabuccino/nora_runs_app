@@ -37,27 +37,40 @@ const SAMPLE_JSON = JSON.stringify(
     {
       type: "strength",
       strength_type: "upper_body",
-      title: "Upper Body Push",
-      description: "Push day — chest, shoulders, triceps",
-      duration_minutes: 50,
+      title: "Upper Body Supersets",
+      description: "Push/pull supersets — 3 rounds each",
+      duration_minutes: 55,
       steps: [
-        { step_type: "main", exercise_name: "Barbell Bench Press", sets: 3, reps: 8, weight_suggestion: "moderate" },
-        { step_type: "main", exercise_name: "Dumbbell Shoulder Press", sets: 3, reps: 10, weight_suggestion: "light" },
-        { step_type: "main", exercise_name: "Tricep Dip", sets: 3, reps: 12 },
-        { step_type: "main", exercise_name: "Push-Up", sets: 2, reps: 15 },
+        {
+          group_name: "Superset A — Push/Pull",
+          repeat_count: 3,
+          exercises: [
+            { exercise_name: "Barbell Bench Press", reps: 8, weight_suggestion: "moderate" },
+            { exercise_name: "Bent-Over Row", reps: 8, weight_suggestion: "moderate" },
+          ],
+        },
+        {
+          group_name: "Superset B — Shoulder/Back",
+          repeat_count: 3,
+          exercises: [
+            { exercise_name: "Dumbbell Shoulder Press", reps: 10, weight_suggestion: "light" },
+            { exercise_name: "Lat Pulldown", reps: 10 },
+          ],
+        },
+        { exercise_name: "Push-Up", sets: 2, reps: 15, notes: "To failure on last set" },
       ],
     },
     {
       type: "strength",
       strength_type: "lower_body",
       title: "Lower Body Day",
-      description: "Squat and hinge focus",
-      duration_minutes: 55,
+      description: "Squat and hinge — straight sets",
+      duration_minutes: 50,
       steps: [
-        { step_type: "main", exercise_name: "Barbell Squat", sets: 4, reps: 6, weight_suggestion: "heavy" },
-        { step_type: "main", exercise_name: "Romanian Deadlift", sets: 3, reps: 10, both_sides: false, weight_suggestion: "moderate" },
-        { step_type: "main", exercise_name: "Bulgarian Split Squat", sets: 3, reps: 8, both_sides: true, weight_suggestion: "light" },
-        { step_type: "main", exercise_name: "Calf Raise", sets: 3, reps: 15 },
+        { exercise_name: "Barbell Squat", sets: 4, reps: 6, weight_suggestion: "heavy" },
+        { exercise_name: "Romanian Deadlift", sets: 3, reps: 10, weight_suggestion: "moderate" },
+        { exercise_name: "Bulgarian Split Squat", sets: 3, reps: 8, both_sides: true, weight_suggestion: "light" },
+        { exercise_name: "Calf Raise", sets: 3, reps: 15 },
       ],
     },
     {
@@ -67,8 +80,14 @@ const SAMPLE_JSON = JSON.stringify(
       description: "8x800m workout",
       steps: [
         { step_type: "warmup", duration_minutes: 15, pace_type: "Easy" },
-        { step_type: "main", distance_miles: 0.5, pace_type: "Interval", repeat_count: 8, group_name: "8x800m" },
-        { step_type: "recovery", distance_miles: 0.25, pace_type: "Easy", repeat_count: 8, group_name: "8x800m" },
+        {
+          group_name: "8x800m",
+          repeat_count: 8,
+          exercises: [
+            { step_type: "main", distance_miles: 0.5, pace_type: "Interval" },
+            { step_type: "recovery", distance_miles: 0.25, pace_type: "Easy" },
+          ],
+        },
         { step_type: "cooldown", duration_minutes: 10, pace_type: "Easy" },
       ],
     },
@@ -97,7 +116,7 @@ function downloadSampleJSON() {
   URL.revokeObjectURL(url);
 }
 
-// ── Step parser ────────────────────────────────────────────────────────────────
+// ── Step parsers ───────────────────────────────────────────────────────────────
 
 function parseStep(raw: Record<string, unknown>): ImportStepRow {
   return {
@@ -116,6 +135,60 @@ function parseStep(raw: Record<string, unknown>): ImportStepRow {
     repeat_count: raw.repeat_count != null ? parseInt(String(raw.repeat_count), 10) || 1 : 1,
     group_name: typeof raw.group_name === "string" ? raw.group_name : null,
   };
+}
+
+// Handles three formats in a steps array:
+//   1. Nested group: { group_name, repeat_count, exercises: [...] }
+//   2. Flat step with group label: { ..., group: "A", repeat_count: 3 }
+//   3. Regular flat step (no grouping)
+// Resolves all forms to flat ImportStepRow[] with repeat_group_id set.
+function processSteps(rawSteps: unknown[]): ImportStepRow[] {
+  const result: ImportStepRow[] = [];
+  let nextGroupId = 1;
+  // flat format: group label → { id, repeatCount }
+  const flatGroups = new Map<string, { id: number; repeatCount: number }>();
+
+  for (const raw of rawSteps) {
+    if (!raw || typeof raw !== "object") continue;
+    const item = raw as Record<string, unknown>;
+
+    if (Array.isArray(item.exercises)) {
+      // Nested group / superset
+      const groupName = typeof item.group_name === "string" ? item.group_name : null;
+      const repeatCount = item.repeat_count != null ? Math.max(1, parseInt(String(item.repeat_count), 10) || 1) : 1;
+      const groupId = nextGroupId++;
+
+      for (const ex of item.exercises as unknown[]) {
+        if (!ex || typeof ex !== "object") continue;
+        result.push({
+          ...parseStep(ex as Record<string, unknown>),
+          repeat_group_id: groupId,
+          repeat_count: repeatCount,
+          group_name: groupName,
+        });
+      }
+    } else {
+      const step = parseStep(item);
+      const groupLabel = typeof item.group === "string" ? item.group.trim() : null;
+
+      if (groupLabel) {
+        // Flat group label format
+        const key = groupLabel.toLowerCase();
+        const existing = flatGroups.get(key);
+        if (existing) {
+          result.push({ ...step, repeat_group_id: existing.id, repeat_count: step.repeat_count ?? existing.repeatCount });
+        } else {
+          const groupId = nextGroupId++;
+          flatGroups.set(key, { id: groupId, repeatCount: step.repeat_count ?? 1 });
+          result.push({ ...step, repeat_group_id: groupId, group_name: step.group_name ?? groupLabel });
+        }
+      } else {
+        result.push({ ...step, repeat_group_id: null });
+      }
+    }
+  }
+
+  return result;
 }
 
 // ── Parsers ────────────────────────────────────────────────────────────────────
@@ -167,9 +240,7 @@ function parseJSON(text: string): LibraryImportRow[] {
     const rawUnit = typeof item.distance_unit === "string" ? item.distance_unit : "mi";
 
     const rawSteps = Array.isArray(item.steps) ? item.steps : [];
-    const steps: ImportStepRow[] = rawSteps.map((s: unknown) =>
-      parseStep(typeof s === "object" && s !== null ? (s as Record<string, unknown>) : {})
-    );
+    const steps = processSteps(rawSteps);
 
     return {
       type: item.type as LibraryImportRow["type"],
@@ -272,10 +343,15 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
             </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">JSON — steps support</p>
+              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">JSON — steps, groups &amp; supersets</p>
               <p className="text-xs text-[var(--muted)]">
-                Each JSON workout can include a <code className="text-[var(--foreground)]">steps</code> array.
-                Step fields: <code className="text-[var(--foreground)]">step_type</code>, <code className="text-[var(--foreground)]">exercise_name</code> (links to your exercise library by name), <code className="text-[var(--foreground)]">sets</code>, <code className="text-[var(--foreground)]">reps</code>, <code className="text-[var(--foreground)]">weight_suggestion</code>, <code className="text-[var(--foreground)]">both_sides</code>, <code className="text-[var(--foreground)]">pace_type</code>, <code className="text-[var(--foreground)]">duration_minutes</code>, <code className="text-[var(--foreground)]">distance_miles</code>, <code className="text-[var(--foreground)]">repeat_count</code>, <code className="text-[var(--foreground)]">group_name</code>, <code className="text-[var(--foreground)]">notes</code>.
+                Each JSON workout can include a <code className="text-[var(--foreground)]">steps</code> array. Steps can be flat (one exercise per object) or grouped into supersets.
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                <strong className="text-[var(--foreground)]">Flat step fields:</strong> <code className="text-[var(--foreground)]">exercise_name</code> (auto-links to your library), <code className="text-[var(--foreground)]">sets</code>, <code className="text-[var(--foreground)]">reps</code>, <code className="text-[var(--foreground)]">weight_suggestion</code>, <code className="text-[var(--foreground)]">both_sides</code>, <code className="text-[var(--foreground)]">step_type</code>, <code className="text-[var(--foreground)]">pace_type</code>, <code className="text-[var(--foreground)]">duration_minutes</code>, <code className="text-[var(--foreground)]">distance_miles</code>, <code className="text-[var(--foreground)]">notes</code>.
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                <strong className="text-[var(--foreground)]">Named group / superset:</strong> use <code className="text-[var(--foreground)]">{"{ group_name, repeat_count, exercises: [...] }"}</code> anywhere in the steps array to group exercises. The sample JSON shows both patterns.
               </p>
             </div>
 

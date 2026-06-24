@@ -130,6 +130,7 @@ export interface ImportStepRow {
   both_sides?: boolean;
   notes?: string | null;
   repeat_count?: number;
+  repeat_group_id?: number | null;
   group_name?: string | null;
 }
 
@@ -206,6 +207,7 @@ export async function importLibraryWorkouts(
           both_sides: s.both_sides ?? false,
           notes: s.notes ?? null,
           repeat_count: s.repeat_count ?? 1,
+          repeat_group_id: s.repeat_group_id ?? null,
           group_name: s.group_name ?? null,
         };
       });
