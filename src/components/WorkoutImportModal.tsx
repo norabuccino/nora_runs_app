@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { importLibraryWorkouts, type LibraryImportRow } from "@/app/actions/workoutLibrary";
+import { importLibraryWorkouts, type LibraryImportRow, type ImportStepRow } from "@/app/actions/workoutLibrary";
 
 interface WorkoutImportModalProps {
   onClose: () => void;
@@ -12,24 +12,70 @@ const VALID_TYPES = new Set([
   "run", "strength", "rest", "cross_train", "bike", "swim", "yoga", "elliptical",
 ]);
 const VALID_RUN_TYPES = new Set([
-  "easy_run", "tempo_run", "interval_run", "threshold_run", "recovery_run", "race", "long_run",
+  "easy_run", "tempo_run", "interval_run", "threshold_run", "recovery_run", "race", "long_run", "mp_hmp_run",
 ]);
 const VALID_UNITS = new Set(["mi", "km", "m"]);
 
 // ── Sample file content ────────────────────────────────────────────────────────
 
 const SAMPLE_CSV = [
-  "type,run_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes",
-  "run,easy_run,Easy run,Comfortable conversational pace,6,mi,Easy,60,",
-  "run,long_run,Long run,Slow and steady long effort,14,mi,Easy,,",
-  "run,tempo_run,Tempo run,Comfortably hard pace,5,mi,Tempo,40,",
-  "run,interval_run,Track intervals,8x800m at fast pace,4,mi,Interval,50,",
-  "strength,,Upper body,Push/pull day — 3 sets of 8,,,, 45,",
-  "bike,,Easy bike,Low effort recovery spin,12,mi,,45,",
-  "swim,,Swim workout,Endurance swim,1500,m,,45,",
-  "yoga,,Yoga flow,Full body mobility and recovery,,,, 60,Recovery focused",
-  "elliptical,,Elliptical cardio,Steady-state cardio,,,, 30,",
+  "type,run_type,strength_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes",
+  "run,easy_run,,Easy run,Comfortable conversational pace,6,mi,Easy,60,",
+  "run,long_run,,Long run,Slow and steady long effort,14,mi,Easy,,",
+  "run,tempo_run,,Tempo run,Comfortably hard pace,5,mi,Tempo,40,",
+  "run,interval_run,,Track intervals,8x800m at fast pace,4,mi,Interval,50,",
+  "strength,,upper_body,Upper body,Push/pull day — 3 sets of 8,,,,45,",
+  "strength,,lower_body,Lower body,Squat and hinge focus,,,,50,",
+  "bike,,,Easy bike,Low effort recovery spin,12,mi,,45,",
+  "swim,,,Swim workout,Endurance swim,1500,m,,45,",
+  "yoga,,,Yoga flow,Full body mobility and recovery,,,,60,Recovery focused",
+  "elliptical,,,Elliptical cardio,Steady-state cardio,,,,30,",
 ].join("\n");
+
+const SAMPLE_JSON = JSON.stringify(
+  [
+    {
+      type: "strength",
+      strength_type: "upper_body",
+      title: "Upper Body Push",
+      description: "Push day — chest, shoulders, triceps",
+      duration_minutes: 50,
+      steps: [
+        { step_type: "main", exercise_name: "Barbell Bench Press", sets: 3, reps: 8, weight_suggestion: "moderate" },
+        { step_type: "main", exercise_name: "Dumbbell Shoulder Press", sets: 3, reps: 10, weight_suggestion: "light" },
+        { step_type: "main", exercise_name: "Tricep Dip", sets: 3, reps: 12 },
+        { step_type: "main", exercise_name: "Push-Up", sets: 2, reps: 15 },
+      ],
+    },
+    {
+      type: "strength",
+      strength_type: "lower_body",
+      title: "Lower Body Day",
+      description: "Squat and hinge focus",
+      duration_minutes: 55,
+      steps: [
+        { step_type: "main", exercise_name: "Barbell Squat", sets: 4, reps: 6, weight_suggestion: "heavy" },
+        { step_type: "main", exercise_name: "Romanian Deadlift", sets: 3, reps: 10, both_sides: false, weight_suggestion: "moderate" },
+        { step_type: "main", exercise_name: "Bulgarian Split Squat", sets: 3, reps: 8, both_sides: true, weight_suggestion: "light" },
+        { step_type: "main", exercise_name: "Calf Raise", sets: 3, reps: 15 },
+      ],
+    },
+    {
+      type: "run",
+      run_type: "interval_run",
+      title: "Track Intervals",
+      description: "8x800m workout",
+      steps: [
+        { step_type: "warmup", duration_minutes: 15, pace_type: "Easy" },
+        { step_type: "main", distance_miles: 0.5, pace_type: "Interval", repeat_count: 8, group_name: "8x800m" },
+        { step_type: "recovery", distance_miles: 0.25, pace_type: "Easy", repeat_count: 8, group_name: "8x800m" },
+        { step_type: "cooldown", duration_minutes: 10, pace_type: "Easy" },
+      ],
+    },
+  ],
+  null,
+  2
+);
 
 function downloadSampleCSV() {
   const blob = new Blob([SAMPLE_CSV], { type: "text/csv" });
@@ -39,6 +85,37 @@ function downloadSampleCSV() {
   a.download = "workout_import_sample.csv";
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function downloadSampleJSON() {
+  const blob = new Blob([SAMPLE_JSON], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "workout_import_sample.json";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Step parser ────────────────────────────────────────────────────────────────
+
+function parseStep(raw: Record<string, unknown>): ImportStepRow {
+  return {
+    step_type: typeof raw.step_type === "string" ? raw.step_type : "main",
+    exercise_name: typeof raw.exercise_name === "string" ? raw.exercise_name : null,
+    label: typeof raw.label === "string" ? raw.label : null,
+    pace_type: typeof raw.pace_type === "string" ? raw.pace_type : null,
+    duration_minutes: raw.duration_minutes != null ? Number(raw.duration_minutes) || null : null,
+    distance_miles: raw.distance_miles != null ? Number(raw.distance_miles) || null : null,
+    distance_unit: typeof raw.distance_unit === "string" && VALID_UNITS.has(raw.distance_unit) ? raw.distance_unit : "mi",
+    sets: raw.sets != null ? parseInt(String(raw.sets), 10) || null : null,
+    reps: raw.reps != null ? parseInt(String(raw.reps), 10) || null : null,
+    weight_suggestion: typeof raw.weight_suggestion === "string" ? raw.weight_suggestion : null,
+    both_sides: raw.both_sides === true,
+    notes: typeof raw.notes === "string" ? raw.notes : null,
+    repeat_count: raw.repeat_count != null ? parseInt(String(raw.repeat_count), 10) || 1 : 1,
+    group_name: typeof raw.group_name === "string" ? raw.group_name : null,
+  };
 }
 
 // ── Parsers ────────────────────────────────────────────────────────────────────
@@ -68,6 +145,7 @@ function parseCSV(text: string): LibraryImportRow[] {
     rows.push({
       type: type as LibraryImportRow["type"],
       run_type,
+      strength_type: raw.strength_type?.trim() || null,
       title: raw.title?.trim() || "Untitled",
       description: raw.description?.trim() || null,
       distance_miles: rawDist ? parseFloat(rawDist) : null,
@@ -83,21 +161,30 @@ function parseCSV(text: string): LibraryImportRow[] {
 function parseJSON(text: string): LibraryImportRow[] {
   const parsed = JSON.parse(text);
   if (!Array.isArray(parsed)) throw new Error("JSON must be an array of workout objects");
-  return parsed.map((item, i) => {
-    if (!VALID_TYPES.has(item.type)) throw new Error(`Item ${i + 1}: invalid type "${item.type}"`);
-    const rawUnit = item.distance_unit ?? "mi";
+  return parsed.map((item: Record<string, unknown>, i) => {
+    if (!VALID_TYPES.has(String(item.type ?? "")))
+      throw new Error(`Item ${i + 1}: invalid type "${item.type}"`);
+    const rawUnit = typeof item.distance_unit === "string" ? item.distance_unit : "mi";
+
+    const rawSteps = Array.isArray(item.steps) ? item.steps : [];
+    const steps: ImportStepRow[] = rawSteps.map((s: unknown) =>
+      parseStep(typeof s === "object" && s !== null ? (s as Record<string, unknown>) : {})
+    );
+
     return {
-      type: item.type,
-      run_type: item.run_type ?? null,
-      title: item.title || "Untitled",
-      description: item.description ?? null,
-      distance_miles: item.distance ?? item.distance_miles ?? null,
+      type: item.type as LibraryImportRow["type"],
+      run_type: typeof item.run_type === "string" ? item.run_type as LibraryImportRow["run_type"] : null,
+      strength_type: typeof item.strength_type === "string" ? item.strength_type : null,
+      title: typeof item.title === "string" ? item.title || "Untitled" : "Untitled",
+      description: typeof item.description === "string" ? item.description : null,
+      distance_miles: item.distance != null ? Number(item.distance) || null
+        : item.distance_miles != null ? Number(item.distance_miles) || null : null,
       distance_unit: VALID_UNITS.has(rawUnit) ? rawUnit : "mi",
-      pace_type: item.pace_type ?? null,
-      duration_minutes: item.duration_minutes ?? null,
-      notes: item.notes ?? null,
-      steps: item.steps ?? undefined,
-    } as LibraryImportRow;
+      pace_type: typeof item.pace_type === "string" ? item.pace_type : null,
+      duration_minutes: item.duration_minutes != null ? Number(item.duration_minutes) || null : null,
+      notes: typeof item.notes === "string" ? item.notes : null,
+      steps: steps.length > 0 ? steps : undefined,
+    } satisfies LibraryImportRow;
   });
 }
 
@@ -109,12 +196,14 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
+  const [unmatchedExercises, setUnmatchedExercises] = useState<string[]>([]);
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setParseError(null);
     setRows(null);
+    setUnmatchedExercises([]);
     const text = await file.text();
     try {
       const parsed = file.name.endsWith(".json") ? parseJSON(text) : parseCSV(text);
@@ -129,14 +218,21 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
     if (!rows) return;
     setImporting(true);
     setImportError(null);
+    setUnmatchedExercises([]);
     try {
-      await importLibraryWorkouts(rows);
-      onImported();
+      const result = await importLibraryWorkouts(rows);
+      if (result.unmatchedExercises.length > 0) {
+        setUnmatchedExercises(result.unmatchedExercises);
+      } else {
+        onImported();
+      }
     } catch (err) {
       setImportError(err instanceof Error ? err.message : "Import failed");
       setImporting(false);
     }
   }
+
+  const totalSteps = rows?.reduce((sum, r) => sum + (r.steps?.length ?? 0), 0) ?? 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -152,18 +248,22 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
             </button>
           </div>
 
-          {/* Instructions + sample download */}
-          <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 text-sm">
-            <p className="text-[var(--muted)]">
-              Upload a <strong>.csv</strong> or <strong>.json</strong> file to bulk-add workouts to your library.
-            </p>
+          {/* Instructions + sample downloads */}
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-4 text-sm">
+            <div className="space-y-1">
+              <p className="text-[var(--muted)]">
+                Upload a <strong>.csv</strong> or <strong>.json</strong> file to bulk-add workouts to your library.
+                Use CSV for simple workout imports, or JSON to include steps and exercises.
+              </p>
+            </div>
 
             <div className="space-y-1">
-              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Required columns (CSV)</p>
+              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">CSV columns</p>
               <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs text-[var(--muted)]">
                 <span><code className="text-[var(--foreground)]">type</code> — run, strength, bike, swim, yoga, elliptical, cross_train, rest</span>
                 <span><code className="text-[var(--foreground)]">title</code> — workout name</span>
-                <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, mp_hmp_run, interval_run, threshold_run, recovery_run, race (leave blank if not a run)</span>
+                <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, interval_run, threshold_run, recovery_run, race (runs only)</span>
+                <span><code className="text-[var(--foreground)]">strength_type</code> — upper_body, lower_body, full_body, core (strength only)</span>
                 <span><code className="text-[var(--foreground)]">distance</code> + <code className="text-[var(--foreground)]">distance_unit</code> — e.g. 6, mi  (mi / km / m)</span>
                 <span><code className="text-[var(--foreground)]">pace_type</code> — matches a pace name you've saved</span>
                 <span><code className="text-[var(--foreground)]">duration_minutes</code> — number</span>
@@ -171,17 +271,38 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={downloadSampleCSV}
-              className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
-            >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 12l-4-4h2.5V3h3v5H12L8 12z"/>
-                <path d="M2 14h12v-1.5H2V14z"/>
-              </svg>
-              Download sample CSV
-            </button>
+            <div className="space-y-1">
+              <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">JSON — steps support</p>
+              <p className="text-xs text-[var(--muted)]">
+                Each JSON workout can include a <code className="text-[var(--foreground)]">steps</code> array.
+                Step fields: <code className="text-[var(--foreground)]">step_type</code>, <code className="text-[var(--foreground)]">exercise_name</code> (links to your exercise library by name), <code className="text-[var(--foreground)]">sets</code>, <code className="text-[var(--foreground)]">reps</code>, <code className="text-[var(--foreground)]">weight_suggestion</code>, <code className="text-[var(--foreground)]">both_sides</code>, <code className="text-[var(--foreground)]">pace_type</code>, <code className="text-[var(--foreground)]">duration_minutes</code>, <code className="text-[var(--foreground)]">distance_miles</code>, <code className="text-[var(--foreground)]">repeat_count</code>, <code className="text-[var(--foreground)]">group_name</code>, <code className="text-[var(--foreground)]">notes</code>.
+              </p>
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
+              <button
+                type="button"
+                onClick={downloadSampleCSV}
+                className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 12l-4-4h2.5V3h3v5H12L8 12z"/>
+                  <path d="M2 14h12v-1.5H2V14z"/>
+                </svg>
+                Download sample CSV
+              </button>
+              <button
+                type="button"
+                onClick={downloadSampleJSON}
+                className="inline-flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline"
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 12l-4-4h2.5V3h3v5H12L8 12z"/>
+                  <path d="M2 14h12v-1.5H2V14z"/>
+                </svg>
+                Download sample JSON (with steps)
+              </button>
+            </div>
           </div>
 
           {/* File input */}
@@ -203,7 +324,8 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
           {rows && rows.length > 0 && (
             <div className="space-y-3">
               <p className="text-sm font-medium">
-                Preview — {rows.length} workout{rows.length !== 1 ? "s" : ""} found
+                Preview — {rows.length} workout{rows.length !== 1 ? "s" : ""}
+                {totalSteps > 0 && `, ${totalSteps} step${totalSteps !== 1 ? "s" : ""}`}
               </p>
               <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
                 <table className="w-full text-xs">
@@ -214,18 +336,20 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
                       <th className="px-3 py-2 text-left font-medium">Distance</th>
                       <th className="px-3 py-2 text-left font-medium">Pace</th>
                       <th className="px-3 py-2 text-left font-medium">Min</th>
+                      <th className="px-3 py-2 text-left font-medium">Steps</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((row, i) => (
                       <tr key={i} className="border-t border-[var(--border)]">
-                        <td className="px-3 py-2 whitespace-nowrap">{row.run_type ?? row.type}</td>
-                        <td className="px-3 py-2 max-w-[160px] truncate">{row.title}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">{row.run_type ?? row.strength_type ?? row.type}</td>
+                        <td className="px-3 py-2 max-w-[140px] truncate">{row.title}</td>
                         <td className="px-3 py-2 whitespace-nowrap">
                           {row.distance_miles ? `${row.distance_miles} ${row.distance_unit ?? "mi"}` : "—"}
                         </td>
                         <td className="px-3 py-2">{row.pace_type ?? "—"}</td>
                         <td className="px-3 py-2">{row.duration_minutes ?? "—"}</td>
+                        <td className="px-3 py-2">{row.steps?.length ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -238,27 +362,51 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
             <p className="text-sm text-red-600 dark:text-red-400">{importError}</p>
           )}
 
-          <div className="flex gap-2 pt-1">
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={!rows || importing}
-              className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
-            >
-              {importing
-                ? "Importing…"
-                : rows
-                ? `Import ${rows.length} workout${rows.length !== 1 ? "s" : ""} to library`
-                : "Choose a file first"}
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
+          {/* Unmatched exercise notice */}
+          {unmatchedExercises.length > 0 && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 space-y-2">
+              <p className="text-sm font-medium">Workouts imported successfully.</p>
+              <p className="text-xs text-[var(--muted)]">
+                These exercise names weren&apos;t found in your library and were saved as unlinked labels. You can link them later by editing each workout step.
+              </p>
+              <ul className="text-xs text-[var(--muted)] list-disc list-inside space-y-0.5">
+                {unmatchedExercises.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+              <button
+                type="button"
+                onClick={onImported}
+                className="text-xs text-[var(--accent)] hover:underline"
+              >
+                Close
+              </button>
+            </div>
+          )}
+
+          {unmatchedExercises.length === 0 && (
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleImport}
+                disabled={!rows || importing}
+                className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
+              >
+                {importing
+                  ? "Importing…"
+                  : rows
+                  ? `Import ${rows.length} workout${rows.length !== 1 ? "s" : ""} to library`
+                  : "Choose a file first"}
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

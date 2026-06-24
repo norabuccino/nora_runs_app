@@ -116,9 +116,27 @@ export async function deleteLibraryWorkout(id: string) {
   revalidatePath("/workouts");
 }
 
+export interface ImportStepRow {
+  step_type?: string;
+  exercise_name?: string | null;
+  label?: string | null;
+  pace_type?: string | null;
+  duration_minutes?: number | null;
+  distance_miles?: number | null;
+  distance_unit?: string;
+  sets?: number | null;
+  reps?: number | null;
+  weight_suggestion?: string | null;
+  both_sides?: boolean;
+  notes?: string | null;
+  repeat_count?: number;
+  group_name?: string | null;
+}
+
 export interface LibraryImportRow {
   type: WorkoutType;
   run_type?: RunType | null;
+  strength_type?: string | null;
   title: string;
   description?: string | null;
   distance_miles?: number | null;
@@ -126,13 +144,25 @@ export interface LibraryImportRow {
   pace_type?: string | null;
   duration_minutes?: number | null;
   notes?: string | null;
-  steps?: WorkoutStepData[];
+  steps?: ImportStepRow[];
 }
 
-export async function importLibraryWorkouts(rows: LibraryImportRow[]): Promise<{ imported: number }> {
+export async function importLibraryWorkouts(
+  rows: LibraryImportRow[]
+): Promise<{ imported: number; unmatchedExercises: string[] }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
+
+  // Build exercise name → id map for step linking
+  const { data: exercises } = await supabase
+    .from("exercises")
+    .select("id, name")
+    .eq("user_id", user.id);
+  const exerciseByName = new Map(
+    (exercises ?? []).map((e) => [e.name.toLowerCase(), e.id])
+  );
+  const unmatchedSet = new Set<string>();
 
   let imported = 0;
   for (const row of rows) {
@@ -145,7 +175,40 @@ export async function importLibraryWorkouts(rows: LibraryImportRow[]): Promise<{
     if (error) throw new Error(error.message);
 
     if (steps?.length) {
-      const stepsToInsert = steps.map((s, i) => ({ ...s, workout_id: workout.id, step_order: i }));
+      const stepsToInsert = steps.map((s, i) => {
+        let exercise_id: string | null = null;
+        let label: string | null = s.label ?? null;
+
+        if (s.exercise_name) {
+          const found = exerciseByName.get(s.exercise_name.toLowerCase());
+          if (found) {
+            exercise_id = found;
+            label = s.exercise_name;
+          } else {
+            unmatchedSet.add(s.exercise_name);
+            label = s.exercise_name;
+          }
+        }
+
+        return {
+          workout_id: workout.id,
+          step_order: i,
+          step_type: s.step_type ?? "main",
+          label,
+          exercise_id,
+          pace_type: s.pace_type ?? null,
+          duration_minutes: s.duration_minutes ?? null,
+          distance_miles: s.distance_miles ?? null,
+          distance_unit: s.distance_unit ?? "mi",
+          sets: s.sets ?? null,
+          reps: s.reps ?? null,
+          weight_suggestion: s.weight_suggestion ?? null,
+          both_sides: s.both_sides ?? false,
+          notes: s.notes ?? null,
+          repeat_count: s.repeat_count ?? 1,
+          group_name: s.group_name ?? null,
+        };
+      });
       const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
       if (stepsError) throw new Error(stepsError.message);
     }
@@ -153,7 +216,7 @@ export async function importLibraryWorkouts(rows: LibraryImportRow[]): Promise<{
   }
 
   revalidatePath("/workouts");
-  return { imported };
+  return { imported, unmatchedExercises: [...unmatchedSet] };
 }
 
 export async function bulkUpdateLibraryWorkouts(
