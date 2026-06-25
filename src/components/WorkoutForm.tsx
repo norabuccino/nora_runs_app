@@ -181,7 +181,7 @@ function blankStep(
     repeat_count: repeatCount,
     group_name: groupName,
     exercise_id: "",
-    sets: "",
+    sets: groupId === null ? "1" : "",
     reps: "",
     weight_suggestion: "",
     video_url: "",
