@@ -548,7 +548,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               <textarea
                 value={form.description}
                 onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={4}
+                rows={isStrength ? 2 : 4}
                 className={`${inputClass} resize-y`}
               />
             </div>
