@@ -797,7 +797,7 @@ export function SortableGroupContainer({
             <div className="space-y-2 pl-2 border-l-2 border-[var(--accent)]">
               {indices.map((actualIndex, j) => (
                 <SortableStepCard
-                  key={actualIndex}
+                  key={`${actualIndex}-${steps[actualIndex].exercise_id}`}
                   id={`step-${actualIndex}`}
                   step={steps[actualIndex]}
                   actualIndex={actualIndex}
@@ -1379,7 +1379,7 @@ export function WorkoutForm({
                       if (seg.type === "step") {
                         return (
                           <SortableStepCard
-                            key={`step-${seg.index}`}
+                            key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
                             id={`step-${seg.index}`}
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}

@@ -595,7 +595,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                       if (seg.type === "step") {
                         return (
                           <SortableStepCard
-                            key={`step-${seg.index}`}
+                            key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
                             id={`step-${seg.index}`}
                             step={form.steps[seg.index]}
                             actualIndex={seg.index}
