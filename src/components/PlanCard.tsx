@@ -59,6 +59,9 @@ export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
                 {DIFFICULTY_LABELS[plan.difficulty]}
               </span>
             )}
+            {plan.source && (
+              <span className="text-xs text-[var(--muted)]">{plan.source}</span>
+            )}
           </div>
         </div>
       </Link>

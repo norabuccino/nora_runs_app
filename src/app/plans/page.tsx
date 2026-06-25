@@ -5,7 +5,8 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { PlanCard } from "@/components/PlanCard";
 import type { TrainingPlan, PlanType } from "@/types/database";
-import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
+import type { DifficultyType } from "@/types/database";
 
 const FILTER_TABS: { value: PlanType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -21,6 +22,8 @@ export default function PlansPage() {
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<PlanType | "all">("all");
+  const [difficultyFilter, setDifficultyFilter] = useState<DifficultyType | "all">("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
@@ -40,14 +43,24 @@ export default function PlansPage() {
     load();
   }, []);
 
-  const filtered = activeFilter === "all"
-    ? plans
-    : plans.filter((p) => p.type === activeFilter);
+  const filtered = plans.filter((p) => {
+    if (activeFilter !== "all" && p.type !== activeFilter) return false;
+    if (difficultyFilter !== "all" && p.difficulty !== difficultyFilter) return false;
+    if (sourceFilter !== "all") {
+      if (sourceFilter === "__none__") return !p.source;
+      if (p.source !== sourceFilter) return false;
+    }
+    return true;
+  });
 
   const typesInUse = new Set(plans.map((p) => p.type));
   const visibleTabs = FILTER_TABS.filter(
     (t) => t.value === "all" || typesInUse.has(t.value as PlanType)
   );
+
+  const difficultiesInUse = new Set(plans.map((p) => p.difficulty).filter(Boolean)) as Set<DifficultyType>;
+  const sourcesInUse = Array.from(new Set(plans.map((p) => p.source).filter(Boolean))) as string[];
+  const hasUnsourced = plans.some((p) => !p.source);
 
   return (
     <div className="space-y-6">
@@ -87,6 +100,7 @@ export default function PlansPage() {
 
       {!loading && plans.length > 0 && (
         <div className="space-y-5">
+          {/* Plan type filter */}
           {visibleTabs.length > 2 && (
             <div className="flex flex-wrap gap-1.5">
               {visibleTabs.map(({ value, label }) => {
@@ -108,6 +122,64 @@ export default function PlansPage() {
                   </button>
                 );
               })}
+            </div>
+          )}
+
+          {/* Difficulty filter */}
+          {difficultiesInUse.size > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setDifficultyFilter("all")}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  difficultyFilter === "all"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                All difficulties
+              </button>
+              {(["beginner", "intermediate", "advanced"] as DifficultyType[]).filter((d) => difficultiesInUse.has(d)).map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setDifficultyFilter(d)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    difficultyFilter === d
+                      ? DIFFICULTY_COLORS[d]
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {DIFFICULTY_LABELS[d]}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Source filter */}
+          {(sourcesInUse.length > 0 || hasUnsourced) && (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setSourceFilter("all")}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  sourceFilter === "all"
+                    ? "bg-[var(--foreground)] text-[var(--background)]"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                All sources
+              </button>
+              {sourcesInUse.map((src) => (
+                <button
+                  key={src}
+                  onClick={() => setSourceFilter(src)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    sourceFilter === src
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {src}
+                </button>
+              ))}
             </div>
           )}
 

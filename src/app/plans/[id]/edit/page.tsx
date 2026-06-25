@@ -34,6 +34,7 @@ export default function EditPlanPage() {
   const [planName, setPlanName] = useState("");
   const [planDescription, setPlanDescription] = useState("");
   const [planDifficulty, setPlanDifficulty] = useState<DifficultyType | "">("");
+  const [planSource, setPlanSource] = useState("");
   const [planSaving, setPlanSaving] = useState(false);
 
   async function load() {
@@ -75,6 +76,7 @@ export default function EditPlanPage() {
       setPlanName((prev) => prev || p.name);
       setPlanDescription((prev) => prev || (p.description ?? ""));
       setPlanDifficulty((prev) => prev || (p.difficulty as DifficultyType | null) || "");
+      setPlanSource((prev) => prev || (p.source ?? ""));
     }
     setWorkouts(workoutsWithSteps);
     setPaces(pac ?? []);
@@ -89,8 +91,9 @@ export default function EditPlanPage() {
     setPlanSaving(true);
     const desc = planDescription.trim() || undefined;
     const diff = (planDifficulty || null) as DifficultyType | null;
-    await updatePlan(id, { name: planName.trim(), description: desc, difficulty: diff });
-    setPlan((p) => p ? { ...p, name: planName.trim(), description: desc ?? null, difficulty: diff } : p);
+    const src = planSource.trim() || null;
+    await updatePlan(id, { name: planName.trim(), description: desc, difficulty: diff, source: src });
+    setPlan((p) => p ? { ...p, name: planName.trim(), description: desc ?? null, difficulty: diff, source: src } : p);
     setPlanSaving(false);
   }
 
@@ -250,6 +253,13 @@ export default function EditPlanPage() {
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
+          <input
+            type="text"
+            value={planSource}
+            onChange={(e) => setPlanSource(e.target.value)}
+            placeholder="Source (optional)"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+          />
         </div>
         <button
           onClick={handleSavePlanMeta}

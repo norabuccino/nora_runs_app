@@ -15,6 +15,7 @@ export default function NewPlanPage() {
   const [daysPerWeek, setDaysPerWeek] = useState("3");
   const [description, setDescription] = useState("");
   const [totalWeeks, setTotalWeeks] = useState("16");
+  const [source, setSource] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -43,7 +44,7 @@ export default function NewPlanPage() {
     setError(null);
     startTransition(async () => {
       const dpw = type === "strength" ? parseInt(daysPerWeek, 10) : null;
-      await createPlan({ name: name.trim(), type, difficulty: difficulty || null, days_per_week: dpw, description, total_weeks: weeks });
+      await createPlan({ name: name.trim(), type, difficulty: difficulty || null, days_per_week: dpw, description, total_weeks: weeks, source: source.trim() || null });
     });
   }
 
@@ -134,6 +135,17 @@ export default function NewPlanPage() {
             rows={3}
             placeholder="What's the goal of this plan? Any key details…"
             className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] resize-none"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-sm font-medium">Source <span className="text-[var(--muted)] font-normal">(optional)</span></label>
+          <input
+            type="text"
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            placeholder="e.g. Coach, Book, YouTube…"
+            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
           />
         </div>
 

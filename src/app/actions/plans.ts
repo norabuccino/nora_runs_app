@@ -12,6 +12,7 @@ export async function createPlan(data: {
   days_per_week?: number | null;
   description: string;
   total_weeks: number;
+  source?: string | null;
 }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -30,7 +31,7 @@ export async function createPlan(data: {
 
 export async function updatePlan(
   id: string,
-  data: { name?: string; type?: PlanType; difficulty?: DifficultyType | null; description?: string; total_weeks?: number }
+  data: { name?: string; type?: PlanType; difficulty?: DifficultyType | null; description?: string; total_weeks?: number; source?: string | null }
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
