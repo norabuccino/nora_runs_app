@@ -122,7 +122,7 @@ interface WeekGridProps {
   onUnComplete?: (workout: PlanWorkout) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
-  onAddWorkout?: (weekNumber: number, dayOfWeek: number) => void;
+  onAddWorkout?: (weekNumber: number, dayOfWeek: number, action: "library" | "form") => void;
   onDayLogicChange?: (weekNumber: number, dayOfWeek: number, logic: "and" | "or") => void;
   onReorder?: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
   onCopy?: (workout: PlanWorkout) => void;
@@ -385,12 +385,21 @@ export function WeekGrid({
                 <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                   <DroppableDay id={containerId}>
                     {dayWorkouts.length === 0 ? (
-                      <button
-                        onClick={() => onAddWorkout?.(weekNumber, dayIndex)}
-                        className="w-full h-14 rounded-lg border border-dashed border-[var(--border)] text-xs text-[var(--muted)] hover:border-[var(--foreground)] hover:text-[var(--foreground)] transition-colors"
-                      >
-                        + Add
-                      </button>
+                      <div className="w-full h-14 rounded-lg border border-dashed border-[var(--border)] flex overflow-hidden">
+                        <button
+                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
+                          className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+                        >
+                          Library
+                        </button>
+                        <div className="w-px bg-[var(--border)]" />
+                        <button
+                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
+                          className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+                        >
+                          New
+                        </button>
+                      </div>
                     ) : (
                       dayWorkouts.flatMap((workout, i) => {
                         const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
@@ -402,12 +411,21 @@ export function WeekGrid({
                       })
                     )}
                     {dayWorkouts.length > 0 && (
-                      <button
-                        onClick={() => onAddWorkout?.(weekNumber, dayIndex)}
-                        className="w-full py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                      >
-                        + Add
-                      </button>
+                      <div className="flex items-center justify-center gap-2 py-1">
+                        <button
+                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
+                          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                        >
+                          + Library
+                        </button>
+                        <span className="text-xs text-[var(--border)]">·</span>
+                        <button
+                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
+                          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                        >
+                          + New
+                        </button>
+                      </div>
                     )}
                   </DroppableDay>
                 </SortableContext>

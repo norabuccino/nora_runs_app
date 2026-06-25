@@ -11,13 +11,12 @@ import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
 import { updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
-import { DAY_NAMES, DIFFICULTY_LABELS } from "@/lib/paceUtils";
+import { DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
 import { CopyToDaysModal } from "@/components/CopyToDaysModal";
 
 type AddFlow =
   | { step: "idle" }
-  | { step: "picking"; weekNumber: number; dayOfWeek: number }
   | { step: "library"; weekNumber: number; dayOfWeek: number }
   | { step: "form"; weekNumber: number; dayOfWeek: number; existing: WorkoutWithSteps | null };
 
@@ -95,8 +94,11 @@ export default function EditPlanPage() {
     setPlanSaving(false);
   }
 
-  function openAdd(weekNumber: number, dayOfWeek: number) {
-    setFlow({ step: "picking", weekNumber, dayOfWeek });
+  function openAdd(weekNumber: number, dayOfWeek: number, action: "library" | "form") {
+    setFlow(action === "library"
+      ? { step: "library", weekNumber, dayOfWeek }
+      : { step: "form", weekNumber, dayOfWeek, existing: null }
+    );
   }
 
   function openEdit(workout: PlanWorkout) {
@@ -282,53 +284,18 @@ export default function EditPlanPage() {
         ))}
       </div>
 
-      {/* Step 1: Choose how to add */}
-      {flow.step === "picking" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold">
-                Add workout — Wk {flow.weekNumber}, {DAY_NAMES[flow.dayOfWeek]}
-              </h2>
-              <button
-                onClick={() => setFlow({ step: "idle" })}
-                className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
-              >
-                ×
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setFlow({ ...flow, step: "library" })}
-                className="rounded-xl border border-[var(--border)] p-4 text-left hover:border-[var(--foreground)] transition-colors space-y-1.5"
-              >
-                <p className="text-sm font-medium">From library</p>
-                <p className="text-xs text-[var(--muted)]">Pick a saved workout</p>
-              </button>
-              <button
-                onClick={() => setFlow({ ...flow, step: "form", existing: null })}
-                className="rounded-xl border border-[var(--border)] p-4 text-left hover:border-[var(--foreground)] transition-colors space-y-1.5"
-              >
-                <p className="text-sm font-medium">Create new</p>
-                <p className="text-xs text-[var(--muted)]">Build from scratch</p>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Step 2a: Pick from library */}
+      {/* Pick from library */}
       {flow.step === "library" && (
         <LibraryPickerModal
           planId={id}
           weekNumber={flow.weekNumber}
           dayOfWeek={flow.dayOfWeek}
           onAdded={async () => { setFlow({ step: "idle" }); await load(); }}
-          onCancel={() => setFlow({ step: "picking", weekNumber: flow.weekNumber, dayOfWeek: flow.dayOfWeek })}
+          onCancel={() => setFlow({ step: "idle" })}
         />
       )}
 
-      {/* Step 2b: Create new (or edit existing) */}
+      {/* Create new or edit existing */}
       {flow.step === "form" && (
         <WorkoutForm
           planId={id}
@@ -338,7 +305,6 @@ export default function EditPlanPage() {
           paces={paces}
           showSaveToLibrary={!flow.existing}
           onSave={handleSave}
-          onBack={!flow.existing ? () => setFlow({ step: "picking", weekNumber: flow.weekNumber, dayOfWeek: flow.dayOfWeek }) : undefined}
           onCancel={() => setFlow({ step: "idle" })}
         />
       )}
