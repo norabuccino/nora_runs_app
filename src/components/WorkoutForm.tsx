@@ -404,7 +404,7 @@ export function SortableStepCard({
           {/* Rows 2–4 only shown once an exercise is named */}
           {hasExercise && (
             <>
-              {/* Row 2: sets × reps/time (sets hidden when inside a group) */}
+              {/* Row 2: sets × reps/time (sets hidden when inside a group) · both sides */}
               <div className="flex items-center gap-1.5">
                 {step.repeat_group_id === null && (
                   <>
@@ -460,17 +460,6 @@ export function SortableStepCard({
                     />
                   </>
                 )}
-              </div>
-
-              {/* Row 3: weight suggestion + both sides toggle */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
-                  value={step.weight_suggestion}
-                  onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
-                  className={`${ci} flex-1 min-w-0`}
-                />
                 <button
                   type="button"
                   onClick={() => onToggleBothSides(actualIndex)}
@@ -484,7 +473,27 @@ export function SortableStepCard({
                 </button>
               </div>
 
-              {/* Row 4: video link — only for inline exercises */}
+              {/* Row 3: weight suggestion */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+                  value={step.weight_suggestion}
+                  onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
+                  className={`${ci} flex-1 min-w-0`}
+                />
+              </div>
+
+              {/* Row 4: notes */}
+              <input
+                type="text"
+                placeholder="Notes (optional)"
+                value={step.notes}
+                onChange={(e) => onUpdate(actualIndex, "notes", e.target.value)}
+                className={`${ci} w-full`}
+              />
+
+              {/* Row 5: video link — only for inline exercises */}
               {!step.exercise_id && (
                 showVideoInput ? (
                   <div className="flex items-center gap-1">
