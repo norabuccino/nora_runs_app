@@ -30,13 +30,18 @@ function groupSteps(steps: WorkoutStep[]): StepSegment[] {
   return segments;
 }
 
+function formatStepDuration(durationMinutes: number | null, durationUnit: string): string | null {
+  if (!durationMinutes) return null;
+  if (durationUnit === "sec") return `${Math.round(durationMinutes * 60)} sec`;
+  return `${durationMinutes} min`;
+}
+
 function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean }) {
   if (isStrength) {
+    const durLabel = formatStepDuration(step.duration_minutes, step.duration_unit);
     const perSet = step.reps
       ? `${step.reps} reps`
-      : step.duration_minutes
-      ? `${step.duration_minutes} min`
-      : null;
+      : durLabel ?? null;
     const setsReps = step.sets && perSet
       ? `${step.sets} × ${perSet}`
       : step.sets
@@ -73,7 +78,7 @@ function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean 
         {STEP_TYPE_LABELS[step.step_type] ?? step.step_type}
       </span>
       <span className="flex-1 flex flex-wrap gap-2 text-[var(--muted)]">
-        {step.duration_minutes && <span>{step.duration_minutes} min</span>}
+        {step.duration_minutes && <span>{formatStepDuration(step.duration_minutes, step.duration_unit)}</span>}
         {step.distance_miles && (
           <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
         )}
