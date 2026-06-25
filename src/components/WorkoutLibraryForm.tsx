@@ -116,6 +116,17 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
+  const [perExerciseSetsGroupIds, setPerExerciseSetsGroupIds] = useState<Set<number>>(() => {
+    const init = new Set<number>();
+    if (existing?.workout_steps) {
+      for (const s of existing.workout_steps) {
+        if (s.repeat_group_id !== null && s.sets !== null) {
+          init.add(s.repeat_group_id);
+        }
+      }
+    }
+    return init;
+  });
 
   const [form, setForm] = useState<WorkoutLibraryFormData>(() => ({
     type: existing?.type ?? "run",
@@ -286,6 +297,23 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         s.repeat_group_id === groupId ? { ...s, repeat_group_id: null, repeat_count: 1 } : s
       ),
     }));
+  }
+
+  function togglePerExerciseSets(groupId: number) {
+    const isCurrentlyOn = perExerciseSetsGroupIds.has(groupId);
+    setPerExerciseSetsGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+    if (isCurrentlyOn) {
+      setForm((prev) => ({
+        ...prev,
+        steps: prev.steps.map((s) =>
+          s.repeat_group_id === groupId ? { ...s, sets: "" } : s
+        ),
+      }));
+    }
   }
 
   async function handleCreatePace(name: string, secondsPerMile: number): Promise<RunningPace> {
@@ -629,9 +657,11 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                           indices={seg.indices}
                           steps={form.steps}
                           isStrength={isStrength}
+                          perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUpdateGroupName={updateGroupName}
+                          onTogglePerExerciseSets={togglePerExerciseSets}
                           onUngroup={ungroup}
                           onAddStepToGroup={handleAddStepToGroup}
                           onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}

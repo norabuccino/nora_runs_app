@@ -248,6 +248,7 @@ interface StepCardProps {
   actualIndex: number;
   label: string;
   isStrength?: boolean;
+  showSets?: boolean;
   paces: RunningPace[];
   onRemove: (i: number) => void;
   onUpdate: (i: number, key: StringStepKey, val: string) => void;
@@ -266,6 +267,7 @@ export function SortableStepCard({
   actualIndex,
   label,
   isStrength = false,
+  showSets = false,
   paces,
   onRemove,
   onUpdate,
@@ -404,9 +406,9 @@ export function SortableStepCard({
           {/* Rows 2–4 only shown once an exercise is named */}
           {hasExercise && (
             <>
-              {/* Row 2: sets × reps/time (sets hidden when inside a group) · both sides */}
+              {/* Row 2: sets × reps/time · both sides */}
               <div className="flex items-center gap-1.5">
-                {step.repeat_group_id === null && (
+                {(step.repeat_group_id === null || showSets) && (
                   <>
                     <input
                       type="number"
@@ -689,9 +691,11 @@ interface GroupContainerProps {
   indices: number[];
   steps: WorkoutStepFormRow[];
   isStrength?: boolean;
+  perExerciseSets?: boolean;
   paces: RunningPace[];
   onUpdateRepeatCount: (groupId: number, count: number) => void;
   onUpdateGroupName: (groupId: number, name: string) => void;
+  onTogglePerExerciseSets?: (groupId: number) => void;
   onUngroup: (groupId: number) => void;
   onAddStepToGroup: (groupId: number) => void;
   onOpenPicker?: (stepIndex: number) => void;
@@ -714,9 +718,11 @@ export function SortableGroupContainer({
   indices,
   steps,
   isStrength = false,
+  perExerciseSets = false,
   paces,
   onUpdateRepeatCount,
   onUpdateGroupName,
+  onTogglePerExerciseSets,
   onUngroup,
   onAddStepToGroup,
   onOpenPicker,
@@ -742,13 +748,12 @@ export function SortableGroupContainer({
   );
   const stepIds = indices.map((i) => `step-${i}`);
 
-  const countLabel = isStrength ? "sets" : "times";
   const addLabel = isStrength ? "+ Add exercise to group" : "+ Add step to group";
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
       <div className="rounded-xl border-2 border-[var(--accent)] p-3 space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             {...listeners}
@@ -770,15 +775,33 @@ export function SortableGroupContainer({
               Repeat
             </span>
           )}
-          <span className="text-xs text-[var(--accent)]">×</span>
-          <input
-            type="number"
-            min="1"
-            value={repeatCount}
-            onChange={(e) => onUpdateRepeatCount(groupId, parseInt(e.target.value) || 1)}
-            className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
-          />
-          <span className="text-xs text-[var(--muted)]">{countLabel}</span>
+          {(!isStrength || !perExerciseSets) && (
+            <>
+              <span className="text-xs text-[var(--accent)]">×</span>
+              <input
+                type="number"
+                min="1"
+                value={repeatCount}
+                onChange={(e) => onUpdateRepeatCount(groupId, parseInt(e.target.value) || 1)}
+                className="w-14 rounded border border-[var(--accent)] bg-[var(--background)] px-2 py-0.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]"
+              />
+              <span className="text-xs text-[var(--muted)]">{isStrength ? "sets" : "times"}</span>
+            </>
+          )}
+          {isStrength && (
+            <button
+              type="button"
+              onClick={() => onTogglePerExerciseSets?.(groupId)}
+              className={`text-xs px-1.5 py-0.5 rounded border transition-colors ${
+                perExerciseSets
+                  ? "border-[var(--accent)] text-[var(--accent)] bg-[var(--accent)]/10"
+                  : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+              }`}
+              title={perExerciseSets ? "Switch back to a shared set count for all exercises" : "Give each exercise its own set count"}
+            >
+              {perExerciseSets ? "Per exercise ✓" : "Per exercise"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onUngroup(groupId)}
@@ -803,6 +826,7 @@ export function SortableGroupContainer({
                   actualIndex={actualIndex}
                   label={`Step ${j + 1}`}
                   isStrength={isStrength}
+                  showSets={perExerciseSets}
                   paces={paces}
                   onRemove={onRemove}
                   onUpdate={onUpdate}
@@ -864,6 +888,17 @@ export function WorkoutForm({
   const [error, setError] = useState<string | null>(null);
   const [saveToLibrary, setSaveToLibrary] = useState(false);
   const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
+  const [perExerciseSetsGroupIds, setPerExerciseSetsGroupIds] = useState<Set<number>>(() => {
+    const init = new Set<number>();
+    if (existing?.workout_steps) {
+      for (const s of existing.workout_steps) {
+        if (s.repeat_group_id !== null && s.sets !== null) {
+          init.add(s.repeat_group_id);
+        }
+      }
+    }
+    return init;
+  });
 
   const [form, setForm] = useState<WorkoutFormData>(() => ({
     plan_id: planId,
@@ -1037,6 +1072,23 @@ export function WorkoutForm({
         s.repeat_group_id === groupId ? { ...s, repeat_group_id: null, repeat_count: 1 } : s
       ),
     }));
+  }
+
+  function togglePerExerciseSets(groupId: number) {
+    const isCurrentlyOn = perExerciseSetsGroupIds.has(groupId);
+    setPerExerciseSetsGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+      return next;
+    });
+    if (isCurrentlyOn) {
+      setForm((prev) => ({
+        ...prev,
+        steps: prev.steps.map((s) =>
+          s.repeat_group_id === groupId ? { ...s, sets: "" } : s
+        ),
+      }));
+    }
   }
 
   async function handleCreatePace(name: string, secondsPerMile: number): Promise<RunningPace> {
@@ -1413,9 +1465,11 @@ export function WorkoutForm({
                           indices={seg.indices}
                           steps={form.steps}
                           isStrength={isStrength}
+                          perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
                           paces={localPaces}
                           onUpdateRepeatCount={updateGroupRepeatCount}
                           onUpdateGroupName={updateGroupName}
+                          onTogglePerExerciseSets={togglePerExerciseSets}
                           onUngroup={ungroup}
                           onAddStepToGroup={handleAddStepToGroup}
                           onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
