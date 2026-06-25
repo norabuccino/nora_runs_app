@@ -320,7 +320,16 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
       }
       if (exercisePicker.action === "replace") {
         const steps = [...prev.steps];
-        steps[exercisePicker.stepIndex] = { ...steps[exercisePicker.stepIndex], exercise_id: result.exercise_id, label: result.name, video_url: result.video_url };
+        steps[exercisePicker.stepIndex] = {
+          ...steps[exercisePicker.stepIndex],
+          exercise_id: result.exercise_id,
+          label: result.name,
+          video_url: result.video_url,
+          reps: "",
+          duration_minutes: "",
+          weight_suggestion: "",
+          notes: "",
+        };
         return { ...prev, steps };
       }
       return prev;
