@@ -175,22 +175,21 @@ export default function WorkoutsPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: ws }, { data: steps }, { data: pac }, { data: profile }] = await Promise.all([
-      supabase.from("workouts").select("*").order("created_at", { ascending: false }),
-      supabase.from("workout_steps").select("*").not("workout_id", "is", null).order("step_order"),
+    const [{ data: ws }, { data: pac }, { data: profile }] = await Promise.all([
+      supabase.from("workouts").select("*, workout_steps(*)").order("created_at", { ascending: false }),
       supabase.from("running_paces").select("*").order("created_at"),
       supabase.from("profiles").select("role").single(),
     ]);
     setIsAdmin(profile?.role === "admin");
 
-    const stepsMap: Record<string, typeof steps> = {};
-    (steps ?? []).forEach((s) => {
-      if (!s.workout_id) return;
-      if (!stepsMap[s.workout_id]) stepsMap[s.workout_id] = [];
-      stepsMap[s.workout_id]!.push(s);
-    });
-
-    setWorkouts((ws ?? []).map((w) => ({ ...w, workout_steps: stepsMap[w.id] ?? [] })));
+    setWorkouts(
+      (ws ?? []).map((w) => ({
+        ...w,
+        workout_steps: [...((w as unknown as LibraryWorkoutWithSteps).workout_steps ?? [])].sort(
+          (a, b) => a.step_order - b.step_order
+        ),
+      })) as LibraryWorkoutWithSteps[]
+    );
     setPaces(pac ?? []);
     setLoading(false);
   }

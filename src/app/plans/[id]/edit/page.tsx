@@ -39,10 +39,9 @@ export default function EditPlanPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }, { data: s }, { data: pac }, { data: notes }, { data: { user } }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: pac }, { data: notes }, { data: { user } }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
-      supabase.from("plan_workouts").select("*").eq("plan_id", id).order("sort_order"),
-      supabase.from("workout_steps").select("*").order("step_order"),
+      supabase.from("plan_workouts").select("*, workout_steps(*)").eq("plan_id", id).order("sort_order"),
       supabase.from("running_paces").select("*").order("created_at"),
       supabase.from("plan_week_notes").select("*").eq("plan_id", id),
       supabase.auth.getUser(),
@@ -57,15 +56,11 @@ export default function EditPlanPage() {
       }
     }
 
-    const stepsMap: Record<string, typeof s> = {};
-    (s ?? []).forEach((step) => {
-      if (!stepsMap[step.plan_workout_id]) stepsMap[step.plan_workout_id] = [];
-      stepsMap[step.plan_workout_id]!.push(step);
-    });
-
     const workoutsWithSteps: WorkoutWithSteps[] = (w ?? []).map((wk) => ({
       ...wk,
-      workout_steps: stepsMap[wk.id] ?? [],
+      workout_steps: [...((wk as unknown as WorkoutWithSteps).workout_steps ?? [])].sort(
+        (a, b) => a.step_order - b.step_order
+      ),
     }));
 
     const notesMap: Record<number, string> = {};
