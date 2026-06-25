@@ -1088,6 +1088,7 @@ export function WorkoutForm({
           duration_minutes: "",
           weight_suggestion: "",
           notes: "",
+          both_sides: false,
         };
         return { ...prev, steps };
       }

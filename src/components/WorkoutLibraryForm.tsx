@@ -329,6 +329,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
           duration_minutes: "",
           weight_suggestion: "",
           notes: "",
+          both_sides: false,
         };
         return { ...prev, steps };
       }
