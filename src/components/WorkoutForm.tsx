@@ -1084,6 +1084,10 @@ export function WorkoutForm({
           exercise_id: result.exercise_id,
           label: result.name,
           video_url: result.video_url,
+          reps: "",
+          duration_minutes: "",
+          weight_suggestion: "",
+          notes: "",
         };
         return { ...prev, steps };
       }
