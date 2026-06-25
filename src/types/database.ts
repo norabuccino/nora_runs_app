@@ -131,6 +131,7 @@ export interface Database {
           weight_suggestion: string | null;
           video_url: string | null;
           exercise_id: string | null;
+          duration_unit: string;
           both_sides: boolean;
         };
         Insert: {
@@ -143,6 +144,7 @@ export interface Database {
           label?: string | null;
           pace_type?: string | null;
           duration_minutes?: number | null;
+          duration_unit?: string;
           distance_miles?: number | null;
           distance_unit?: string;
           notes?: string | null;
@@ -166,6 +168,7 @@ export interface Database {
           label?: string | null;
           pace_type?: string | null;
           duration_minutes?: number | null;
+          duration_unit?: string;
           distance_miles?: number | null;
           distance_unit?: string;
           notes?: string | null;

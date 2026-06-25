@@ -209,24 +209,28 @@ export default function WorkoutsPage() {
       duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
       notes: data.notes || null,
       source: data.source || null,
-      steps: data.steps.map((s) => ({
-        step_type: s.step_type,
-        label: s.label || null,
-        pace_type: s.pace_type || null,
-        duration_minutes: s.duration_minutes ? parseFloat(s.duration_minutes) : null,
-        distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
-        distance_unit: s.distance_unit ?? "mi",
-        notes: s.notes || null,
-        repeat_group_id: s.repeat_group_id ?? null,
-        repeat_count: s.repeat_count ?? 1,
-        group_name: s.group_name || null,
-        sets: s.sets ? parseInt(s.sets, 10) : null,
-        reps: s.reps ? parseInt(s.reps, 10) : null,
-        weight_suggestion: s.weight_suggestion || null,
-        video_url: s.video_url || null,
-        exercise_id: s.exercise_id || null,
-        both_sides: s.both_sides ?? false,
-      })),
+      steps: data.steps.map((s) => {
+        const rawDur = s.duration_minutes ? parseFloat(s.duration_minutes) : null;
+        return {
+          step_type: s.step_type,
+          label: s.label || null,
+          pace_type: s.pace_type || null,
+          duration_minutes: rawDur != null ? (s.duration_unit === "sec" ? rawDur / 60 : rawDur) : null,
+          duration_unit: s.duration_unit ?? "min",
+          distance_miles: s.distance_miles ? parseFloat(s.distance_miles) : null,
+          distance_unit: s.distance_unit ?? "mi",
+          notes: s.notes || null,
+          repeat_group_id: s.repeat_group_id ?? null,
+          repeat_count: s.repeat_count ?? 1,
+          group_name: s.group_name || null,
+          sets: s.sets ? parseInt(s.sets, 10) : null,
+          reps: s.reps ? parseInt(s.reps, 10) : null,
+          weight_suggestion: s.weight_suggestion || null,
+          video_url: s.video_url || null,
+          exercise_id: s.exercise_id || null,
+          both_sides: s.both_sides ?? false,
+        };
+      }),
     };
 
     if (editing) {

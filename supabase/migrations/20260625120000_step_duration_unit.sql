@@ -1,0 +1,1 @@
+ALTER TABLE workout_steps ADD COLUMN IF NOT EXISTS duration_unit TEXT NOT NULL DEFAULT 'min';

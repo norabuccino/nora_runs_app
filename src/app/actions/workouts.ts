@@ -9,6 +9,7 @@ export interface WorkoutStepData {
   label?: string | null;
   pace_type?: string | null;
   duration_minutes?: number | null;
+  duration_unit?: string;
   distance_miles?: number | null;
   distance_unit?: string;
   notes?: string | null;

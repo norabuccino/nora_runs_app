@@ -134,8 +134,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         step_type: s.step_type,
         label: s.label ?? "",
         pace_type: s.pace_type ?? "",
-        duration_minutes: s.duration_minutes?.toString() ?? "",
-        duration_unit: "min" as const,
+        duration_unit: (s.duration_unit === "sec" ? "sec" : "min") as "min" | "sec",
+        duration_minutes: (() => {
+          if (s.duration_minutes == null) return "";
+          const mins = parseFloat(String(s.duration_minutes));
+          if (isNaN(mins)) return "";
+          return s.duration_unit === "sec" ? String(Math.round(mins * 60)) : String(mins);
+        })(),
         distance_miles: s.distance_miles?.toString() ?? "",
         distance_unit: (s.distance_unit as DistanceUnit) ?? "mi",
         notes: s.notes ?? "",
