@@ -71,16 +71,22 @@ function SortableCard({
   workout,
   log,
   paces,
+  workoutMode = "edit",
   onEdit,
   onDelete,
   onCopy,
+  onComplete,
+  onUnComplete,
 }: {
   workout: PlanWorkout;
   log: WorkoutLog | null;
   paces: RunningPace[];
+  workoutMode?: "edit" | "dashboard";
   onEdit?: (w: PlanWorkout) => void;
   onDelete?: (w: PlanWorkout) => void;
   onCopy?: (w: PlanWorkout) => void;
+  onComplete?: (w: PlanWorkout) => void;
+  onUnComplete?: (w: PlanWorkout) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workout.id,
@@ -97,7 +103,7 @@ function SortableCard({
         {...attributes}
         {...listeners}
         className="flex justify-center items-center h-4 cursor-grab active:cursor-grabbing text-[var(--muted)] hover:text-[var(--foreground)] transition-colors select-none"
-        title="Drag to move"
+        title="Drag to reschedule"
       >
         <svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor" className="opacity-40 hover:opacity-80 transition-opacity">
           <circle cx="3" cy="2" r="1.5" />
@@ -108,7 +114,17 @@ function SortableCard({
           <circle cx="11" cy="6" r="1.5" />
         </svg>
       </div>
-      <WorkoutCard workout={workout} log={log} paces={paces} mode="edit" onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} />
+      <WorkoutCard
+        workout={workout}
+        log={log}
+        paces={paces}
+        mode={workoutMode}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onCopy={onCopy}
+        onComplete={onComplete}
+        onUnComplete={onUnComplete}
+      />
     </div>
   );
 }
@@ -120,7 +136,7 @@ interface WeekGridProps {
   workouts: PlanWorkout[];
   logs?: WorkoutLog[];
   paces?: RunningPace[];
-  mode?: "view" | "dashboard" | "edit";
+  mode?: "view" | "dashboard" | "edit" | "reorder";
   daysPerWeek?: number;
   purpose?: string;
   onComplete?: (workout: PlanWorkout) => void;
@@ -339,7 +355,7 @@ export function WeekGrid({
   );
 
   // View / dashboard mode — no DnD
-  if (mode !== "edit") {
+  if (mode === "view" || mode === "dashboard") {
     return (
       <div className="space-y-2">
         {header}
@@ -375,6 +391,73 @@ export function WeekGrid({
           })}
         </div>
       </div>
+    );
+  }
+
+  // Reorder mode — DnD enabled, cards in dashboard style (complete button, no edit/delete)
+  if (mode === "reorder") {
+    return (
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="space-y-2">
+          {header}
+          <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
+            {byDay.map((dayWorkouts, dayIndex) => {
+              const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
+              const containerId = `day-${dayIndex}`;
+              return (
+                <div key={dayIndex} className="min-w-[120px] space-y-2">
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                    {startDate && (
+                      <p className="text-[10px] text-[var(--muted)] opacity-70">
+                        {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+                      </p>
+                    )}
+                  </div>
+                  <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+                    <DroppableDay id={containerId}>
+                      {dayWorkouts.length === 0 ? (
+                        <div className="h-14 rounded-lg border border-dashed border-[var(--border)]" />
+                      ) : (
+                        dayWorkouts.flatMap((workout, i) => {
+                          const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
+                          const card = (
+                            <SortableCard
+                              key={workout.id}
+                              workout={workout}
+                              log={log}
+                              paces={paces}
+                              workoutMode="dashboard"
+                              onComplete={onComplete}
+                              onUnComplete={onUnComplete}
+                            />
+                          );
+                          if (i === 0) return [card];
+                          return [andOrSep(dayLogic, dayIndex, i, false), card];
+                        })
+                      )}
+                    </DroppableDay>
+                  </SortableContext>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <DragOverlay>
+          {activeWorkout ? (
+            <div className="rotate-1 shadow-xl opacity-90" style={{ minWidth: 120 }}>
+              <WorkoutCard workout={activeWorkout} mode="dashboard" />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     );
   }
 

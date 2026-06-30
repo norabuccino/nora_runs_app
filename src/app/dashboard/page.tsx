@@ -16,6 +16,7 @@ import {
   unmarkScheduledWorkoutComplete,
   deleteScheduledWorkout,
 } from "@/app/actions/scheduledWorkouts";
+import { batchUpdateWorkoutPositions } from "@/app/actions/workouts";
 import type { WorkoutStepData } from "@/app/actions/workouts";
 
 interface ActivePlanData {
@@ -147,6 +148,14 @@ export default function DashboardPage() {
     if (!activePlanData) return;
     startTransition(async () => {
       await unmarkWorkoutComplete(activePlanData.userPlan.id, workout.id);
+      await load();
+    });
+  }
+
+  function handleReorder(updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) {
+    if (!activePlanData) return;
+    startTransition(async () => {
+      await batchUpdateWorkoutPositions(activePlanData.plan.id, updates);
       await load();
     });
   }
@@ -477,9 +486,12 @@ export default function DashboardPage() {
                 workouts={weekWorkouts}
                 logs={logs}
                 paces={paces}
-                mode="view"
+                mode="reorder"
                 purpose={weekPurpose}
                 startDate={activePlanData.userPlan.start_date}
+                onComplete={handleComplete}
+                onUnComplete={handleUnComplete}
+                onReorder={handleReorder}
               />
             </div>
           </div>
