@@ -98,21 +98,32 @@ function SortableCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={isDragging ? "opacity-40" : ""}
     >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="flex justify-center items-center h-4 cursor-grab active:cursor-grabbing text-[var(--muted)] hover:text-[var(--foreground)] transition-colors select-none"
-        title="Drag to reschedule"
-      >
-        <svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor" className="opacity-40 hover:opacity-80 transition-opacity">
-          <circle cx="3" cy="2" r="1.5" />
-          <circle cx="7" cy="2" r="1.5" />
-          <circle cx="11" cy="2" r="1.5" />
-          <circle cx="3" cy="6" r="1.5" />
-          <circle cx="7" cy="6" r="1.5" />
-          <circle cx="11" cy="6" r="1.5" />
-        </svg>
+      {/* Drag handle row — grip centered, remove button at right when in reorder context */}
+      <div className="flex items-center h-4">
+        <div
+          {...attributes}
+          {...listeners}
+          className="flex-1 flex justify-center items-center cursor-grab active:cursor-grabbing text-[var(--muted)] hover:text-[var(--foreground)] transition-colors select-none"
+          title="Drag to reschedule"
+        >
+          <svg width="14" height="8" viewBox="0 0 14 8" fill="currentColor" className="opacity-40 hover:opacity-80 transition-opacity">
+            <circle cx="3" cy="2" r="1.5" />
+            <circle cx="7" cy="2" r="1.5" />
+            <circle cx="11" cy="2" r="1.5" />
+            <circle cx="3" cy="6" r="1.5" />
+            <circle cx="7" cy="6" r="1.5" />
+            <circle cx="11" cy="6" r="1.5" />
+          </svg>
+        </div>
+        {workoutMode === "dashboard" && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(workout); }}
+            title="Remove from week"
+            className="w-5 h-5 flex items-center justify-center text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+          >
+            ×
+          </button>
+        )}
       </div>
       <WorkoutCard
         workout={workout}
@@ -436,6 +447,7 @@ export function WeekGrid({
                               workoutMode="dashboard"
                               onComplete={onComplete}
                               onUnComplete={onUnComplete}
+                              onDelete={onDelete}
                             />
                           );
                           if (i === 0) return [card];
