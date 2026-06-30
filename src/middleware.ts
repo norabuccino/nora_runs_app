@@ -51,7 +51,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    if (user && isAuthRoute && !pathname.startsWith("/auth/callback")) {
+    if (user && (isAuthRoute || pathname === "/") && !pathname.startsWith("/auth/callback")) {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";
       return NextResponse.redirect(url);
