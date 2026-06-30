@@ -21,8 +21,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { DAY_NAMES } from "@/lib/paceUtils";
+import { DAY_NAMES, scheduledDate } from "@/lib/paceUtils";
 import { WorkoutCard } from "./WorkoutCard";
+
+function formatShortDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -127,6 +132,7 @@ interface WeekGridProps {
   onReorder?: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
   onCopy?: (workout: PlanWorkout) => void;
   onPurposeChange?: (purpose: string) => void;
+  startDate?: string;
 }
 
 export function WeekGrid({
@@ -146,6 +152,7 @@ export function WeekGrid({
   onReorder,
   onCopy,
   onPurposeChange,
+  startDate,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
     toDayMap(workouts.filter((w) => w.week_number === weekNumber), daysPerWeek)
@@ -341,7 +348,14 @@ export function WeekGrid({
             const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             return (
               <div key={dayIndex} className="min-w-[120px] space-y-2">
-                <p className="text-xs font-medium text-center text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                <div className="text-center">
+                  <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                  {startDate && (
+                    <p className="text-[10px] text-[var(--muted)] opacity-70">
+                      {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+                    </p>
+                  )}
+                </div>
                 <div className="space-y-1.5">
                   {dayWorkouts.length === 0 ? (
                     <div className="h-14 rounded-lg border border-dashed border-[var(--border)]" />
@@ -381,7 +395,14 @@ export function WeekGrid({
             const containerId = `day-${dayIndex}`;
             return (
               <div key={dayIndex} className="min-w-[120px] space-y-2">
-                <p className="text-xs font-medium text-center text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                <div className="text-center">
+                  <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                  {startDate && (
+                    <p className="text-[10px] text-[var(--muted)] opacity-70">
+                      {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+                    </p>
+                  )}
+                </div>
                 <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                   <DroppableDay id={containerId}>
                     {dayWorkouts.length === 0 ? (

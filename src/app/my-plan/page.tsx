@@ -192,6 +192,7 @@ export default async function MyPlanPage() {
                   paces={paces}
                   mode="view"
                   purpose={weekNotesMap[weekNum]}
+                  startDate={activePlan.start_date}
                 />
               ))}
             </div>

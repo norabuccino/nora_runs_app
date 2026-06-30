@@ -354,8 +354,8 @@ export default function DashboardPage() {
 
   const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
 
-  const planStartDate = new Date(activePlanData.userPlan.start_date);
-  planStartDate.setHours(0, 0, 0, 0);
+  const [psy, psm, psd] = activePlanData.userPlan.start_date.split("-").map(Number);
+  const planStartDate = new Date(psy, psm - 1, psd);
   today.setHours(0, 0, 0, 0);
   const planNotStarted = !todayPos && today < planStartDate;
   const planEnded = !todayPos && !planNotStarted;
@@ -479,6 +479,7 @@ export default function DashboardPage() {
                 paces={paces}
                 mode="view"
                 purpose={weekPurpose}
+                startDate={activePlanData.userPlan.start_date}
               />
             </div>
           </div>

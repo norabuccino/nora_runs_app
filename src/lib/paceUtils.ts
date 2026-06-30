@@ -54,16 +54,21 @@ export function getWorkoutEstimate(
   return null;
 }
 
+// Parse a YYYY-MM-DD string as local midnight (avoids UTC-shift timezone bugs).
+function parseDateLocal(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 // Given a user_plan start_date and today's date, return which week/day we're on.
 // Returns null if today is before start_date or past the plan's total_weeks.
 export function getTodayPosition(
   startDate: string,
   totalWeeks: number
 ): { weekNumber: number; dayOfWeek: number } | null {
-  const start = new Date(startDate);
+  const start = parseDateLocal(startDate);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  start.setHours(0, 0, 0, 0);
 
   const daysElapsed = Math.floor((today.getTime() - start.getTime()) / 86400000);
   if (daysElapsed < 0) return null;
@@ -77,11 +82,10 @@ export function getTodayPosition(
 
 // Compute the calendar date for a given week/day slot in a plan.
 export function scheduledDate(startDate: string, weekNumber: number, dayOfWeek: number): string {
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
+  const start = parseDateLocal(startDate);
   const offset = (weekNumber - 1) * 7 + dayOfWeek;
   start.setDate(start.getDate() + offset);
-  return start.toISOString().split("T")[0];
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
 }
 
 export const DAY_NAMES = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
