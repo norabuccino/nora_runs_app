@@ -31,7 +31,7 @@ function formatShortDate(dateStr: string): string {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DayMap = Record<number, PlanWorkout[]>;
+export type DayMap = Record<number, PlanWorkout[]>;
 
 const GRID_COLS: Record<number, string> = {
   2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4",
@@ -160,6 +160,7 @@ interface WeekGridProps {
   onCopy?: (workout: PlanWorkout) => void;
   onPurposeChange?: (purpose: string) => void;
   startDate?: string;
+  externalItems?: DayMap;
 }
 
 export function WeekGrid({
@@ -180,6 +181,7 @@ export function WeekGrid({
   onCopy,
   onPurposeChange,
   startDate,
+  externalItems,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
     toDayMap(workouts.filter((w) => w.week_number === weekNumber), daysPerWeek)
@@ -343,7 +345,8 @@ export function WeekGrid({
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const byDay = Array.from({ length: daysPerWeek }, (_, i) => items[i] ?? []);
+  const displayItems = mode === "edit" && externalItems !== undefined ? externalItems : items;
+  const byDay = Array.from({ length: daysPerWeek }, (_, i) => displayItems[i] ?? []);
   const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
 
   const header = (
@@ -473,7 +476,83 @@ export function WeekGrid({
     );
   }
 
-  // Edit mode — with DnD
+  // Edit mode — with DnD (own context when externalItems is absent, slotted into parent context otherwise)
+  const editContent = (
+    <div className="space-y-2">
+      {header}
+      <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
+        {byDay.map((dayWorkouts, dayIndex) => {
+          const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
+          const containerId = externalItems !== undefined
+            ? `week-${weekNumber}-day-${dayIndex}`
+            : `day-${dayIndex}`;
+          return (
+            <div key={dayIndex} className="min-w-[120px] space-y-2">
+              <div className="text-center">
+                <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+                {startDate && (
+                  <p className="text-[10px] text-[var(--muted)] opacity-70">
+                    {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+                  </p>
+                )}
+              </div>
+              <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
+                <DroppableDay id={containerId}>
+                  {dayWorkouts.length === 0 ? (
+                    <div className="w-full h-14 rounded-lg border border-dashed border-[var(--border)] flex overflow-hidden">
+                      <button
+                        onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
+                        className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+                      >
+                        Library
+                      </button>
+                      <div className="w-px bg-[var(--border)]" />
+                      <button
+                        onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
+                        className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+                      >
+                        New
+                      </button>
+                    </div>
+                  ) : (
+                    dayWorkouts.flatMap((workout, i) => {
+                      const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
+                      const card = (
+                        <SortableCard key={workout.id} workout={workout} log={log} paces={paces} onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} />
+                      );
+                      if (i === 0) return [card];
+                      return [andOrSep(dayLogic, dayIndex, i, true), card];
+                    })
+                  )}
+                  {dayWorkouts.length > 0 && (
+                    <div className="flex items-center justify-center gap-2 py-1">
+                      <button
+                        onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
+                        className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                      >
+                        + Library
+                      </button>
+                      <span className="text-xs text-[var(--border)]">·</span>
+                      <button
+                        onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
+                        className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                      >
+                        + New
+                      </button>
+                    </div>
+                  )}
+                </DroppableDay>
+              </SortableContext>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // Slotted into a parent DndContext — no own context or overlay needed
+  if (externalItems !== undefined) return editContent;
+
   return (
     <DndContext
       sensors={sensors}
@@ -482,75 +561,7 @@ export function WeekGrid({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-2">
-        {header}
-        <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
-          {byDay.map((dayWorkouts, dayIndex) => {
-            const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
-            const containerId = `day-${dayIndex}`;
-            return (
-              <div key={dayIndex} className="min-w-[120px] space-y-2">
-                <div className="text-center">
-                  <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
-                  {startDate && (
-                    <p className="text-[10px] text-[var(--muted)] opacity-70">
-                      {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
-                    </p>
-                  )}
-                </div>
-                <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
-                  <DroppableDay id={containerId}>
-                    {dayWorkouts.length === 0 ? (
-                      <div className="w-full h-14 rounded-lg border border-dashed border-[var(--border)] flex overflow-hidden">
-                        <button
-                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
-                          className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
-                        >
-                          Library
-                        </button>
-                        <div className="w-px bg-[var(--border)]" />
-                        <button
-                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
-                          className="flex-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
-                        >
-                          New
-                        </button>
-                      </div>
-                    ) : (
-                      dayWorkouts.flatMap((workout, i) => {
-                        const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
-                        const card = (
-                          <SortableCard key={workout.id} workout={workout} log={log} paces={paces} onEdit={onEdit} onDelete={onDelete} onCopy={onCopy} />
-                        );
-                        if (i === 0) return [card];
-                        return [andOrSep(dayLogic, dayIndex, i, true), card];
-                      })
-                    )}
-                    {dayWorkouts.length > 0 && (
-                      <div className="flex items-center justify-center gap-2 py-1">
-                        <button
-                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "library")}
-                          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                        >
-                          + Library
-                        </button>
-                        <span className="text-xs text-[var(--border)]">·</span>
-                        <button
-                          onClick={() => onAddWorkout?.(weekNumber, dayIndex, "form")}
-                          className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                        >
-                          + New
-                        </button>
-                      </div>
-                    )}
-                  </DroppableDay>
-                </SortableContext>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
+      {editContent}
       <DragOverlay>
         {activeWorkout ? (
           <div className="rotate-1 shadow-xl opacity-90" style={{ minWidth: 120 }}>

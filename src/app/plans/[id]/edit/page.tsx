@@ -3,9 +3,22 @@
 import { useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove } from "@dnd-kit/sortable";
 import { createClient } from "@/lib/supabase/client";
 import type { TrainingPlan, PlanWorkout, WorkoutWithSteps, RunningPace } from "@/types/database";
-import { WeekGrid } from "@/components/WeekGrid";
+import { WeekGrid, type DayMap } from "@/components/WeekGrid";
+import { WorkoutCard } from "@/components/WorkoutCard";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
@@ -14,6 +27,219 @@ import { updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
 import { DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
 import { CopyToDaysModal } from "@/components/CopyToDaysModal";
+
+// ── Cross-week DnD ─────────────────────────────────────────────────────────────
+
+type AllItems = Record<string, PlanWorkout[]>; // key: "week-${w}-day-${d}"
+
+function ckKey(week: number, day: number) { return `week-${week}-day-${day}`; }
+
+function parseKey(key: string): { week: number; day: number } | null {
+  const m = key.match(/^week-(\d+)-day-(\d+)$/);
+  return m ? { week: parseInt(m[1]), day: parseInt(m[2]) } : null;
+}
+
+function buildAllItems(workouts: PlanWorkout[], totalWeeks: number, daysPerWeek: number): AllItems {
+  const items: AllItems = {};
+  for (let w = 1; w <= totalWeeks; w++)
+    for (let d = 0; d < daysPerWeek; d++) items[ckKey(w, d)] = [];
+  workouts.forEach((wo) => {
+    const key = ckKey(wo.week_number, wo.day_of_week);
+    if (items[key]) items[key].push({ ...wo });
+  });
+  for (const key of Object.keys(items))
+    items[key].sort((a, b) => a.sort_order - b.sort_order);
+  return items;
+}
+
+function weekItemsFor(allItems: AllItems, weekNum: number, daysPerWeek: number): DayMap {
+  const map: DayMap = {};
+  for (let d = 0; d < daysPerWeek; d++) map[d] = allItems[ckKey(weekNum, d)] ?? [];
+  return map;
+}
+
+function PlanEditDnd({
+  workouts,
+  plan,
+  weeks,
+  paces,
+  weekNotes,
+  onEdit,
+  onDelete,
+  onAddWorkout,
+  onDayLogicChange,
+  onReorder,
+  onCopy,
+  onPurposeChange,
+}: {
+  workouts: WorkoutWithSteps[];
+  plan: TrainingPlan;
+  weeks: number[];
+  paces: RunningPace[];
+  weekNotes: Record<number, string>;
+  onEdit: (w: PlanWorkout) => void;
+  onDelete: (w: PlanWorkout) => void;
+  onAddWorkout: (wk: number, day: number, action: "library" | "form") => void;
+  onDayLogicChange: (wk: number, day: number, logic: "and" | "or") => void;
+  onReorder: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
+  onCopy: (w: PlanWorkout) => void;
+  onPurposeChange: (wk: number, purpose: string) => void;
+}) {
+  const daysPerWeek = plan.days_per_week ?? 7;
+  const [allItems, setAllItems] = useState<AllItems>(() =>
+    buildAllItems(workouts, plan.total_weeks, daysPerWeek)
+  );
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeId) setAllItems(buildAllItems(workouts, plan.total_weeks, daysPerWeek));
+  }, [workouts, plan.total_weeks, daysPerWeek, activeId]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const activeWorkout = activeId
+    ? Object.values(allItems).flat().find((w) => w.id === activeId) ?? null
+    : null;
+
+  function handleDragStart({ active }: DragStartEvent) {
+    setActiveId(active.id as string);
+  }
+
+  function handleDragOver({ active, over }: DragOverEvent) {
+    if (!over) return;
+    const dragId = active.id as string;
+    const overId = over.id as string;
+
+    setAllItems((prev) => {
+      let fromKey: string | null = null;
+      for (const [k, ws] of Object.entries(prev)) {
+        if (ws.some((w) => w.id === dragId)) { fromKey = k; break; }
+      }
+      if (!fromKey) return prev;
+
+      let toKey: string | null = null;
+      for (const [k, ws] of Object.entries(prev)) {
+        if (ws.some((w) => w.id === overId)) { toKey = k; break; }
+      }
+      if (!toKey && prev[overId] !== undefined) toKey = overId;
+      if (!toKey || fromKey === toKey) return prev;
+
+      const parsed = parseKey(toKey);
+      if (!parsed) return prev;
+
+      const next: AllItems = {};
+      for (const k of Object.keys(prev)) next[k] = [...prev[k]];
+
+      const moving = next[fromKey].find((w) => w.id === dragId)!;
+      next[fromKey] = next[fromKey].filter((w) => w.id !== dragId);
+
+      const overIdx = next[toKey].findIndex((w) => w.id === overId);
+      const insertAt = overIdx >= 0 ? overIdx : next[toKey].length;
+      next[toKey] = [
+        ...next[toKey].slice(0, insertAt),
+        { ...moving, week_number: parsed.week, day_of_week: parsed.day },
+        ...next[toKey].slice(insertAt),
+      ];
+
+      return next;
+    });
+  }
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    setActiveId(null);
+
+    if (!over) {
+      setAllItems(buildAllItems(workouts, plan.total_weeks, daysPerWeek));
+      return;
+    }
+
+    const dragId = active.id as string;
+    const overId = over.id as string;
+
+    // Build final snapshot from current allItems (dragOver already applied cross-container moves)
+    const finalItems: AllItems = {};
+    for (const [k, ws] of Object.entries(allItems)) finalItems[k] = [...ws];
+
+    // Find active container
+    let fromKey: string | null = null;
+    for (const [k, ws] of Object.entries(finalItems)) {
+      if (ws.some((w) => w.id === dragId)) { fromKey = k; break; }
+    }
+    if (!fromKey) return;
+
+    // Find over container (same-container reorder only — cross already in state)
+    let toKey: string | null = null;
+    for (const [k, ws] of Object.entries(finalItems)) {
+      if (ws.some((w) => w.id === overId)) { toKey = k; break; }
+    }
+    if (toKey && fromKey === toKey) {
+      const list = finalItems[fromKey];
+      const from = list.findIndex((w) => w.id === dragId);
+      const to = list.findIndex((w) => w.id === overId);
+      if (from !== -1 && to !== -1 && from !== to)
+        finalItems[fromKey] = arrayMove(list, from, to);
+    }
+
+    // Normalize positions
+    for (const [k, list] of Object.entries(finalItems)) {
+      const parsed = parseKey(k);
+      if (!parsed) continue;
+      finalItems[k] = list.map((w, i) => ({
+        ...w, week_number: parsed.week, day_of_week: parsed.day, sort_order: i,
+      }));
+    }
+
+    setAllItems(finalItems);
+
+    // Report only changed positions
+    const updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[] = [];
+    for (const list of Object.values(finalItems)) {
+      list.forEach((w) => {
+        const orig = workouts.find((x) => x.id === w.id);
+        if (!orig || orig.week_number !== w.week_number || orig.day_of_week !== w.day_of_week || orig.sort_order !== w.sort_order)
+          updates.push({ id: w.id, week_number: w.week_number, day_of_week: w.day_of_week, sort_order: w.sort_order });
+      });
+    }
+    if (updates.length > 0) onReorder(updates);
+  }
+
+  return (
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-10 overflow-x-auto pb-4">
+        {weeks.map((weekNum) => (
+          <WeekGrid
+            key={weekNum}
+            weekNumber={weekNum}
+            workouts={workouts}
+            mode="edit"
+            daysPerWeek={daysPerWeek}
+            purpose={weekNotes[weekNum] ?? ""}
+            externalItems={weekItemsFor(allItems, weekNum, daysPerWeek)}
+            onPurposeChange={(p) => onPurposeChange(weekNum, p)}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onAddWorkout={onAddWorkout}
+            onDayLogicChange={onDayLogicChange}
+            onCopy={onCopy}
+          />
+        ))}
+      </div>
+      <DragOverlay>
+        {activeWorkout ? (
+          <div className="rotate-1 shadow-xl opacity-90" style={{ minWidth: 120 }}>
+            <WorkoutCard workout={activeWorkout} mode="edit" />
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
+  );
+}
 
 type AddFlow =
   | { step: "idle" }
@@ -273,25 +499,20 @@ export default function EditPlanPage() {
         Click <strong>+ Add</strong> in any day cell to add a workout, or click <strong>Edit</strong> on an existing one.
       </p>
 
-      <div className="space-y-10 overflow-x-auto pb-4">
-        {weeks.map((weekNum) => (
-          <WeekGrid
-            key={weekNum}
-            weekNumber={weekNum}
-            workouts={workouts}
-            mode="edit"
-            daysPerWeek={plan.days_per_week ?? 7}
-            purpose={weekNotes[weekNum] ?? ""}
-            onPurposeChange={(p) => handlePurposeChange(weekNum, p)}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-            onAddWorkout={openAdd}
-            onDayLogicChange={handleDayLogicChange}
-            onReorder={handleReorder}
-            onCopy={setCopying}
-          />
-        ))}
-      </div>
+      <PlanEditDnd
+        workouts={workouts}
+        plan={plan}
+        weeks={weeks}
+        paces={paces}
+        weekNotes={weekNotes}
+        onEdit={openEdit}
+        onDelete={handleDelete}
+        onAddWorkout={openAdd}
+        onDayLogicChange={handleDayLogicChange}
+        onReorder={handleReorder}
+        onCopy={setCopying}
+        onPurposeChange={handlePurposeChange}
+      />
 
       {/* Pick from library */}
       {flow.step === "library" && (
