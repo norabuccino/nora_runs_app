@@ -56,10 +56,10 @@ export function CopyToDaysModal({ workout, planId, totalWeeks, onClose, onCopied
   const count = selected.size;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full sm:max-w-lg bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[90dvh] sm:max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-start justify-between p-5 pb-3 shrink-0">
+        <div className="flex items-start justify-between p-4 sm:p-5 pb-3 shrink-0">
           <div>
             <h2 className="font-semibold">Copy to other days</h2>
             <p className="text-sm text-[var(--muted)] mt-0.5 truncate max-w-xs">
@@ -80,7 +80,7 @@ export function CopyToDaysModal({ workout, planId, totalWeeks, onClose, onCopied
         </p>
 
         {/* Grid */}
-        <div className="overflow-y-auto flex-1 px-5 pb-4">
+        <div className="overflow-y-auto flex-1 px-4 sm:px-5 pb-4">
           <table className="w-full border-collapse text-xs">
             <thead className="sticky top-0 bg-[var(--background)]">
               <tr>
@@ -150,7 +150,7 @@ export function CopyToDaysModal({ workout, planId, totalWeeks, onClose, onCopied
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between gap-3 p-5 pt-3 border-t border-[var(--border)] shrink-0">
+        <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-[var(--border)] shrink-0">
           <span className="text-sm text-[var(--muted)]">
             {count === 0 ? "No days selected" : `${count} day${count === 1 ? "" : "s"} selected`}
           </span>

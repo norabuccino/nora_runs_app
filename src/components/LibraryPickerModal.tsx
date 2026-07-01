@@ -78,9 +78,9 @@ export function LibraryPickerModal({
     : filtered;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[85vh]">
-        <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full sm:max-w-lg bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl flex flex-col max-h-[90dvh] sm:max-h-[85vh]">
+        <div className="p-4 sm:p-5 border-b border-[var(--border)] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <button
               onClick={onCancel}
@@ -99,7 +99,7 @@ export function LibraryPickerModal({
           </button>
         </div>
 
-        <div className="p-4 border-b border-[var(--border)] space-y-3">
+        <div className="p-3 sm:p-4 border-b border-[var(--border)] space-y-3">
           <input
             type="search"
             placeholder="Search workouts…"
@@ -116,7 +116,7 @@ export function LibraryPickerModal({
           />
         </div>
 
-        <div className="overflow-y-auto flex-1 p-4">
+        <div className="overflow-y-auto flex-1 p-3 sm:p-4">
           {loading && <p className="text-sm text-[var(--muted)] text-center py-8">Loading…</p>}
 
           {!loading && workouts.length === 0 && (

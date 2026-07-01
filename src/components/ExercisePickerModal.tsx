@@ -101,8 +101,8 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full sm:max-w-md bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90dvh] sm:max-h-[85vh] flex flex-col">
         <div className="p-4 space-y-3 flex flex-col flex-1 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between shrink-0">

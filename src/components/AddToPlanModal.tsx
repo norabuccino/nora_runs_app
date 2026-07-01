@@ -49,9 +49,9 @@ export function AddToPlanModal({ workoutId, workoutTitle, onClose, onAdded }: Ad
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-[var(--background)] rounded-2xl border border-[var(--border)] shadow-xl">
-        <div className="p-6 space-y-5">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className="w-full sm:max-w-sm bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl">
+        <div className="p-5 sm:p-6 space-y-5">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">Add to plan</h2>
             <button onClick={onClose} className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none">×</button>
