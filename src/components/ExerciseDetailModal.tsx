@@ -40,7 +40,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
           .not("workout_id", "is", null),
         supabase
           .from("workout_steps")
-          .select("plan_workout_id, plan_workouts(id, title, plan_id, training_plans(id, name))")
+          .select("plan_workout_id, plan_workouts(id, title, plan_id, training_plans(id, name, source_plan_id))")
           .eq("exercise_id", exercise.id)
           .not("plan_workout_id", "is", null),
       ]);
@@ -54,13 +54,14 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
       }
       setLibraryUsage(Array.from(libSeen.values()));
 
-      // Deduplicate by plan_id
+      // Deduplicate by plan_id, excluding personal plan copies
       const planSeen = new Map<string, PlanUsage>();
       for (const row of (planRows ?? []) as unknown as {
-        plan_workouts: { id: string; title: string; plan_id: string; training_plans: { id: string; name: string } } | null;
+        plan_workouts: { id: string; title: string; plan_id: string; training_plans: { id: string; name: string; source_plan_id: string | null } } | null;
       }[]) {
         const pw = row.plan_workouts;
         if (!pw?.training_plans) continue;
+        if (pw.training_plans.source_plan_id !== null) continue; // skip personal copies
         const planId = pw.plan_id;
         if (planSeen.has(planId)) {
           planSeen.get(planId)!.count++;

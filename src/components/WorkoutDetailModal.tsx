@@ -93,7 +93,7 @@ interface PlanUsage {
   week_number: number;
   day_of_week: number;
   plan_id: string;
-  training_plans: { id: string; name: string } | null;
+  training_plans: { id: string; name: string; source_plan_id: string | null } | null;
 }
 
 interface WorkoutDetailModalProps {
@@ -111,10 +111,13 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
       const supabase = createClient();
       const { data } = await supabase
         .from("plan_workouts")
-        .select("id, week_number, day_of_week, plan_id, training_plans(id, name)")
+        .select("id, week_number, day_of_week, plan_id, training_plans(id, name, source_plan_id)")
         .eq("library_workout_id", workout.id)
         .order("week_number");
-      const rows = (data ?? []) as unknown as PlanUsage[];
+      // Exclude personal plan copies — only show base template plans
+      const rows = ((data ?? []) as unknown as PlanUsage[]).filter(
+        (r) => r.training_plans?.source_plan_id === null
+      );
       const seen = new Map<string, PlanUsage & { count: number }>();
       for (const row of rows) {
         if (seen.has(row.plan_id)) {
