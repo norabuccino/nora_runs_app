@@ -305,14 +305,14 @@ export default function ExercisesPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Exercise Library</h1>
           <p className="text-sm text-[var(--muted)] mt-1">
             Reusable exercises you can add to any strength workout.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <button
             onClick={handleExport}
             disabled={exercises.length === 0}
@@ -402,64 +402,67 @@ export default function ExercisesPage() {
             </select>
           </div>
 
-          {/* Type filter pills */}
-          <div className="flex flex-wrap gap-1.5">
-            {TYPE_FILTERS.map(({ value, label }) => (
-              <button
-                key={value}
-                onClick={() => setTypeFilter(value)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  typeFilter === value
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Source filter pills */}
-          {availableSources.length > 0 && (
+          {/* Filters */}
+          <div className="space-y-2">
+            {/* Type filter pills */}
             <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setSourceFilter("all")}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  sourceFilter === "all"
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
-              >
-                All sources
-              </button>
-              {availableSources.map((src) => (
+              {TYPE_FILTERS.map(({ value, label }) => (
                 <button
-                  key={src}
-                  onClick={() => setSourceFilter(src)}
+                  key={value}
+                  onClick={() => setTypeFilter(value)}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    sourceFilter === src
+                    typeFilter === value
                       ? "bg-[var(--foreground)] text-[var(--background)]"
                       : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
                   }`}
                 >
-                  {src}
+                  {label}
                 </button>
               ))}
             </div>
-          )}
 
-          {/* No-description filter */}
-          <div className="flex">
-            <button
-              onClick={() => setNoDescriptionOnly((v) => !v)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                noDescriptionOnly
-                  ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-              }`}
-            >
-              No description
-            </button>
+            {/* Source filter pills */}
+            {availableSources.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setSourceFilter("all")}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    sourceFilter === "all"
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  All sources
+                </button>
+                {availableSources.map((src) => (
+                  <button
+                    key={src}
+                    onClick={() => setSourceFilter(src)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      sourceFilter === src
+                        ? "bg-[var(--foreground)] text-[var(--background)]"
+                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                    }`}
+                  >
+                    {src}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* No-description filter */}
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setNoDescriptionOnly((v) => !v)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  noDescriptionOnly
+                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
+                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                }`}
+              >
+                No description
+              </button>
+            </div>
           </div>
 
           {/* Select all / deselect row */}
@@ -709,7 +712,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
       <div className="flex gap-2 pt-1 mt-auto">
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
-          className="flex-1 rounded-lg border border-[var(--border)] py-1.5 text-xs hover:bg-[var(--background)] transition-colors"
+          className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-1.5 text-xs font-medium hover:opacity-90 transition-opacity"
         >
           Edit
         </button>

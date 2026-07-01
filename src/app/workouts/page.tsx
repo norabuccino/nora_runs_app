@@ -304,14 +304,14 @@ export default function WorkoutsPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Workout Library</h1>
           <p className="text-sm text-[var(--muted)] mt-1">
             Build reusable workouts and add them to any plan.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           {isAdmin && (
             <>
               <button
