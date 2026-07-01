@@ -20,9 +20,14 @@ import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workou
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
 
-interface ActivePlanData {
+interface PlanContext {
   userPlan: UserPlan;
   plan: TrainingPlan;
+  todayPos: { weekNumber: number; dayOfWeek: number } | null;
+  todayWorkouts: PlanWorkout[];
+  weekWorkouts: PlanWorkout[];
+  logs: WorkoutLog[];
+  weekPurpose: string | undefined;
 }
 
 type AddMode = null | "choose" | "from-scratch" | "from-library";
@@ -51,16 +56,11 @@ function adaptScheduled(sw: ScheduledWorkout): PlanWorkout {
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [activePlanData, setActivePlanData] = useState<ActivePlanData | null>(null);
-  const [todayWorkouts, setTodayWorkouts] = useState<PlanWorkout[]>([]);
-  const [weekWorkouts, setWeekWorkouts] = useState<PlanWorkout[]>([]);
-  const [logs, setLogs] = useState<WorkoutLog[]>([]);
+  const [planContexts, setPlanContexts] = useState<PlanContext[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
-  const [todayPos, setTodayPos] = useState<{ weekNumber: number; dayOfWeek: number } | null>(null);
-  const [weekPurpose, setWeekPurpose] = useState<string | undefined>(undefined);
   const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkoutWithSteps[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
-  const [addToPlanDay, setAddToPlanDay] = useState<number | null>(null);
+  const [addToPlanDay, setAddToPlanDay] = useState<{ dayOfWeek: number; planId: string } | null>(null);
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -70,11 +70,7 @@ export default function DashboardPage() {
     const supabase = createClient();
 
     const [{ data: userPlans }, { data: pacesData }, { data: scheduledData }] = await Promise.all([
-      supabase
-        .from("user_plans")
-        .select("*, training_plans(*)")
-        .eq("status", "active")
-        .limit(1),
+      supabase.from("user_plans").select("*, training_plans(*)").eq("status", "active"),
       supabase.from("running_paces").select("*").order("created_at"),
       supabase
         .from("scheduled_workouts")
@@ -86,89 +82,110 @@ export default function DashboardPage() {
     setPaces(pacesData ?? []);
     setScheduledWorkouts((scheduledData ?? []) as ScheduledWorkoutWithSteps[]);
 
-    const activePlan = userPlans?.[0];
-    if (!activePlan) {
+    if (!userPlans?.length) {
+      setPlanContexts([]);
       setLoading(false);
       return;
     }
 
-    const plan = activePlan.training_plans as unknown as TrainingPlan;
-    setActivePlanData({ userPlan: activePlan as unknown as UserPlan, plan });
+    const contexts = await Promise.all(
+      userPlans.map(async (activePlan) => {
+        const plan = activePlan.training_plans as unknown as TrainingPlan;
+        const pos = getTodayPosition(activePlan.start_date, plan.total_weeks);
 
-    const pos = getTodayPosition(activePlan.start_date, plan.total_weeks);
-    setTodayPos(pos);
+        if (!pos) {
+          return {
+            userPlan: activePlan as unknown as UserPlan,
+            plan,
+            todayPos: null,
+            todayWorkouts: [],
+            weekWorkouts: [],
+            logs: [],
+            weekPurpose: undefined,
+          } as PlanContext;
+        }
 
-    if (!pos) {
-      setLoading(false);
-      return;
-    }
+        const weekStart = scheduledDate(activePlan.start_date, pos.weekNumber, 0);
+        const weekEnd = scheduledDate(activePlan.start_date, pos.weekNumber, 6);
 
-    const { data: noteData } = await supabase
-      .from("plan_week_notes")
-      .select("purpose")
-      .eq("plan_id", activePlan.plan_id)
-      .eq("week_number", pos.weekNumber)
-      .single();
-    setWeekPurpose(noteData?.purpose ?? undefined);
+        const [{ data: noteData }, { data: workoutsData }, { data: logsData }] = await Promise.all([
+          supabase
+            .from("plan_week_notes")
+            .select("purpose")
+            .eq("plan_id", activePlan.plan_id)
+            .eq("week_number", pos.weekNumber)
+            .single(),
+          supabase
+            .from("plan_workouts")
+            .select("*")
+            .eq("plan_id", activePlan.plan_id)
+            .eq("week_number", pos.weekNumber)
+            .order("day_of_week")
+            .order("sort_order"),
+          supabase
+            .from("workout_logs")
+            .select("*")
+            .eq("user_plan_id", activePlan.id)
+            .gte("scheduled_date", weekStart)
+            .lte("scheduled_date", weekEnd),
+        ]);
 
-    const { data: workoutsData } = await supabase
-      .from("plan_workouts")
-      .select("*")
-      .eq("plan_id", activePlan.plan_id)
-      .eq("week_number", pos.weekNumber)
-      .order("day_of_week")
-      .order("sort_order");
+        const allWeekWorkouts = (workoutsData ?? []) as PlanWorkout[];
+        return {
+          userPlan: activePlan as unknown as UserPlan,
+          plan,
+          todayPos: pos,
+          todayWorkouts: allWeekWorkouts.filter((w) => w.day_of_week === pos.dayOfWeek),
+          weekWorkouts: allWeekWorkouts,
+          logs: (logsData ?? []) as WorkoutLog[],
+          weekPurpose: noteData?.purpose ?? undefined,
+        } as PlanContext;
+      })
+    );
 
-    const allWeekWorkouts = workoutsData ?? [];
-    setWeekWorkouts(allWeekWorkouts);
-    setTodayWorkouts(allWeekWorkouts.filter((w) => w.day_of_week === pos.dayOfWeek));
-
-    const weekStart = scheduledDate(activePlan.start_date, pos.weekNumber, 0);
-    const weekEnd = scheduledDate(activePlan.start_date, pos.weekNumber, 6);
-    const { data: logsData } = await supabase
-      .from("workout_logs")
-      .select("*")
-      .eq("user_plan_id", activePlan.id)
-      .gte("scheduled_date", weekStart)
-      .lte("scheduled_date", weekEnd);
-
-    setLogs(logsData ?? []);
+    setPlanContexts(contexts);
     setLoading(false);
   }
 
   useEffect(() => { load(); }, []);
 
+  function findCtx(planId: string): PlanContext | undefined {
+    return planContexts.find((c) => c.plan.id === planId);
+  }
+
   function handleComplete(workout: PlanWorkout) {
-    if (!activePlanData || !todayPos) return;
-    const date = scheduledDate(activePlanData.userPlan.start_date, workout.week_number, workout.day_of_week);
+    const ctx = findCtx(workout.plan_id);
+    if (!ctx) return;
+    const date = scheduledDate(ctx.userPlan.start_date, workout.week_number, workout.day_of_week);
     startTransition(async () => {
-      await markWorkoutComplete(activePlanData.userPlan.id, workout.id, date);
+      await markWorkoutComplete(ctx.userPlan.id, workout.id, date);
       await load();
     });
   }
 
   function handleUnComplete(workout: PlanWorkout) {
-    if (!activePlanData) return;
+    const ctx = findCtx(workout.plan_id);
+    if (!ctx) return;
     startTransition(async () => {
-      await unmarkWorkoutComplete(activePlanData.userPlan.id, workout.id);
+      await unmarkWorkoutComplete(ctx.userPlan.id, workout.id);
       await load();
     });
   }
 
   function handleDeleteFromWeek(workout: PlanWorkout) {
-    if (!activePlanData) return;
     startTransition(async () => {
-      await deleteWorkout(workout.id, activePlanData.plan.id);
+      await deleteWorkout(workout.id, workout.plan_id);
       await load();
     });
   }
 
-  function handleReorder(updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) {
-    if (!activePlanData) return;
-    startTransition(async () => {
-      await batchUpdateWorkoutPositions(activePlanData.plan.id, updates);
-      await load();
-    });
+  function makeReorderHandler(ctx: PlanContext) {
+    return (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => {
+      startTransition(async () => {
+        await batchUpdateWorkoutPositions(ctx.plan.id, updates);
+        await load();
+      });
+    };
   }
 
   function handleScheduledComplete(sw: ScheduledWorkoutWithSteps) {
@@ -235,6 +252,11 @@ export default function DashboardPage() {
   }
 
   const today = new Date();
+  const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+
+  // Plans where today falls inside a valid week
+  const activePlanContexts = planContexts.filter((ctx) => ctx.todayPos !== null);
+  const hasActivePlans = planContexts.length > 0;
 
   // Scheduled workouts for today — rendered in every state
   const scheduledSection = scheduledWorkouts.length > 0 ? (
@@ -324,14 +346,12 @@ export default function DashboardPage() {
     </>
   );
 
-  if (!activePlanData) {
+  if (!hasActivePlans) {
     return (
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <p className="text-sm text-[var(--muted)] mt-1">
-            {today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </p>
+          <p className="text-sm text-[var(--muted)] mt-1">{dateStr}</p>
         </div>
 
         {scheduledSection}
@@ -372,39 +392,45 @@ export default function DashboardPage() {
     );
   }
 
-  const dateStr = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-
-  const [psy, psm, psd] = activePlanData.userPlan.start_date.split("-").map(Number);
+  // Header info: if all active plans have no valid today position, show the first plan's status
+  const firstCtx = planContexts[0];
+  const firstPos = firstCtx.todayPos;
+  const [psy, psm, psd] = firstCtx.userPlan.start_date.split("-").map(Number);
   const planStartDate = new Date(psy, psm - 1, psd);
   today.setHours(0, 0, 0, 0);
-  const planNotStarted = !todayPos && today < planStartDate;
-  const planEnded = !todayPos && !planNotStarted;
+  const planNotStarted = !firstPos && today < planStartDate;
+  const planEnded = !firstPos && !planNotStarted;
+
+  const headerTitle = activePlanContexts.length === 1
+    ? `Week ${activePlanContexts[0].todayPos!.weekNumber}, ${DAY_NAMES[activePlanContexts[0].todayPos!.dayOfWeek]}`
+    : activePlanContexts.length > 1
+    ? DAY_NAMES[activePlanContexts[0].todayPos!.dayOfWeek]
+    : planNotStarted
+    ? "Plan not started"
+    : "Plan complete";
 
   return (
     <div className="space-y-8">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-sm text-[var(--muted)]">{dateStr}</p>
-          <h1 className="text-2xl font-bold mt-0.5">
-            {todayPos
-              ? `Week ${todayPos.weekNumber}, ${DAY_NAMES[todayPos.dayOfWeek]}`
-              : planNotStarted
-              ? "Plan not started"
-              : "Plan complete"}
-          </h1>
-          <Link
-            href={`/plans/${activePlanData.plan.id}`}
-            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
-          >
-            {activePlanData.plan.name} →
-          </Link>
+          <h1 className="text-2xl font-bold mt-0.5">{headerTitle}</h1>
+          {planContexts.length === 1 && (
+            <Link
+              href={`/plans/${firstCtx.plan.id}`}
+              className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              {firstCtx.plan.name} →
+            </Link>
+          )}
         </div>
         {isPending && (
           <span className="text-xs text-[var(--muted)] animate-pulse">Saving…</span>
         )}
       </div>
 
-      {(planEnded || planNotStarted) ? (
+      {activePlanContexts.length === 0 ? (
+        // All plans are either not-yet-started or ended
         <div className="space-y-6">
           <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 space-y-4">
             {planNotStarted ? (
@@ -412,7 +438,7 @@ export default function DashboardPage() {
                 <div className="space-y-1">
                   <p className="font-semibold">Your plan hasn&apos;t started yet</p>
                   <p className="text-sm text-[var(--muted)]">
-                    {activePlanData.plan.name} starts on {activePlanData.userPlan.start_date}. In the meantime, add individual workouts from your library.
+                    {firstCtx.plan.name} starts on {firstCtx.userPlan.start_date}. In the meantime, add individual workouts from your library.
                   </p>
                 </div>
                 <div className="flex gap-3 flex-wrap">
@@ -455,61 +481,67 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
+          {/* Today — combined workouts from all active in-progress plans */}
           <div className="space-y-3">
-            <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
-              Today
-            </h2>
+            <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">Today</h2>
 
-            {todayWorkouts.length === 0 && !scheduledSection ? (
+            {activePlanContexts.every((ctx) => ctx.todayWorkouts.length === 0) && !scheduledSection ? (
               <div className="rounded-xl border border-[var(--border)] p-6 text-center space-y-3">
                 <p className="text-sm text-[var(--muted)]">Rest day — enjoy the recovery.</p>
                 {addWorkoutButton}
               </div>
             ) : (
               <div className="space-y-2">
-                {todayWorkouts.map((workout) => {
-                  const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
-                  return (
-                    <WorkoutCard
-                      key={workout.id}
-                      workout={workout}
-                      log={log}
-                      paces={paces}
-                      mode="dashboard"
-                      onComplete={handleComplete}
-                      onUnComplete={handleUnComplete}
-                      onDetail={setDetailWorkout}
-                    />
-                  );
-                })}
+                {activePlanContexts.flatMap((ctx) =>
+                  ctx.todayWorkouts.map((workout) => {
+                    const log = ctx.logs.find((l) => l.plan_workout_id === workout.id) ?? null;
+                    return (
+                      <WorkoutCard
+                        key={workout.id}
+                        workout={workout}
+                        log={log}
+                        paces={paces}
+                        mode="dashboard"
+                        onComplete={handleComplete}
+                        onUnComplete={handleUnComplete}
+                        onDetail={setDetailWorkout}
+                      />
+                    );
+                  })
+                )}
                 {scheduledSection}
                 {addWorkoutButton}
               </div>
             )}
           </div>
 
-          <div className="space-y-3">
-            <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
-              This week
-            </h2>
-            <div className="sm:overflow-x-auto sm:pb-2">
-              <WeekGrid
-                weekNumber={todayPos!.weekNumber}
-                workouts={weekWorkouts}
-                logs={logs}
-                paces={paces}
-                mode="reorder"
-                purpose={weekPurpose}
-                startDate={activePlanData.userPlan.start_date}
-                onComplete={handleComplete}
-                onUnComplete={handleUnComplete}
-                onDelete={handleDeleteFromWeek}
-                onReorder={handleReorder}
-                onAddWorkout={(_, dayOfWeek) => setAddToPlanDay(dayOfWeek)}
-                onDetail={setDetailWorkout}
-              />
+          {/* This week — one WeekGrid per active in-progress plan */}
+          {activePlanContexts.map((ctx) => (
+            <div key={ctx.plan.id} className="space-y-3">
+              <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
+                {activePlanContexts.length > 1
+                  ? `This week — ${ctx.plan.name}`
+                  : "This week"}
+              </h2>
+              <div className="sm:overflow-x-auto sm:pb-2">
+                <WeekGrid
+                  weekNumber={ctx.todayPos!.weekNumber}
+                  workouts={ctx.weekWorkouts}
+                  logs={ctx.logs}
+                  paces={paces}
+                  mode="reorder"
+                  purpose={ctx.weekPurpose}
+                  startDate={ctx.userPlan.start_date}
+                  onComplete={handleComplete}
+                  onUnComplete={handleUnComplete}
+                  onDelete={handleDeleteFromWeek}
+                  onReorder={makeReorderHandler(ctx)}
+                  onAddWorkout={(_, dayOfWeek) => setAddToPlanDay({ dayOfWeek, planId: ctx.plan.id })}
+                  onDetail={setDetailWorkout}
+                />
+              </div>
             </div>
-          </div>
+          ))}
         </>
       )}
 
@@ -522,15 +554,19 @@ export default function DashboardPage() {
         />
       )}
 
-      {addToPlanDay !== null && activePlanData && todayPos && (
-        <LibraryPickerModal
-          planId={activePlanData.plan.id}
-          weekNumber={todayPos.weekNumber}
-          dayOfWeek={addToPlanDay}
-          onAdded={async () => { setAddToPlanDay(null); await load(); }}
-          onCancel={() => setAddToPlanDay(null)}
-        />
-      )}
+      {addToPlanDay !== null && (() => {
+        const ctx = findCtx(addToPlanDay.planId);
+        if (!ctx || !ctx.todayPos) return null;
+        return (
+          <LibraryPickerModal
+            planId={ctx.plan.id}
+            weekNumber={ctx.todayPos.weekNumber}
+            dayOfWeek={addToPlanDay.dayOfWeek}
+            onAdded={async () => { setAddToPlanDay(null); await load(); }}
+            onCancel={() => setAddToPlanDay(null)}
+          />
+        );
+      })()}
     </div>
   );
 }

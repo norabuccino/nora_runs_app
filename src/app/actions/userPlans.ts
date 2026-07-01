@@ -9,20 +9,27 @@ export async function assignPlan(planId: string, startDate: string, dayMapping?:
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Pause any currently active plan
-  await supabase
-    .from("user_plans")
-    .update({ status: "paused" })
-    .eq("user_id", user.id)
-    .eq("status", "active");
-
-  // Load the source plan
+  // Load the source plan first (we need its type before deciding what to pause)
   const { data: sourcePlan } = await supabase
     .from("training_plans")
     .select("*")
     .eq("id", planId)
     .single();
   if (!sourcePlan) throw new Error("Plan not found");
+
+  // Pause only active plans of the same type — allows one active plan per type
+  const { data: conflicting } = await supabase
+    .from("user_plans")
+    .select("id, training_plans!inner(type)")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .eq("training_plans.type", sourcePlan.type);
+  if (conflicting?.length) {
+    await supabase
+      .from("user_plans")
+      .update({ status: "paused" })
+      .in("id", (conflicting as { id: string }[]).map((c) => c.id));
+  }
 
   // Create a personal copy of the plan owned by this user
   const { data: personalPlan, error: planError } = await supabase

@@ -11,9 +11,10 @@ interface MyPlanWeeksProps {
   paces: RunningPace[];
   weekNotesMap: Record<number, string>;
   startDate: string;
+  daysPerWeek?: number;
 }
 
-export function MyPlanWeeks({ weeks, planWorkouts, paces, weekNotesMap, startDate }: MyPlanWeeksProps) {
+export function MyPlanWeeks({ weeks, planWorkouts, paces, weekNotesMap, startDate, daysPerWeek }: MyPlanWeeksProps) {
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
 
   return (
@@ -27,6 +28,7 @@ export function MyPlanWeeks({ weeks, planWorkouts, paces, weekNotesMap, startDat
           mode="view"
           purpose={weekNotesMap[weekNum]}
           startDate={startDate}
+          daysPerWeek={daysPerWeek}
           onDetail={setDetailWorkout}
         />
       ))}
