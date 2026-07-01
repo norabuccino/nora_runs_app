@@ -148,7 +148,7 @@ export function LibraryPickerModal({
                     onClick={() => handleSelect(workout)}
                     className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-center gap-3 hover:border-[var(--foreground)] transition-colors text-left disabled:opacity-50"
                   >
-                    <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
+                    <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} compact />
                     <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
                     {(distanceLabel || durationLabel) && (
                       <div className="flex-shrink-0 text-right">

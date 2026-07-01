@@ -107,6 +107,7 @@ export function WorkoutCard({
             type={workout.type}
             run_type={workout.run_type}
             strength_type={workout.strength_type}
+            compact
           />
           {isCompleted && (
             <span className="text-xs text-green-600 dark:text-green-400 font-medium">

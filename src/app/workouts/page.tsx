@@ -625,7 +625,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
             className="flex-shrink-0 accent-[var(--accent)] w-4 h-4 cursor-pointer"
           />
         )}
-        <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
+        <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} compact />
         <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
         {(distanceLabel || durationLabel) && (
           <div className="flex-shrink-0 text-right">
