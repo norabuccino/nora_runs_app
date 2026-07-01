@@ -24,6 +24,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
 
   // Create new form state
   const [newName, setNewName] = useState("");
@@ -47,8 +48,11 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
     load();
   }, []);
 
+  const availableSources = Array.from(new Set(exercises.map((e) => e.source).filter(Boolean))) as string[];
+
   const displayed = exercises.filter((e) => {
     if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
+    if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
     if (!search.trim()) return true;
     return e.name.toLowerCase().includes(search.toLowerCase());
   });
@@ -156,6 +160,37 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                   </button>
                 ))}
               </div>
+
+              {/* Source filter pills */}
+              {availableSources.length > 0 && (
+                <div className="flex flex-wrap gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSourceFilter("all")}
+                    className={`px-2.5 py-0.5 rounded-full text-xs transition-colors ${
+                      sourceFilter === "all"
+                        ? "bg-[var(--foreground)] text-[var(--background)]"
+                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                    }`}
+                  >
+                    All sources
+                  </button>
+                  {availableSources.map((src) => (
+                    <button
+                      key={src}
+                      type="button"
+                      onClick={() => setSourceFilter(src)}
+                      className={`px-2.5 py-0.5 rounded-full text-xs transition-colors ${
+                        sourceFilter === src
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      {src}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="overflow-y-auto flex-1 space-y-1">
                 {loading && <p className="text-xs text-[var(--muted)] text-center py-4">Loading…</p>}
