@@ -653,7 +653,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         {typeBadge}
         <span className="text-sm font-medium truncate flex-1 min-w-0">{exercise.name}</span>
         {exercise.source && (
-          <span className="flex-shrink-0 text-xs text-[var(--muted)]">{exercise.source}</span>
+          <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.source}</span>
         )}
         {exercise.video_url && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
