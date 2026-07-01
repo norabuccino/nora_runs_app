@@ -47,7 +47,7 @@ export default async function RootLayout({
       <body className="min-h-screen bg-[var(--background)] text-[var(--foreground)] antialiased">
         <ThemeProvider>
           <Nav userEmail={userEmail} isAdmin={isAdmin} />
-          <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+          <main className="max-w-5xl mx-auto px-3 sm:px-4 py-5 sm:py-8">{children}</main>
         </ThemeProvider>
       </body>
     </html>

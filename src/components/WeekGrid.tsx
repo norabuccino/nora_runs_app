@@ -33,9 +33,14 @@ function formatShortDate(dateStr: string): string {
 
 export type DayMap = Record<number, PlanWorkout[]>;
 
+// Full class names must be present in source for Tailwind to include them.
 const GRID_COLS: Record<number, string> = {
   2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4",
   5: "grid-cols-5", 6: "grid-cols-6", 7: "grid-cols-7",
+};
+const SM_GRID_COLS: Record<number, string> = {
+  2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4",
+  5: "sm:grid-cols-5", 6: "sm:grid-cols-6", 7: "sm:grid-cols-7",
 };
 
 function toDayMap(weekWorkouts: PlanWorkout[], count = 7): DayMap {
@@ -64,6 +69,41 @@ function DroppableDay({ id, children }: { id: string; children: React.ReactNode 
     >
       {children}
     </div>
+  );
+}
+
+// Responsive day header: inline rule on mobile, centered text column on desktop.
+function DayHeader({
+  dayIndex,
+  weekNumber,
+  startDate,
+}: {
+  dayIndex: number;
+  weekNumber: number;
+  startDate?: string;
+}) {
+  return (
+    <>
+      {/* Mobile: name + date inline with a trailing rule */}
+      <div className="flex sm:hidden items-center gap-2">
+        <span className="text-xs font-semibold text-[var(--muted)]">{DAY_NAMES[dayIndex]}</span>
+        {startDate && (
+          <span className="text-[10px] text-[var(--muted)] opacity-70">
+            {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+          </span>
+        )}
+        <div className="h-px flex-1 bg-[var(--border)]" />
+      </div>
+      {/* Desktop: centered above the column */}
+      <div className="hidden sm:block text-center">
+        <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
+        {startDate && (
+          <p className="text-[10px] text-[var(--muted)] opacity-70">
+            {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
+          </p>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -98,7 +138,7 @@ function SortableCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={isDragging ? "opacity-40" : ""}
     >
-      {/* Drag handle row — grip centered, remove button at right when in reorder context */}
+      {/* Drag handle row */}
       <div className="flex items-center h-4">
         <div
           {...attributes}
@@ -214,14 +254,12 @@ export function WeekGrid({
     const overId = over.id as string;
 
     setItems((prev) => {
-      // Find source day
       let activeDay: number | null = null;
       for (const [d, ws] of Object.entries(prev)) {
         if (ws.some((w) => w.id === activeId)) { activeDay = parseInt(d); break; }
       }
       if (activeDay === null) return prev;
 
-      // Find target day — could be a workout ID or a "day-N" container ID
       let overDay: number | null = null;
       for (const [d, ws] of Object.entries(prev)) {
         if (ws.some((w) => w.id === overId)) { overDay = parseInt(d); break; }
@@ -232,7 +270,6 @@ export function WeekGrid({
       }
       if (overDay === null || activeDay === overDay) return prev;
 
-      // Move item to target day
       const next: DayMap = {};
       for (let i = 0; i < daysPerWeek; i++) next[i] = [...(prev[i] ?? [])];
 
@@ -262,24 +299,20 @@ export function WeekGrid({
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // Build final state
     const finalItems: DayMap = {};
     for (let i = 0; i < daysPerWeek; i++) finalItems[i] = [...(items[i] ?? [])];
 
-    // Find active day in finalItems
     let activeDay: number | null = null;
     for (const [d, ws] of Object.entries(finalItems)) {
       if (ws.some((w) => w.id === activeId)) { activeDay = parseInt(d); break; }
     }
     if (activeDay === null) return;
 
-    // Find over day in finalItems
     let overDay: number | null = null;
     for (const [d, ws] of Object.entries(finalItems)) {
       if (ws.some((w) => w.id === overId)) { overDay = parseInt(d); break; }
     }
 
-    // Same-day reorder via arrayMove
     if (overDay !== null && activeDay === overDay) {
       const dayItems = finalItems[activeDay];
       const from = dayItems.findIndex((w) => w.id === activeId);
@@ -288,16 +321,13 @@ export function WeekGrid({
         finalItems[activeDay] = arrayMove(dayItems, from, to);
       }
     }
-    // Cross-day: already applied in dragOver
 
-    // Normalize sort_orders
     for (let day = 0; day < daysPerWeek; day++) {
       finalItems[day] = finalItems[day].map((w, i) => ({ ...w, day_of_week: day, sort_order: i }));
     }
 
     setItems(finalItems);
 
-    // Compute which workouts actually changed position
     const original = workouts.filter((w) => w.week_number === weekNumber);
     const updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[] = [];
     for (let day = 0; day < daysPerWeek; day++) {
@@ -348,6 +378,7 @@ export function WeekGrid({
   const displayItems = mode === "edit" && externalItems !== undefined ? externalItems : items;
   const byDay = Array.from({ length: daysPerWeek }, (_, i) => displayItems[i] ?? []);
   const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
+  const smGridCols = SM_GRID_COLS[daysPerWeek] ?? "sm:grid-cols-7";
 
   const header = (
     <div className="flex items-baseline gap-3 min-w-0">
@@ -368,24 +399,28 @@ export function WeekGrid({
     </div>
   );
 
-  // View / dashboard mode — no DnD
+  // ── View / dashboard mode — no DnD ──────────────────────────────────────────
+
   if (mode === "view" || mode === "dashboard") {
     return (
       <div className="space-y-2">
         {header}
-        <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
+        {/*
+          Mobile (< sm): single-column stack. Empty days are hidden — rest days
+          don't need a visual slot in the stacked view.
+          Desktop (sm+): multi-column grid with overflow scroll.
+        */}
+        <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
           {byDay.map((dayWorkouts, dayIndex) => {
             const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
+            // Hide empty days entirely on mobile — only show on desktop.
+            const hideOnMobile = dayWorkouts.length === 0;
             return (
-              <div key={dayIndex} className="min-w-[120px] space-y-2">
-                <div className="text-center">
-                  <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
-                  {startDate && (
-                    <p className="text-[10px] text-[var(--muted)] opacity-70">
-                      {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
-                    </p>
-                  )}
-                </div>
+              <div
+                key={dayIndex}
+                className={`${hideOnMobile ? "hidden sm:block" : ""} min-w-0 sm:min-w-[120px] space-y-2`}
+              >
+                <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
                 <div className="space-y-1.5">
                   {dayWorkouts.length === 0 ? (
                     <div className="h-14 rounded-lg border border-dashed border-[var(--border)]" />
@@ -408,7 +443,8 @@ export function WeekGrid({
     );
   }
 
-  // Reorder mode — DnD enabled, cards in dashboard style (complete button, no edit/delete)
+  // ── Reorder mode — DnD within the week ──────────────────────────────────────
+
   if (mode === "reorder") {
     return (
       <DndContext
@@ -420,24 +456,23 @@ export function WeekGrid({
       >
         <div className="space-y-2">
           {header}
-          <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
+          {/*
+            Mobile: stacked. Empty days shown as a compact droppable target so
+            the user can still drag workouts onto rest days.
+            Desktop: multi-column grid.
+          */}
+          <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
             {byDay.map((dayWorkouts, dayIndex) => {
               const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
               const containerId = `day-${dayIndex}`;
               return (
-                <div key={dayIndex} className="min-w-[120px] space-y-2">
-                  <div className="text-center">
-                    <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
-                    {startDate && (
-                      <p className="text-[10px] text-[var(--muted)] opacity-70">
-                        {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
-                      </p>
-                    )}
-                  </div>
+                <div key={dayIndex} className="min-w-0 sm:min-w-[120px] space-y-2">
+                  <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
                   <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                     <DroppableDay id={containerId}>
                       {dayWorkouts.length === 0 ? (
-                        <div className="h-14 rounded-lg border border-dashed border-[var(--border)]" />
+                        // Compact on mobile, full-height on desktop
+                        <div className="h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)]" />
                       ) : (
                         dayWorkouts.flatMap((workout, i) => {
                           const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
@@ -476,26 +511,24 @@ export function WeekGrid({
     );
   }
 
-  // Edit mode — with DnD (own context when externalItems is absent, slotted into parent context otherwise)
+  // ── Edit mode — DnD (own context when standalone, slotted into parent otherwise) ──
+
   const editContent = (
     <div className="space-y-2">
       {header}
-      <div className={`grid ${gridCols} gap-2 overflow-x-auto`}>
+      {/*
+        Mobile: stacked. All days always shown — user needs to add workouts to any day.
+        Desktop: multi-column grid.
+      */}
+      <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
         {byDay.map((dayWorkouts, dayIndex) => {
           const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
           const containerId = externalItems !== undefined
             ? `week-${weekNumber}-day-${dayIndex}`
             : `day-${dayIndex}`;
           return (
-            <div key={dayIndex} className="min-w-[120px] space-y-2">
-              <div className="text-center">
-                <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
-                {startDate && (
-                  <p className="text-[10px] text-[var(--muted)] opacity-70">
-                    {formatShortDate(scheduledDate(startDate, weekNumber, dayIndex))}
-                  </p>
-                )}
-              </div>
+            <div key={dayIndex} className="min-w-0 sm:min-w-[120px] space-y-2">
+              <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
               <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                 <DroppableDay id={containerId}>
                   {dayWorkouts.length === 0 ? (
@@ -550,7 +583,6 @@ export function WeekGrid({
     </div>
   );
 
-  // Slotted into a parent DndContext — no own context or overlay needed
   if (externalItems !== undefined) return editContent;
 
   return (

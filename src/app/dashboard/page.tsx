@@ -488,7 +488,7 @@ export default function DashboardPage() {
             <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
               This week
             </h2>
-            <div className="overflow-x-auto pb-2">
+            <div className="sm:overflow-x-auto sm:pb-2">
               <WeekGrid
                 weekNumber={todayPos!.weekNumber}
                 workouts={weekWorkouts}
