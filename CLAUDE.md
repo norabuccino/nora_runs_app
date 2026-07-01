@@ -26,16 +26,24 @@ Push to the `main` branch on GitHub — Vercel auto-deploys on every push.
 
 ## After Every Change — Required Steps
 
-After completing any code change, always do both of the following without waiting to be asked:
+After completing any code change, always do all of the following without waiting to be asked:
 
-1. **Commit and push to GitHub:**
+1. **Run the test suite and update tests as needed:**
+   ```bash
+   npm run test
+   ```
+   - If tests fail because the change broke existing behavior, fix the code or update the test to reflect the new intended behavior.
+   - If the change adds new logic (new utility functions, new data transforms, new business rules), add tests for it in `src/__tests__/`.
+   - Tests must pass before committing.
+
+2. **Commit and push to GitHub:**
    ```bash
    git add <changed files>
    git commit -m "descriptive message"
    git push origin main
    ```
 
-2. **If the change includes a new migration file, apply it immediately** using the Management API (preferred — works when direct DB connections are blocked):
+3. **If the change includes a new migration file, apply it immediately** using the Management API (preferred — works when direct DB connections are blocked):
    ```bash
    ACCESS_TOKEN=$(grep ^SUPABASE_ACCESS_TOKEN .env.local | cut -d'=' -f2)
    curl -s \
