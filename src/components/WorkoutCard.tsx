@@ -14,6 +14,7 @@ interface WorkoutCardProps {
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
   onCopy?: (workout: PlanWorkout) => void;
+  onDetail?: (workout: PlanWorkout) => void;
 }
 
 export function WorkoutCard({
@@ -26,6 +27,7 @@ export function WorkoutCard({
   onEdit,
   onDelete,
   onCopy,
+  onDetail,
 }: WorkoutCardProps) {
   const isCompleted = !!log?.completed_at;
   const title = log?.custom_title ?? workout.title;
@@ -95,11 +97,12 @@ export function WorkoutCard({
 
   return (
     <div
+      onClick={() => onDetail?.(workout)}
       className={`rounded-lg border p-3 space-y-2 transition-all ${
         isCompleted
           ? "border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950"
           : "border-[var(--border)] bg-[var(--card)]"
-      }`}
+      } ${onDetail ? "cursor-pointer hover:border-[var(--foreground)]" : ""}`}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
@@ -138,14 +141,14 @@ export function WorkoutCard({
         <div className="pt-1 border-t border-[var(--border)]">
           {isCompleted ? (
             <button
-              onClick={() => onUnComplete?.(workout)}
+              onClick={(e) => { e.stopPropagation(); onUnComplete?.(workout); }}
               className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Mark incomplete
             </button>
           ) : (
             <button
-              onClick={() => onComplete?.(workout)}
+              onClick={(e) => { e.stopPropagation(); onComplete?.(workout); }}
               className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
             >
               Mark complete →

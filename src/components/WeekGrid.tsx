@@ -117,6 +117,7 @@ function SortableCard({
   onCopy,
   onComplete,
   onUnComplete,
+  onDetail,
 }: {
   workout: PlanWorkout;
   log: WorkoutLog | null;
@@ -127,6 +128,7 @@ function SortableCard({
   onCopy?: (w: PlanWorkout) => void;
   onComplete?: (w: PlanWorkout) => void;
   onUnComplete?: (w: PlanWorkout) => void;
+  onDetail?: (w: PlanWorkout) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: workout.id,
@@ -175,6 +177,7 @@ function SortableCard({
         onCopy={onCopy}
         onComplete={onComplete}
         onUnComplete={onUnComplete}
+        onDetail={onDetail}
       />
     </div>
   );
@@ -198,6 +201,7 @@ interface WeekGridProps {
   onDayLogicChange?: (weekNumber: number, dayOfWeek: number, logic: "and" | "or") => void;
   onReorder?: (updates: { id: string; week_number: number; day_of_week: number; sort_order: number }[]) => void;
   onCopy?: (workout: PlanWorkout) => void;
+  onDetail?: (workout: PlanWorkout) => void;
   onPurposeChange?: (purpose: string) => void;
   startDate?: string;
   externalItems?: DayMap;
@@ -219,6 +223,7 @@ export function WeekGrid({
   onDayLogicChange,
   onReorder,
   onCopy,
+  onDetail,
   onPurposeChange,
   startDate,
   externalItems,
@@ -428,7 +433,7 @@ export function WeekGrid({
                     dayWorkouts.flatMap((workout, i) => {
                       const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
                       const card = (
-                        <WorkoutCard key={workout.id} workout={workout} log={log} paces={paces} mode={mode} onComplete={onComplete} onUnComplete={onUnComplete} />
+                        <WorkoutCard key={workout.id} workout={workout} log={log} paces={paces} mode={mode} onComplete={onComplete} onUnComplete={onUnComplete} onDetail={onDetail} />
                       );
                       if (i === 0) return [card];
                       return [andOrSep(dayLogic, dayIndex, i, false), card];
@@ -494,6 +499,7 @@ export function WeekGrid({
                               onComplete={onComplete}
                               onUnComplete={onUnComplete}
                               onDelete={onDelete}
+                              onDetail={onDetail}
                             />
                           );
                           if (i === 0) return [card];

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { updateUserPlan, deleteUserPlan } from "@/app/actions/userPlans";
 import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
 import type { PlanWorkout, RunningPace, TrainingPlan } from "@/types/database";
-import { WeekGrid } from "@/components/WeekGrid";
+import { MyPlanWeeks } from "@/components/MyPlanWeeks";
 
 export default async function MyPlanPage() {
   const supabase = await createClient();
@@ -184,17 +184,13 @@ export default async function MyPlanPage() {
           {/* Full weekly plan view */}
           {planWorkouts.length > 0 ? (
             <div className="space-y-10 overflow-x-auto pb-4">
-              {weeks.map((weekNum) => (
-                <WeekGrid
-                  key={weekNum}
-                  weekNumber={weekNum}
-                  workouts={planWorkouts}
-                  paces={paces}
-                  mode="view"
-                  purpose={weekNotesMap[weekNum]}
-                  startDate={activePlan.start_date}
-                />
-              ))}
+              <MyPlanWeeks
+                weeks={weeks}
+                planWorkouts={planWorkouts}
+                paces={paces}
+                weekNotesMap={weekNotesMap}
+                startDate={activePlan.start_date}
+              />
             </div>
           ) : (
             <div className="rounded-xl border border-dashed border-[var(--border)] p-8 text-center space-y-2">

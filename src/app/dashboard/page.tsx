@@ -17,6 +17,7 @@ import {
   deleteScheduledWorkout,
 } from "@/app/actions/scheduledWorkouts";
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
+import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
 
 interface ActivePlanData {
@@ -60,6 +61,7 @@ export default function DashboardPage() {
   const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkoutWithSteps[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [addToPlanDay, setAddToPlanDay] = useState<number | null>(null);
+  const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const todayISO = new Date().toISOString().split("T")[0];
@@ -476,6 +478,7 @@ export default function DashboardPage() {
                       mode="dashboard"
                       onComplete={handleComplete}
                       onUnComplete={handleUnComplete}
+                      onDetail={setDetailWorkout}
                     />
                   );
                 })}
@@ -503,6 +506,7 @@ export default function DashboardPage() {
                 onDelete={handleDeleteFromWeek}
                 onReorder={handleReorder}
                 onAddWorkout={(_, dayOfWeek) => setAddToPlanDay(dayOfWeek)}
+                onDetail={setDetailWorkout}
               />
             </div>
           </div>
@@ -510,6 +514,13 @@ export default function DashboardPage() {
       )}
 
       {addModeModals}
+
+      {detailWorkout && (
+        <PlanWorkoutDetailModal
+          workout={detailWorkout}
+          onClose={() => setDetailWorkout(null)}
+        />
+      )}
 
       {addToPlanDay !== null && activePlanData && todayPos && (
         <LibraryPickerModal
