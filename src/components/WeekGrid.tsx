@@ -471,8 +471,16 @@ export function WeekGrid({
                   <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                     <DroppableDay id={containerId}>
                       {dayWorkouts.length === 0 ? (
-                        // Compact on mobile, full-height on desktop
-                        <div className="h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)]" />
+                        onAddWorkout ? (
+                          <button
+                            onClick={() => onAddWorkout(weekNumber, dayIndex, "library")}
+                            className="w-full h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
+                          >
+                            +
+                          </button>
+                        ) : (
+                          <div className="h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)]" />
+                        )
                       ) : (
                         dayWorkouts.flatMap((workout, i) => {
                           const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
@@ -491,6 +499,16 @@ export function WeekGrid({
                           if (i === 0) return [card];
                           return [andOrSep(dayLogic, dayIndex, i, false), card];
                         })
+                      )}
+                      {dayWorkouts.length > 0 && onAddWorkout && (
+                        <div className="pt-0.5 text-center">
+                          <button
+                            onClick={() => onAddWorkout(weekNumber, dayIndex, "library")}
+                            className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                          >
+                            + Add
+                          </button>
+                        </div>
                       )}
                     </DroppableDay>
                   </SortableContext>

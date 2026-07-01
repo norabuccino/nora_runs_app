@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [weekPurpose, setWeekPurpose] = useState<string | undefined>(undefined);
   const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkoutWithSteps[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
+  const [addToPlanDay, setAddToPlanDay] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const todayISO = new Date().toISOString().split("T")[0];
@@ -501,6 +502,7 @@ export default function DashboardPage() {
                 onUnComplete={handleUnComplete}
                 onDelete={handleDeleteFromWeek}
                 onReorder={handleReorder}
+                onAddWorkout={(_, dayOfWeek) => setAddToPlanDay(dayOfWeek)}
               />
             </div>
           </div>
@@ -508,6 +510,16 @@ export default function DashboardPage() {
       )}
 
       {addModeModals}
+
+      {addToPlanDay !== null && activePlanData && todayPos && (
+        <LibraryPickerModal
+          planId={activePlanData.plan.id}
+          weekNumber={todayPos.weekNumber}
+          dayOfWeek={addToPlanDay}
+          onAdded={async () => { setAddToPlanDay(null); await load(); }}
+          onCancel={() => setAddToPlanDay(null)}
+        />
+      )}
     </div>
   );
 }
