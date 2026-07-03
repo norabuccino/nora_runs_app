@@ -54,7 +54,8 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
     if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
     if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
     if (!search.trim()) return true;
-    return e.name.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    return e.name.toLowerCase().includes(q) || (e.description?.toLowerCase().includes(q) ?? false);
   });
 
   function handleSelect(exercise: Exercise) {

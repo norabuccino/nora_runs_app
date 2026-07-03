@@ -49,6 +49,13 @@ export async function updateExercise(
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
 
+  if (data.name) {
+    await supabase
+      .from("workout_steps")
+      .update({ label: data.name })
+      .eq("exercise_id", id);
+  }
+
   revalidatePath("/exercises");
 }
 
