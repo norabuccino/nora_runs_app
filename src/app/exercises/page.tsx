@@ -14,9 +14,10 @@ interface ExerciseFormData {
   video_url: string;
   exercise_type: string;
   source: string;
+  is_private: boolean;
 }
 
-const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "", source: "" };
+const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "", source: "", is_private: false };
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
@@ -130,6 +131,16 @@ function ExerciseModal({
               />
             </div>
 
+            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+              <input
+                type="checkbox"
+                checked={form.is_private}
+                onChange={(e) => setForm((p) => ({ ...p, is_private: e.target.checked }))}
+                className="w-4 h-4 accent-[var(--accent)]"
+              />
+              <span className="text-sm">Private — only visible to you</span>
+            </label>
+
             {error && <p className="text-xs text-red-500">{error}</p>}
 
             <div className="flex gap-2 pt-1">
@@ -236,6 +247,7 @@ export default function ExercisesPage() {
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
         source: data.source.trim() || null,
+        is_private: data.is_private,
       });
       setCreating(false);
       await load();
@@ -257,6 +269,7 @@ export default function ExercisesPage() {
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
         source: data.source.trim() || null,
+        is_private: data.is_private,
       });
       setEditing(null);
       await load();
@@ -558,6 +571,7 @@ export default function ExercisesPage() {
             video_url: editing.video_url ?? "",
             exercise_type: editing.exercise_type ?? "",
             source: editing.source ?? "",
+            is_private: editing.is_private,
           }}
           onSave={handleUpdate}
           onCancel={() => { setEditing(null); setSaveError(null); }}
@@ -655,6 +669,9 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         {exercise.source && (
           <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.source}</span>
         )}
+        {exercise.is_private && (
+          <span className="shrink-0 text-xs text-[var(--muted)]" title="Private">🔒</span>
+        )}
         {exercise.video_url && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
         )}
@@ -696,9 +713,14 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
           {typeBadge}
           <h3 className="font-medium text-sm leading-snug truncate">{exercise.name}</h3>
         </div>
-        {exercise.video_url && (
-          <span className="shrink-0 text-xs text-[var(--muted)] pt-0.5" title="Has video">▶</span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {exercise.is_private && (
+            <span className="text-xs text-[var(--muted)] pt-0.5" title="Private">🔒</span>
+          )}
+          {exercise.video_url && (
+            <span className="text-xs text-[var(--muted)] pt-0.5" title="Has video">▶</span>
+          )}
+        </div>
       </div>
 
       {exercise.description && (

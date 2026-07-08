@@ -98,11 +98,18 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
           {/* Header */}
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 min-w-0">
-              {typeBadge && typeLabel && (
-                <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
-                  {typeLabel}
-                </span>
-              )}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {typeBadge && typeLabel && (
+                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${typeBadge}`}>
+                    {typeLabel}
+                  </span>
+                )}
+                {exercise.is_private && (
+                  <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                    🔒 Private
+                  </span>
+                )}
+              </div>
               <h2 className="font-semibold text-lg leading-snug">{exercise.name}</h2>
             </div>
             <div className="flex items-center gap-2 shrink-0">

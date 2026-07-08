@@ -251,6 +251,7 @@ export interface Database {
           video_url: string | null;
           exercise_type: string | null;
           source: string | null;
+          is_private: boolean;
           created_at: string;
         };
         Insert: {
@@ -261,6 +262,7 @@ export interface Database {
           video_url?: string | null;
           exercise_type?: string | null;
           source?: string | null;
+          is_private?: boolean;
           created_at?: string;
         };
         Update: {
@@ -271,6 +273,7 @@ export interface Database {
           video_url?: string | null;
           exercise_type?: string | null;
           source?: string | null;
+          is_private?: boolean;
           created_at?: string;
         };
       };

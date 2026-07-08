@@ -10,6 +10,7 @@ export type ExerciseImportRow = {
   description: string | null;
   video_url: string | null;
   source: string | null;
+  is_private?: boolean;
 };
 
 export async function createExercise(data: {
@@ -18,6 +19,7 @@ export async function createExercise(data: {
   video_url?: string | null;
   exercise_type?: string | null;
   source?: string | null;
+  is_private?: boolean;
 }): Promise<Exercise> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +38,7 @@ export async function createExercise(data: {
 
 export async function updateExercise(
   id: string,
-  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null; source?: string | null }
+  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null; source?: string | null; is_private?: boolean }
 ): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -106,6 +108,7 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
     description: row.description,
     video_url: row.video_url,
     source: row.source,
+    is_private: row.is_private ?? false,
   }));
 
   const { error } = await supabase.from("exercises").insert(inserts);
