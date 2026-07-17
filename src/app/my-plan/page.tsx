@@ -21,10 +21,10 @@ export default async function MyPlanPage() {
     .map((up) => (up.training_plans as unknown as TrainingPlan)?.source_plan_id)
     .filter(Boolean) as string[];
 
-  let planWorkoutsMap: Record<string, PlanWorkout[]> = {};
+  const planWorkoutsMap: Record<string, PlanWorkout[]> = {};
   let paces: RunningPace[] = [];
-  let sourcePlanNamesMap: Record<string, string | null> = {};
-  let weekNotesMapByPlan: Record<string, Record<number, string>> = {};
+  const sourcePlanNamesMap: Record<string, string | null> = {};
+  const weekNotesMapByPlan: Record<string, Record<number, string>> = {};
 
   if (activePlans.length > 0) {
     const [{ data: allWorkouts }, { data: p }, { data: sourcePlans }, { data: allNotes }] = await Promise.all([

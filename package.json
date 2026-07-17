@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -27,7 +27,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.3",
     "eslint": "^9",
-    "eslint-config-next": "15.3.3",
+    "eslint-config-next": "^16.2.10",
     "jsdom": "^29.1.1",
     "postcss": "^8",
     "tailwindcss": "^4",

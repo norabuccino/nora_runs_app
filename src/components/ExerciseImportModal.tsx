@@ -159,7 +159,7 @@ export function ExerciseImportModal({
               </div>
             </div>
             <p className="text-xs text-[var(--muted)]">
-              Wrap fields containing commas in double quotes (e.g. <code className="text-[var(--foreground)]">"3 sets, 8 reps"</code>).
+              Wrap fields containing commas in double quotes (e.g. <code className="text-[var(--foreground)]">&quot;3 sets, 8 reps&quot;</code>).
               Unknown exercise types are imported without a type tag.
             </p>
             <button

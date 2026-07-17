@@ -336,7 +336,7 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
                 <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, interval_run, threshold_run, recovery_run, race (runs only)</span>
                 <span><code className="text-[var(--foreground)]">strength_type</code> — upper_body, lower_body, full_body, core (strength only)</span>
                 <span><code className="text-[var(--foreground)]">distance</code> + <code className="text-[var(--foreground)]">distance_unit</code> — e.g. 6, mi  (mi / km / m)</span>
-                <span><code className="text-[var(--foreground)]">pace_type</code> — matches a pace name you've saved</span>
+                <span><code className="text-[var(--foreground)]">pace_type</code> — matches a pace name you&apos;ve saved</span>
                 <span><code className="text-[var(--foreground)]">duration_minutes</code> — number</span>
                 <span><code className="text-[var(--foreground)]">description</code>, <code className="text-[var(--foreground)]">notes</code> — optional text</span>
               </div>
