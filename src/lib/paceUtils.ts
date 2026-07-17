@@ -1,4 +1,5 @@
 import type { RunningPace, PaceType } from "@/types/database";
+import { convertDistance, getStoredUnit, type DistanceUnit } from "@/lib/unitUtils";
 
 export function formatPace(secondsPerMile: number): string {
   const minutes = Math.floor(secondsPerMile / 60);
@@ -28,6 +29,44 @@ export function findPaceForType(
   paceType: PaceType
 ): RunningPace | undefined {
   return paces.find((p) => p.name.toLowerCase() === paceType.toLowerCase());
+}
+
+const CUSTOM_PACE_RE = /^\d+:\d{2}$/;
+
+// Resolve a step's pace_type (named pace or custom "M:SS") to seconds-per-mile.
+export function resolvePaceSecondsPerMile(
+  paceType: string | null,
+  paces: RunningPace[]
+): number | null {
+  if (!paceType) return null;
+  if (CUSTOM_PACE_RE.test(paceType)) {
+    const parsed = parsePace(paceType);
+    if (parsed == null) return null;
+    return getStoredUnit() === "km" ? Math.round(parsed * 1.60934) : parsed;
+  }
+  const pace = findPaceForType(paces, paceType as PaceType);
+  return pace ? pace.pace_seconds_per_mile : null;
+}
+
+// Total duration in seconds for a step: prefers explicit duration, else derives from distance + pace.
+export function stepDurationSeconds(
+  step: {
+    distance_miles: number | null;
+    distance_unit: string;
+    duration_minutes: number | null;
+    duration_unit: string;
+    pace_type: string | null;
+  },
+  paces: RunningPace[]
+): number | null {
+  if (step.duration_minutes != null) {
+    return Math.round(step.duration_unit === "sec" ? step.duration_minutes : step.duration_minutes * 60);
+  }
+  if (step.distance_miles == null) return null;
+  const paceSecPerMile = resolvePaceSecondsPerMile(step.pace_type, paces);
+  if (paceSecPerMile == null) return null;
+  const distanceMi = convertDistance(step.distance_miles, step.distance_unit as DistanceUnit, "mi");
+  return Math.round(distanceMi * paceSecPerMile);
 }
 
 export function getWorkoutEstimate(

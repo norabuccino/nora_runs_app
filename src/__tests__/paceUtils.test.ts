@@ -7,6 +7,8 @@ import {
   scheduledDate,
   getWorkoutEstimate,
   defaultDayMapping,
+  resolvePaceSecondsPerMile,
+  stepDurationSeconds,
 } from "@/lib/paceUtils";
 import type { RunningPace } from "@/types/database";
 
@@ -229,6 +231,114 @@ describe("getWorkoutEstimate", () => {
     // 8 km / 1.60934 ≈ 4.971 mi × 540 ≈ 2684 sec → floor(2684/60) = 44m
     const result = getWorkoutEstimate(8, "km", "easy", null, paces);
     expect(result).toBe("44m");
+  });
+});
+
+// ── resolvePaceSecondsPerMile ───────────────────────────────────────────────────
+
+// jsdom in this project's test environment doesn't provide window.localStorage,
+// so stub a minimal in-memory implementation for tests that exercise getStoredUnit().
+function stubLocalStorage() {
+  const store: Record<string, string> = {};
+  window.localStorage = {
+    getItem: (k: string) => store[k] ?? null,
+    setItem: (k: string, v: string) => {
+      store[k] = v;
+    },
+    removeItem: (k: string) => {
+      delete store[k];
+    },
+    clear: () => {
+      Object.keys(store).forEach((k) => delete store[k]);
+    },
+    key: () => null,
+    length: 0,
+  } as Storage;
+}
+
+describe("resolvePaceSecondsPerMile", () => {
+  const paces: RunningPace[] = [
+    { id: "1", user_id: "u", name: "10K Pace", pace_seconds_per_mile: 440, created_at: "" },
+    { id: "2", user_id: "u", name: "Recovery", pace_seconds_per_mile: 600, created_at: "" },
+  ];
+
+  beforeEach(() => {
+    stubLocalStorage();
+  });
+
+  it("returns null for a null pace_type", () => {
+    expect(resolvePaceSecondsPerMile(null, paces)).toBeNull();
+  });
+
+  it("looks up a named pace case-insensitively", () => {
+    expect(resolvePaceSecondsPerMile("10k pace", paces)).toBe(440);
+  });
+
+  it("returns null for an unknown named pace", () => {
+    expect(resolvePaceSecondsPerMile("tempo", paces)).toBeNull();
+  });
+
+  it("parses a custom M:SS pace as seconds/mile when unit pref is miles", () => {
+    expect(resolvePaceSecondsPerMile("7:20", paces)).toBe(440);
+  });
+
+  it("converts a custom M:SS pace from seconds/km to seconds/mile when unit pref is km", () => {
+    window.localStorage.setItem("unitPref", "km");
+    // 7:20/km → 440 * 1.60934 ≈ 708 sec/mile
+    expect(resolvePaceSecondsPerMile("7:20", paces)).toBe(Math.round(440 * 1.60934));
+  });
+});
+
+// ── stepDurationSeconds ──────────────────────────────────────────────────────────
+
+describe("stepDurationSeconds", () => {
+  const paces: RunningPace[] = [
+    { id: "1", user_id: "u", name: "10K Pace", pace_seconds_per_mile: 440, created_at: "" },
+    { id: "2", user_id: "u", name: "Recovery", pace_seconds_per_mile: 600, created_at: "" },
+  ];
+
+  beforeEach(() => {
+    stubLocalStorage();
+  });
+
+  it("prefers an explicit duration in minutes", () => {
+    const step = { distance_miles: null, distance_unit: "mi", duration_minutes: 3, duration_unit: "min", pace_type: null };
+    expect(stepDurationSeconds(step, paces)).toBe(180);
+  });
+
+  it("prefers an explicit duration already in seconds", () => {
+    const step = { distance_miles: null, distance_unit: "mi", duration_minutes: 90, duration_unit: "sec", pace_type: null };
+    expect(stepDurationSeconds(step, paces)).toBe(90);
+  });
+
+  it("derives duration from a 600m interval at 10K pace (treadmill mode example)", () => {
+    const step = { distance_miles: 600, distance_unit: "m", duration_minutes: null, duration_unit: "min", pace_type: "10K Pace" };
+    // 600m ≈ 0.3728mi × 440 sec/mi ≈ 164s → "2:44"
+    const seconds = stepDurationSeconds(step, paces);
+    expect(seconds).toBe(164);
+    expect(formatPace(seconds!)).toBe("2:44");
+  });
+
+  it("derives duration from a 400m recovery interval at recovery pace", () => {
+    const step = { distance_miles: 400, distance_unit: "m", duration_minutes: null, duration_unit: "min", pace_type: "Recovery" };
+    const seconds = stepDurationSeconds(step, paces);
+    expect(seconds).toBe(149);
+    expect(formatPace(seconds!)).toBe("2:29");
+  });
+
+  it("derives duration from a custom M:SS pace_type", () => {
+    const step = { distance_miles: 1, distance_unit: "mi", duration_minutes: null, duration_unit: "min", pace_type: "8:00" };
+    expect(stepDurationSeconds(step, paces)).toBe(480);
+  });
+
+  it("returns null when there is no distance and no duration", () => {
+    const step = { distance_miles: null, distance_unit: "mi", duration_minutes: null, duration_unit: "min", pace_type: "10K Pace" };
+    expect(stepDurationSeconds(step, paces)).toBeNull();
+  });
+
+  it("returns null when distance is present but the pace can't be resolved", () => {
+    const step = { distance_miles: 1, distance_unit: "mi", duration_minutes: null, duration_unit: "min", pace_type: "tempo" };
+    expect(stepDurationSeconds(step, paces)).toBeNull();
   });
 });
 

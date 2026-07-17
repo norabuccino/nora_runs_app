@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LibraryWorkoutWithSteps, WorkoutStep } from "@/types/database";
-import { STEP_TYPE_LABELS, DAY_NAMES } from "@/lib/paceUtils";
+import type { LibraryWorkoutWithSteps, RunningPace, WorkoutStep } from "@/types/database";
+import { STEP_TYPE_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 type StepSegment =
@@ -36,7 +36,17 @@ function formatStepDuration(durationMinutes: number | null, durationUnit: string
   return `${durationMinutes} min`;
 }
 
-function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean }) {
+function StepRow({
+  step,
+  isStrength,
+  treadmillMode,
+  paces,
+}: {
+  step: WorkoutStep;
+  isStrength: boolean;
+  treadmillMode: boolean;
+  paces: RunningPace[];
+}) {
   if (isStrength) {
     const durLabel = formatStepDuration(step.duration_minutes, step.duration_unit);
     const perSet = step.reps
@@ -72,17 +82,28 @@ function StepRow({ step, isStrength }: { step: WorkoutStep; isStrength: boolean 
     );
   }
 
+  const treadmillSeconds = treadmillMode ? stepDurationSeconds(step, paces) : null;
+
   return (
     <div className="flex items-center gap-3 px-3 py-2 text-xs">
       <span className="text-[var(--muted)] w-20 shrink-0">
         {STEP_TYPE_LABELS[step.step_type] ?? step.step_type}
       </span>
       <span className="flex-1 flex flex-wrap gap-2 text-[var(--muted)]">
-        {step.duration_minutes && <span>{formatStepDuration(step.duration_minutes, step.duration_unit)}</span>}
-        {step.distance_miles && (
-          <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
+        {treadmillSeconds != null ? (
+          <>
+            <span className="font-medium text-[var(--foreground)]">{formatPace(treadmillSeconds)}</span>
+            {step.pace_type && <span className="capitalize">@ {step.pace_type}</span>}
+          </>
+        ) : (
+          <>
+            {step.duration_minutes && <span>{formatStepDuration(step.duration_minutes, step.duration_unit)}</span>}
+            {step.distance_miles && (
+              <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
+            )}
+            {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
+          </>
         )}
-        {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
       </span>
     </div>
   );
@@ -105,6 +126,17 @@ interface WorkoutDetailModalProps {
 export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailModalProps) {
   const [usage, setUsage] = useState<PlanUsage[]>([]);
   const [loadingUsage, setLoadingUsage] = useState(true);
+  const [paces, setPaces] = useState<RunningPace[]>([]);
+  const [treadmillMode, setTreadmillMode] = useState(false);
+
+  useEffect(() => {
+    async function fetchPaces() {
+      const supabase = createClient();
+      const { data } = await supabase.from("running_paces").select("*").order("created_at");
+      setPaces(data ?? []);
+    }
+    fetchPaces();
+  }, []);
 
   useEffect(() => {
     async function fetchUsage() {
@@ -133,6 +165,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
   }, [workout.id]);
 
   const isStrength = workout.type === "strength";
+  const hasDistanceSteps = workout.workout_steps.some((s) => s.distance_miles != null);
 
   const distanceLabel =
     !isStrength && workout.distance_miles
@@ -160,6 +193,14 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {!isStrength && hasDistanceSteps && (
+                <button
+                  onClick={() => setTreadmillMode((v) => !v)}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--card)] transition-colors"
+                >
+                  {treadmillMode ? "Treadmill: On" : "Treadmill mode"}
+                </button>
+              )}
               <button
                 onClick={() => onEdit(workout)}
                 className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--card)] transition-colors"
@@ -209,7 +250,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
                   if (seg.type === "step") {
                     return (
                       <div key={i} className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-                        <StepRow step={seg.step} isStrength={isStrength} />
+                        <StepRow step={seg.step} isStrength={isStrength} treadmillMode={treadmillMode} paces={paces} />
                       </div>
                     );
                   }
@@ -233,7 +274,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
                       </div>
                       <div className="divide-y divide-[var(--border)] border-l-2 border-[var(--border)] ml-2">
                         {seg.steps.map((step, j) => (
-                          <StepRow key={j} step={step} isStrength={isStrength} />
+                          <StepRow key={j} step={step} isStrength={isStrength} treadmillMode={treadmillMode} paces={paces} />
                         ))}
                       </div>
                     </div>
