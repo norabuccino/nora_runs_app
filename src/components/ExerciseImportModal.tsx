@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { importExercises, type ExerciseImportRow } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS } from "@/lib/paceUtils";
+import { splitCSVLine } from "@/lib/csvUtils";
 
 const VALID_TYPES = new Set(Object.keys(EXERCISE_TYPE_LABELS));
 
@@ -23,26 +24,6 @@ function downloadSampleCSV() {
   a.download = "exercise_import_sample.csv";
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function splitCSVLine(line: string): string[] {
-  const result: string[] = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-      else { inQuotes = !inQuotes; }
-    } else if (char === "," && !inQuotes) {
-      result.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  result.push(current.trim());
-  return result;
 }
 
 function parseCSV(text: string): ExerciseImportRow[] {

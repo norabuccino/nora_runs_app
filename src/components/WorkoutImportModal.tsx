@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { importLibraryWorkouts, type LibraryImportRow, type ImportStepRow } from "@/app/actions/workoutLibrary";
+import { splitCSVLine } from "@/lib/csvUtils";
 
 interface WorkoutImportModalProps {
   onClose: () => void;
@@ -197,11 +198,11 @@ function parseCSV(text: string): LibraryImportRow[] {
   const lines = text.trim().split("\n").filter(Boolean);
   if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row");
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase());
   const rows: LibraryImportRow[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(",").map((c) => c.trim());
+    const cols = splitCSVLine(lines[i]);
     const raw: Record<string, string> = {};
     headers.forEach((h, idx) => { raw[h] = cols[idx] ?? ""; });
 
