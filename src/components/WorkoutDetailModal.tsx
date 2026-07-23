@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, RunningPace, WorkoutStep } from "@/types/database";
 import { STEP_TYPE_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
+import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 type StepSegment =
@@ -99,7 +100,7 @@ function StepRow({
           <>
             {step.duration_minutes && <span>{formatStepDuration(step.duration_minutes, step.duration_unit)}</span>}
             {step.distance_miles && (
-              <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
+              <span>{displayDistance(step.distance_miles, step.distance_unit ?? "mi")}</span>
             )}
             {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
           </>
@@ -169,7 +170,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
 
   const distanceLabel =
     !isStrength && workout.distance_miles
-      ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+      ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
       : null;
   const durationLabel = !isStrength && workout.duration_minutes ? `${workout.duration_minutes} min` : null;
 

@@ -7,6 +7,7 @@ import { addLibraryWorkoutToPlan } from "@/app/actions/workoutLibrary";
 import { createScheduledWorkoutFromLibrary } from "@/app/actions/scheduledWorkouts";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { displayDistance } from "@/lib/unitUtils";
 
 interface LibraryPickerModalProps {
   // Plan-linked mode
@@ -135,7 +136,7 @@ export function LibraryPickerModal({
             <div className="flex flex-col gap-1">
               {displayed.map((workout) => {
                 const distanceLabel = workout.distance_miles
-                  ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+                  ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
                   : null;
                 const durationLabel = workout.duration_minutes
                   ? `${workout.duration_minutes} min`

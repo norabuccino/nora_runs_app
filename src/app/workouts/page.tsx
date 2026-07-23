@@ -16,6 +16,7 @@ import {
 } from "@/app/actions/workoutLibrary";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { displayDistance } from "@/lib/unitUtils";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
@@ -610,7 +611,7 @@ interface WorkoutLibraryCardProps {
 
 function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
   const distanceLabel = workout.distance_miles
-    ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+    ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
     : null;
   const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
 

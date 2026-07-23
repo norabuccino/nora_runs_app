@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { PlanWorkout, RunningPace, WorkoutStep } from "@/types/database";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { STEP_TYPE_LABELS, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
+import { displayDistance } from "@/lib/unitUtils";
 
 type StepSegment =
   | { type: "step"; step: WorkoutStep }
@@ -95,7 +96,7 @@ function StepRow({
           <>
             {step.duration_minutes && <span>{formatStepDuration(step.duration_minutes, step.duration_unit)}</span>}
             {step.distance_miles && (
-              <span>{parseFloat(Number(step.distance_miles).toFixed(2))} {step.distance_unit ?? "mi"}</span>
+              <span>{displayDistance(step.distance_miles, step.distance_unit ?? "mi")}</span>
             )}
             {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
           </>
@@ -143,7 +144,7 @@ export function PlanWorkoutDetailModal({ workout, onClose }: PlanWorkoutDetailMo
   const hasDistanceSteps = steps.some((s) => s.distance_miles != null);
   const distanceLabel =
     !isStrength && workout.distance_miles
-      ? `${parseFloat(Number(workout.distance_miles).toFixed(2))} ${workout.distance_unit ?? "mi"}`
+      ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
       : null;
   const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
   const groupLabel = isStrength ? "Superset" : "Repeat";
