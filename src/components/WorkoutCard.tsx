@@ -1,7 +1,7 @@
 "use client";
 
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_COLORS, STRENGTH_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { getWorkoutEstimate, resolveWorkoutTypeDisplay } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
@@ -45,14 +45,13 @@ export function WorkoutCard({
         paces
       );
 
-  const editColor = workout.type === "strength" && workout.strength_type
-    ? (STRENGTH_TYPE_COLORS[workout.strength_type] ?? WORKOUT_TYPE_COLORS[workout.type])
-    : WORKOUT_TYPE_COLORS[workout.type] ?? "bg-gray-100 text-gray-600";
-  const editLabel = workout.type === "strength" && workout.strength_type
-    ? STRENGTH_TYPE_LABELS[workout.strength_type] ?? workout.strength_type
-    : workout.run_type
-    ? RUN_TYPE_LABELS[workout.run_type] ?? workout.run_type
-    : WORKOUT_TYPE_LABELS[workout.type] ?? workout.type;
+  const { typeColor, typeLabel, subColor, subLabel } = resolveWorkoutTypeDisplay(
+    workout.type,
+    workout.run_type,
+    workout.strength_type
+  );
+  const editColor = subColor ?? typeColor;
+  const editLabel = subLabel ?? typeLabel;
 
   if (workout.type === "rest" && mode !== "edit") {
     return (

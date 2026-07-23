@@ -287,6 +287,41 @@ export const STRENGTH_TYPE_COLORS: Record<string, string> = {
   mobility: "bg-[var(--badge-strength-mobility-bg)] text-[var(--badge-strength-mobility-text)]",
 };
 
+export interface WorkoutTypeDisplay {
+  typeColor: string;
+  typeLabel: string;
+  subColor: string | null;
+  subLabel: string | null;
+}
+
+// Resolve a workout's type/run_type/strength_type into the base badge (typeColor/typeLabel)
+// plus the more specific sub-badge (subColor/subLabel) when one applies — a strength workout's
+// strength_type, or a run's run_type. Shared by every place that renders a workout's type badge.
+export function resolveWorkoutTypeDisplay(
+  type: string,
+  runType?: string | null,
+  strengthType?: string | null
+): WorkoutTypeDisplay {
+  const typeColor = WORKOUT_TYPE_COLORS[type] ?? "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400";
+  const typeLabel = WORKOUT_TYPE_LABELS[type] ?? type;
+
+  const subColor =
+    type === "strength" && strengthType
+      ? STRENGTH_TYPE_COLORS[strengthType] ?? null
+      : type === "run" && runType
+      ? RUN_TYPE_COLORS[runType] ?? null
+      : null;
+
+  const subLabel =
+    type === "strength" && strengthType
+      ? STRENGTH_TYPE_LABELS[strengthType] ?? strengthType
+      : type === "run" && runType
+      ? RUN_TYPE_LABELS[runType] ?? runType
+      : null;
+
+  return { typeColor, typeLabel, subColor, subLabel };
+}
+
 export const STEP_TYPE_LABELS: Record<string, string> = {
   warmup: "Warm-up",
   main: "Main",

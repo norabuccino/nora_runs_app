@@ -4,12 +4,9 @@ import { useState } from "react";
 import type { PlanWorkout, RunningPace } from "@/types/database";
 import {
   DAY_NAMES,
-  WORKOUT_TYPE_COLORS,
-  WORKOUT_TYPE_LABELS,
-  RUN_TYPE_COLORS,
-  RUN_TYPE_LABELS,
   getWorkoutEstimate,
   weekMileageRange,
+  resolveWorkoutTypeDisplay,
 } from "@/lib/paceUtils";
 import { WeekMileageLabel } from "@/components/WeekMileageLabel";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
@@ -71,12 +68,10 @@ export function PlanWeeklyView({ weeks, allWorkouts, daysPerWeek, weekNotes, pac
                                   w.duration_minutes,
                                   paces
                                 );
-                                const typeColor = w.run_type
-                                  ? (RUN_TYPE_COLORS[w.run_type] ?? WORKOUT_TYPE_COLORS[w.type])
-                                  : WORKOUT_TYPE_COLORS[w.type];
-                                const typeLabel = w.run_type
-                                  ? (RUN_TYPE_LABELS[w.run_type] ?? WORKOUT_TYPE_LABELS[w.type])
-                                  : WORKOUT_TYPE_LABELS[w.type];
+                                const { typeColor: baseColor, typeLabel: baseLabel, subColor, subLabel } =
+                                  resolveWorkoutTypeDisplay(w.type, w.run_type, w.strength_type);
+                                const typeColor = subColor ?? baseColor;
+                                const typeLabel = subLabel ?? baseLabel;
 
                                 const card = (
                                   <button

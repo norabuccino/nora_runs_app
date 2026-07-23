@@ -10,6 +10,7 @@ import {
   resolvePaceSecondsPerMile,
   stepDurationSeconds,
   weekMileageRange,
+  resolveWorkoutTypeDisplay,
 } from "@/lib/paceUtils";
 import type { RunningPace, PlanWorkout } from "@/types/database";
 
@@ -331,6 +332,41 @@ function stubLocalStorage() {
     length: 0,
   } as Storage;
 }
+
+// ── resolveWorkoutTypeDisplay ────────────────────────────────────────────────────
+
+describe("resolveWorkoutTypeDisplay", () => {
+  it("returns only the base type for a rest day", () => {
+    const result = resolveWorkoutTypeDisplay("rest", null, null);
+    expect(result.subColor).toBeNull();
+    expect(result.subLabel).toBeNull();
+    expect(result.typeLabel).toBe("Rest");
+  });
+
+  it("resolves a run-type sub-badge for run workouts", () => {
+    const result = resolveWorkoutTypeDisplay("run", "easy_run", null);
+    expect(result.subLabel).toBe("Easy Run");
+    expect(result.subColor).not.toBeNull();
+  });
+
+  it("resolves a strength-type sub-badge for strength workouts", () => {
+    const result = resolveWorkoutTypeDisplay("strength", null, "upper_body");
+    expect(result.subLabel).toBe("Upper Body");
+    expect(result.subColor).not.toBeNull();
+  });
+
+  it("ignores run_type on a non-run workout and strength_type on a non-strength workout", () => {
+    const asStrength = resolveWorkoutTypeDisplay("strength", "easy_run", null);
+    expect(asStrength.subLabel).toBeNull();
+    const asRun = resolveWorkoutTypeDisplay("run", null, "upper_body");
+    expect(asRun.subLabel).toBeNull();
+  });
+
+  it("falls back to the raw slug when a sub-type has no label mapping", () => {
+    const result = resolveWorkoutTypeDisplay("strength", null, "made_up_type");
+    expect(result.subLabel).toBe("made_up_type");
+  });
+});
 
 describe("resolvePaceSecondsPerMile", () => {
   const paces: RunningPace[] = [
