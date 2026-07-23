@@ -105,6 +105,10 @@ describe("displayDistance", () => {
     expect(displayDistance(5.10, "mi")).toBe("5.1 mi");
   });
 
+  it("rounds to one decimal place instead of showing raw floating point precision", () => {
+    expect(displayDistance(5.2632, "mi")).toBe("5.3 mi");
+  });
+
   it("formats km distances", () => {
     expect(displayDistance(10, "km")).toBe("10 km");
     expect(displayDistance(21.1, "km")).toBe("21.1 km");

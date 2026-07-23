@@ -12,6 +12,7 @@ import {
 } from "@/lib/paceUtils";
 import { WeekMileageLabel } from "@/components/WeekMileageLabel";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
+import { displayDistance } from "@/lib/unitUtils";
 
 function toMiles(distance: number, unit: string): number {
   if (unit === "km") return distance / 1.60934;
@@ -121,7 +122,7 @@ export function PlanWeeklyView({ weeks, allWorkouts, daysPerWeek, weekNotes, pac
                                     <span className="text-sm font-medium">{w.title}</span>
                                     {w.distance_miles && (
                                       <span className="text-xs text-[var(--muted)]">
-                                        {w.distance_miles} {w.distance_unit ?? "mi"}
+                                        {displayDistance(w.distance_miles, w.distance_unit ?? "mi")}
                                       </span>
                                     )}
                                     {w.pace_type && (

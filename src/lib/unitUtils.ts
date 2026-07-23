@@ -41,5 +41,5 @@ export function displayDistance(value: number | null, unit: string): string | nu
   if (!value) return null;
   const u = unit ?? "mi";
   if (u === "m") return `${Math.round(value)} m`;
-  return `${parseFloat(value.toFixed(2).replace(/\.?0+$/, ""))} ${u}`;
+  return `${parseFloat(value.toFixed(1))} ${u}`;
 }

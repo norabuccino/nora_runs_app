@@ -2,6 +2,7 @@
 
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
 import { WORKOUT_TYPE_COLORS, WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_COLORS, STRENGTH_TYPE_LABELS, getWorkoutEstimate } from "@/lib/paceUtils";
+import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 interface WorkoutCardProps {
@@ -127,7 +128,7 @@ export function WorkoutCard({
         {!isStrength && (
           <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
             {workout.distance_miles && (
-              <span>{workout.distance_miles} {workout.distance_unit ?? "mi"}</span>
+              <span>{displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")}</span>
             )}
             {workout.pace_type && (
               <span className="capitalize">{workout.pace_type} pace</span>
