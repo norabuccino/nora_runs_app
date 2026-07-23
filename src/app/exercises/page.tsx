@@ -7,6 +7,7 @@ import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } f
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
+import { useCompactMode } from "@/hooks/useCompactMode";
 
 interface ExerciseFormData {
   name: string;
@@ -175,7 +176,7 @@ export default function ExercisesPage() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useCompactMode();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
@@ -187,14 +188,6 @@ export default function ExercisesPage() {
   const [bulkType, setBulkType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
   const [showImport, setShowImport] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 768px)");
-    setCompact(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setCompact(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
 
   async function load() {
     const supabase = createClient();

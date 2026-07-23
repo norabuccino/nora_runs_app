@@ -17,6 +17,7 @@ import {
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 import { displayDistance } from "@/lib/unitUtils";
+import { useCompactMode } from "@/hooks/useCompactMode";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
@@ -71,20 +72,12 @@ export default function WorkoutsPage() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [isPending, startTransition] = useTransition();
-  const [compact, setCompact] = useState(false);
+  const [compact, setCompact] = useCompactMode();
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState("");
   const [bulkRunType, setBulkRunType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
-
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 768px)");
-    setCompact(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setCompact(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
 
   function handleExport() {
     const csvEscape = (s: string | null | undefined) => s ? `"${s.replace(/"/g, '""')}"` : "";
