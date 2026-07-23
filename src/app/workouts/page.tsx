@@ -171,10 +171,13 @@ export default function WorkoutsPage() {
 
   async function load() {
     const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const [{ data: ws }, { data: pac }, { data: profile }] = await Promise.all([
       supabase.from("workouts").select("*, workout_steps(*)").order("created_at", { ascending: false }),
       supabase.from("running_paces").select("*").order("created_at"),
-      supabase.from("profiles").select("role").single(),
+      user
+        ? supabase.from("profiles").select("role").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
     ]);
     setIsAdmin(profile?.role === "admin");
 
