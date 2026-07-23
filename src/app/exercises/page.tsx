@@ -189,7 +189,11 @@ export default function ExercisesPage() {
   const [showImport, setShowImport] = useState(false);
 
   useEffect(() => {
-    setCompact(window.matchMedia("(max-width: 640px)").matches);
+    const mql = window.matchMedia("(max-width: 768px)");
+    setCompact(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setCompact(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
   }, []);
 
   async function load() {
@@ -524,7 +528,7 @@ export default function ExercisesPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {displayed.map((exercise) => (
                 <ExerciseCard
                   key={exercise.id}

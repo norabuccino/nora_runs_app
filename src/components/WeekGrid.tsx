@@ -38,9 +38,9 @@ const GRID_COLS: Record<number, string> = {
   2: "grid-cols-2", 3: "grid-cols-3", 4: "grid-cols-4",
   5: "grid-cols-5", 6: "grid-cols-6", 7: "grid-cols-7",
 };
-const SM_GRID_COLS: Record<number, string> = {
-  2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4",
-  5: "sm:grid-cols-5", 6: "sm:grid-cols-6", 7: "sm:grid-cols-7",
+const LG_GRID_COLS: Record<number, string> = {
+  2: "lg:grid-cols-2", 3: "lg:grid-cols-3", 4: "lg:grid-cols-4",
+  5: "lg:grid-cols-5", 6: "lg:grid-cols-6", 7: "lg:grid-cols-7",
 };
 
 function toDayMap(weekWorkouts: PlanWorkout[], count = 7): DayMap {
@@ -85,7 +85,7 @@ function DayHeader({
   return (
     <>
       {/* Mobile: name + date inline with a trailing rule */}
-      <div className="flex sm:hidden items-center gap-2">
+      <div className="flex lg:hidden items-center gap-2">
         <span className="text-xs font-semibold text-[var(--muted)]">{DAY_NAMES[dayIndex]}</span>
         {startDate && (
           <span className="text-[10px] text-[var(--muted)] opacity-70">
@@ -95,7 +95,7 @@ function DayHeader({
         <div className="h-px flex-1 bg-[var(--border)]" />
       </div>
       {/* Desktop: centered above the column */}
-      <div className="hidden sm:block text-center">
+      <div className="hidden lg:block text-center">
         <p className="text-xs font-medium text-[var(--muted)]">{DAY_NAMES[dayIndex]}</p>
         {startDate && (
           <p className="text-[10px] text-[var(--muted)] opacity-70">
@@ -383,7 +383,7 @@ export function WeekGrid({
   const displayItems = mode === "edit" && externalItems !== undefined ? externalItems : items;
   const byDay = Array.from({ length: daysPerWeek }, (_, i) => displayItems[i] ?? []);
   const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
-  const smGridCols = SM_GRID_COLS[daysPerWeek] ?? "sm:grid-cols-7";
+  const lgGridCols = LG_GRID_COLS[daysPerWeek] ?? "lg:grid-cols-7";
 
   const header = (
     <div className="flex items-baseline gap-3 min-w-0">
@@ -411,11 +411,11 @@ export function WeekGrid({
       <div className="space-y-2">
         {header}
         {/*
-          Mobile (< sm): single-column stack. Empty days are hidden — rest days
+          Mobile (< lg): single-column stack. Empty days are hidden — rest days
           don't need a visual slot in the stacked view.
-          Desktop (sm+): multi-column grid with overflow scroll.
+          Desktop (lg+): multi-column grid with overflow scroll.
         */}
-        <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
+        <div className={`grid grid-cols-1 ${lgGridCols} gap-y-3 lg:gap-2 lg:overflow-x-auto`}>
           {byDay.map((dayWorkouts, dayIndex) => {
             const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
             // Hide empty days entirely on mobile — only show on desktop.
@@ -423,7 +423,7 @@ export function WeekGrid({
             return (
               <div
                 key={dayIndex}
-                className={`${hideOnMobile ? "hidden sm:block" : ""} min-w-0 sm:min-w-[120px] space-y-2`}
+                className={`${hideOnMobile ? "hidden lg:block" : ""} min-w-0 lg:min-w-[120px] space-y-2`}
               >
                 <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
                 <div className="space-y-1.5">
@@ -466,12 +466,12 @@ export function WeekGrid({
             the user can still drag workouts onto rest days.
             Desktop: multi-column grid.
           */}
-          <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
+          <div className={`grid grid-cols-1 ${lgGridCols} gap-y-3 lg:gap-2 lg:overflow-x-auto`}>
             {byDay.map((dayWorkouts, dayIndex) => {
               const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
               const containerId = `day-${dayIndex}`;
               return (
-                <div key={dayIndex} className="min-w-0 sm:min-w-[120px] space-y-2">
+                <div key={dayIndex} className="min-w-0 lg:min-w-[120px] space-y-2">
                   <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
                   <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                     <DroppableDay id={containerId}>
@@ -479,12 +479,12 @@ export function WeekGrid({
                         onAddWorkout ? (
                           <button
                             onClick={() => onAddWorkout(weekNumber, dayIndex, "library")}
-                            className="w-full h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
+                            className="w-full h-8 lg:h-14 rounded-lg border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
                           >
                             +
                           </button>
                         ) : (
-                          <div className="h-8 sm:h-14 rounded-lg border border-dashed border-[var(--border)]" />
+                          <div className="h-8 lg:h-14 rounded-lg border border-dashed border-[var(--border)]" />
                         )
                       ) : (
                         dayWorkouts.flatMap((workout, i) => {
@@ -544,14 +544,14 @@ export function WeekGrid({
         Mobile: stacked. All days always shown — user needs to add workouts to any day.
         Desktop: multi-column grid.
       */}
-      <div className={`grid grid-cols-1 ${smGridCols} gap-y-3 sm:gap-2 sm:overflow-x-auto`}>
+      <div className={`grid grid-cols-1 ${lgGridCols} gap-y-3 lg:gap-2 lg:overflow-x-auto`}>
         {byDay.map((dayWorkouts, dayIndex) => {
           const dayLogic: "and" | "or" = dayWorkouts[0]?.day_logic ?? "or";
           const containerId = externalItems !== undefined
             ? `week-${weekNumber}-day-${dayIndex}`
             : `day-${dayIndex}`;
           return (
-            <div key={dayIndex} className="min-w-0 sm:min-w-[120px] space-y-2">
+            <div key={dayIndex} className="min-w-0 lg:min-w-[120px] space-y-2">
               <DayHeader dayIndex={dayIndex} weekNumber={weekNumber} startDate={startDate} />
               <SortableContext items={dayWorkouts.map((w) => w.id)} strategy={verticalListSortingStrategy}>
                 <DroppableDay id={containerId}>

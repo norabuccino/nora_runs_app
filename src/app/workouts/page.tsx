@@ -78,7 +78,11 @@ export default function WorkoutsPage() {
   const [bulkSource, setBulkSource] = useState("");
 
   useEffect(() => {
-    setCompact(window.matchMedia("(max-width: 640px)").matches);
+    const mql = window.matchMedia("(max-width: 768px)");
+    setCompact(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setCompact(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
   }, []);
 
   function handleExport() {
@@ -470,7 +474,7 @@ export default function WorkoutsPage() {
               ))}
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {displayed.map((workout) => (
                 <WorkoutLibraryCard
                   key={workout.id}
