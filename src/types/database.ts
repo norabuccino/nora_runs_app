@@ -460,6 +460,23 @@ export interface Database {
           purpose?: string;
         };
       };
+      app_settings: {
+        Row: {
+          key: string;
+          value: Json;
+          updated_at: string | null;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          updated_at?: string | null;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          updated_at?: string | null;
+        };
+      };
       strava_tokens: {
         Row: {
           user_id: string;
@@ -516,3 +533,4 @@ export type ScheduledWorkoutWithSteps = ScheduledWorkout & { workout_steps: Work
 export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | "plyometrics" | "mobility";
 export type DifficultyType = "beginner" | "intermediate" | "advanced";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
+export type AppSetting = Database["public"]["Tables"]["app_settings"]["Row"];

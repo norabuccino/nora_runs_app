@@ -91,11 +91,15 @@ Three files work together — use the right one for the context:
 
 ### Auth flow
 
-Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, `/paces`, and `/workouts`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
+Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, `/paces`, `/workouts`, `/exercises`, and `/admin`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
 
 The middleware wraps all Supabase calls in a try/catch — auth failures are logged but never crash the site. Same for `layout.tsx`.
 
 Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) to avoid CSRF issues.
+
+### Roles and admin area
+
+`profiles.role` is `"admin" | "user"`. `src/lib/profile.ts` exports `getIsAdmin()` (server-side check), used to gate `/admin/*` routes and server actions in `src/app/actions/admin.ts` (`setUserRole`) and `src/app/actions/badgeColors.ts`. `Nav` shows an "Admin" link only when `isAdmin` is passed in. Admin pages: `/admin/users` (role management) and `/admin/badge-colors` (`BadgeColorEditor` — customizes the color/label badges rendered by `WorkoutTypeBadges`).
 
 ### Adding new protected routes
 
@@ -103,17 +107,22 @@ Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new rout
 
 ### Database tables
 
-Eight tables exist in Supabase (all with RLS enabled):
+Twelve tables exist in Supabase (all with RLS enabled):
 
 | Table | Purpose |
 |---|---|
-| `training_plans` | Plan templates — type is one of: `marathon`, `half_marathon`, `5k_10k`, `base_building`, `strength`, `custom` |
-| `plan_workouts` | Individual workouts within a plan (week + day slots); has `run_type` column for run variety (easy_run, tempo_run, interval_run, threshold_run, recovery_run, race, long_run) |
-| `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down); FK to either `plan_workouts.id` OR `workouts.id` — exactly one must be set (enforced by CHECK constraint) |
+| `training_plans` | Plan templates — `type` is one of: `marathon`, `half_marathon`, `5k_10k`, `base_building`, `strength`, `custom`; also has `difficulty` (beginner/intermediate/advanced), `days_per_week`, and `source`/`source_plan_id` (tracks personal copies of shared plans) |
+| `plan_workouts` | Individual workouts within a plan (week + day slots). `type` is one of `run`, `strength`, `rest`, `cross_train`, `bike`, `swim`, `yoga`, `elliptical`; `run_type` covers run variety (easy_run, interval_run, threshold_run, recovery_run, race, long_run, mp_hmp_run); `strength_type` is free text; `day_logic` (`"and"` \| `"or"`) controls whether multiple workouts on the same day/week slot are all required (`and`) or alternatives (`or`); `library_workout_id` links back to the library workout it was copied from |
+| `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down, strength move). FK to exactly one of `plan_workout_id`, `workout_id`, or `scheduled_workout_id` (enforced by CHECK constraint — never set more than one). Also carries strength-specific fields (`sets`, `reps`, `weight_suggestion`, `both_sides`), `exercise_id` (links to the `exercises` library), `video_url`, `repeat_group_id`/`repeat_count`/`group_name` (interval repeat blocks), and `duration_unit`/`distance_unit` |
 | `workouts` | Standalone workout library — reusable templates not tied to any plan; user-owned with RLS |
-| `user_plans` | A user's active/past plan assignments with start dates |
+| `scheduled_workouts` | Ad-hoc, date-based workouts (not tied to a plan week/day) — used for one-off workouts scheduled directly onto the dashboard for a specific `scheduled_date`; same field shape as `plan_workouts`/`workouts` plus `completed_at`; steps attach via `workout_steps.scheduled_workout_id` |
+| `exercises` | User's exercise library (name, description, `video_url`, `exercise_type`, `source`, `is_private`) — referenced by `workout_steps.exercise_id` for strength workout steps; private exercises are only visible to their creator |
+| `user_plans` | A user's active/past plan assignments with start dates. A user may have one active plan per `training_plans.type` at a time (e.g. one active running plan + one active strength plan simultaneously) |
 | `running_paces` | Named paces (Easy, Tempo, etc.) stored as seconds/mile |
 | `workout_logs` | Completion records and per-instance workout overrides |
+| `profiles` | One row per user; carries `role` (`admin`/`user`) used for admin-gated features |
+| `plan_week_notes` | Optional per-week `purpose` text shown on a plan's week view |
+| `app_settings` | Admin-managed key/value JSON settings (e.g. `badge_colors`, `badge_layout`); RLS restricts writes to admins |
 | `strava_tokens` | OAuth tokens for Strava integration (partially set up) |
 
 ### Database schema changes
@@ -171,20 +180,35 @@ When a user clicks "Add to plan" on a library workout, `addLibraryWorkoutToPlan(
 
 ### Workout steps
 
-`workout_steps` belongs to either a `plan_workout` or a library `workout` — never both. The `plan_workout_id` and `workout_id` columns are both nullable, and a CHECK constraint (`workout_steps_exactly_one_parent`) enforces that exactly one is non-null. When inserting steps, always set only the relevant FK and leave the other null.
+`workout_steps` belongs to exactly one of: a `plan_workout`, a library `workout`, or a `scheduled_workout` — never more than one. The `plan_workout_id`, `workout_id`, and `scheduled_workout_id` columns are all nullable, and a CHECK constraint enforces that exactly one is non-null. When inserting steps, always set only the relevant FK and leave the others null.
+
+### Scheduled workouts (ad-hoc dashboard workouts)
+
+`scheduled_workouts` holds one-off workouts attached directly to a calendar date rather than to a plan's week/day slot — used for workouts logged on the dashboard that don't belong to an active plan. Server actions live in `src/app/actions/scheduledWorkouts.ts` (`createScheduledWorkout`, `createScheduledWorkoutFromLibrary`, `deleteScheduledWorkout`, `markScheduledWorkoutComplete`/`unmarkScheduledWorkoutComplete`). The dashboard (`src/app/dashboard/page.tsx`) adapts a `ScheduledWorkout` into the `PlanWorkout` shape (see `adaptScheduled()`) so it can render through the same `WorkoutCard`/`WeekGrid` components as real plan workouts.
+
+### Exercise library
+
+`exercises` is a user-owned library of named exercises (with `video_url`, `exercise_type`, `source`, `is_private`) managed at `/exercises`. `workout_steps.exercise_id` links a strength step to a library exercise. Server actions in `src/app/actions/exercises.ts`; renaming an exercise (`updateExercise`) propagates the new name to `workout_steps.label` for every step referencing it. `is_private` exercises are only visible to their creator (RLS-enforced) — shared/public exercises are visible to all users.
 
 ### WorkoutForm fields
 
-Both `WorkoutForm` (plan context) and `WorkoutLibraryForm` (library context) share the same field set:
-- `type` — run | strength | cross_train | rest
-- `run_type` — easy_run | tempo_run | interval_run | threshold_run | recovery_run | race | long_run (only shown when type = run)
+`WorkoutForm` (plan/scheduled context) and `WorkoutLibraryForm` (library context) share the same field set:
+- `type` — run | strength | cross_train | rest | bike | swim | yoga | elliptical
+- `run_type` — easy_run | interval_run | threshold_run | recovery_run | race | long_run | mp_hmp_run (only shown when type = run)
+- `strength_type` — free text, shown when type = strength
 - `title`, `description`, `distance_miles`, `pace_type`, `duration_minutes`, `notes`
-- `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes)
+- `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes, sets, reps, weight_suggestion, video_url, exercise_id, both_sides)
 - `saveToLibrary?` — optional boolean; only present when `WorkoutForm` is opened with `showSaveToLibrary={true}` (plan editor create-new flow)
 
 `WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.
 
-The step card UI only exposes `step_type`, `pace_type`, `duration_minutes`, and `distance_miles` — `label` and `notes` fields exist in `WorkoutStepFormRow` but are not shown in the form.
+### Day logic (AND/OR day slots)
+
+`plan_workouts.day_logic` (`"and"` | `"or"`, default `"or"`) governs how multiple workouts scheduled to the same week/day slot relate: `"and"` means all are required that day, `"or"` means they're alternatives (pick one). `CopyToDaysModal` lets a user copy a workout to other day slots within a plan.
+
+### Units (mi/km)
+
+Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `useUnitPreference()` (`src/hooks/useUnitPreference.ts`) reads/writes `localStorage["unitPref"]` and broadcasts changes via a `window` custom event so every mounted instance of the hook stays in sync on the same page. `src/lib/unitUtils.ts` holds the underlying conversion/formatting functions (`toMiles`, `convertDistance`, `formatPaceForUnit`, `displayDistance`, `getStoredUnit`) — distances are always stored in miles and converted for display only.
 
 ### Path alias
 
@@ -192,25 +216,39 @@ The step card UI only exposes `step_type`, `pace_type`, `duration_minutes`, and 
 
 ### Key utilities and actions
 
-- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation; exports `RUN_TYPE_LABELS`, `RUN_TYPE_COLORS`, `STEP_TYPE_LABELS`, `WORKOUT_TYPE_LABELS`, `WORKOUT_TYPE_COLORS`, `PLAN_TYPE_LABELS`, `PLAN_TYPE_COLORS`, `DAY_NAMES`
+- `src/lib/paceUtils.ts` — pace formatting, duration estimation, schedule date calculation; exports `RUN_TYPE_LABELS`, `RUN_TYPE_COLORS`, `STEP_TYPE_LABELS`, `WORKOUT_TYPE_LABELS`, `WORKOUT_TYPE_COLORS`, `PLAN_TYPE_LABELS`, `PLAN_TYPE_COLORS`, `EXERCISE_TYPE_LABELS`, `EXERCISE_TYPE_COLORS`, `STRENGTH_TYPE_LABELS`, `STRENGTH_TYPE_COLORS`, `DIFFICULTY_LABELS`, `DIFFICULTY_COLORS`, `DAY_NAMES`, `WEEKDAY_NAMES`
+- `src/lib/unitUtils.ts` — mi/km conversion and display formatting (see Units section above)
+- `src/lib/profile.ts` — `getIsAdmin()` server-side admin check
+- `src/lib/badgeColorUtils.ts` — types/defaults for admin-configurable badge colors and layout
 - `src/app/actions/workouts.ts` — CRUD for `plan_workouts` + `workout_steps`; also `importWorkouts` for bulk CSV/JSON import
 - `src/app/actions/workoutLibrary.ts` — CRUD for `workouts` library + `addLibraryWorkoutToPlan`
+- `src/app/actions/scheduledWorkouts.ts` — CRUD for ad-hoc `scheduled_workouts` (see above)
+- `src/app/actions/exercises.ts` — CRUD for the `exercises` library, including bulk update/import
 - `src/app/actions/plans.ts` — CRUD for `training_plans`
 - `src/app/actions/userPlans.ts` — assign plan, mark/unmark workout complete
 - `src/app/actions/paces.ts` — CRUD for `running_paces`
+- `src/app/actions/admin.ts` — `setUserRole` (admin-only)
+- `src/app/actions/badgeColors.ts` — get/save `badge_colors` and `badge_layout` in `app_settings` (admin-only writes)
 
 ### Components
 
 | Component | Purpose |
 |---|---|
-| `Nav` | Top nav with links: Today, My Plan, Plans, Workouts, Paces |
-| `WorkoutForm` | Modal form for creating/editing plan workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
+| `Nav` | Top nav with links: Today, My Plan, Plans, Workouts, Exercises, Paces; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
+| `WorkoutForm` | Modal form for creating/editing plan/scheduled workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
 | `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
 | `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
+| `WorkoutTypeBadges` | Renders the type/run_type/strength_type badge pills for a workout, using admin-configurable colors; `compact` mode shows only the sub-type badge |
+| `WorkoutDetailModal` / `PlanWorkoutDetailModal` | Read-only detail view opened by clicking a workout tile; includes treadmill-mode toggle for run workouts |
 | `WorkoutImportModal` | File upload modal for bulk-importing workouts from CSV or JSON |
 | `AddToPlanModal` | Modal to copy a library workout into a chosen plan + week + day |
 | `LibraryPickerModal` | Modal used in the plan editor to pick an existing library workout and copy it into a specific week + day; includes `WorkoutFilterBar` |
+| `CopyToDaysModal` | Copies an existing plan workout to other day/week slots in the same plan |
 | `WeekGrid` | 7-column week grid; used on plan view, plan edit, and dashboard |
+| `PlanWeeklyView` / `MyPlanWeeks` | Render a plan's weeks (workouts + week purpose notes from `plan_week_notes`) |
+| `WeekMileageLabel` | Shows a week's mileage range, respecting the mi/km unit preference |
 | `PlanCard` | Summary card for a training plan; uses `PLAN_TYPE_COLORS` from paceUtils |
+| `ExercisePickerModal` / `ExerciseDetailModal` / `ExerciseImportModal` | Pick/view/bulk-import exercises from the `exercises` library |
+| `BadgeColorEditor` | Admin UI (`/admin/badge-colors`) for customizing workout/run-type badge colors and layout |
 | `PaceCalculator` | Pace calculation utility UI |
 | `ThemeProvider` | Dark/light theme context |
