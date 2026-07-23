@@ -21,8 +21,9 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { DAY_NAMES, scheduledDate } from "@/lib/paceUtils";
+import { DAY_NAMES, scheduledDate, weekMileageRange } from "@/lib/paceUtils";
 import { WorkoutCard } from "./WorkoutCard";
+import { WeekMileageLabel } from "./WeekMileageLabel";
 
 function formatShortDate(dateStr: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);
@@ -384,23 +385,27 @@ export function WeekGrid({
   const byDay = Array.from({ length: daysPerWeek }, (_, i) => displayItems[i] ?? []);
   const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
   const lgGridCols = LG_GRID_COLS[daysPerWeek] ?? "lg:grid-cols-7";
+  const { low: mileageLow, high: mileageHigh } = weekMileageRange(byDay.flat(), daysPerWeek);
 
   const header = (
-    <div className="flex items-baseline gap-3 min-w-0">
-      <h3 className="text-sm font-semibold text-[var(--muted)] whitespace-nowrap">Week {weekNumber}</h3>
-      {mode === "edit" ? (
-        <input
-          type="text"
-          value={localPurpose}
-          onChange={(e) => setLocalPurpose(e.target.value)}
-          onBlur={() => onPurposeChange?.(localPurpose)}
-          placeholder="Add a goal for this week…"
-          maxLength={120}
-          className="flex-1 min-w-0 text-sm bg-transparent border-b border-transparent hover:border-[var(--border)] focus:border-[var(--accent)] focus:outline-none py-0 text-[var(--foreground)] placeholder:text-[var(--muted)]"
-        />
-      ) : localPurpose ? (
-        <p className="text-sm text-[var(--muted)] italic truncate">{localPurpose}</p>
-      ) : null}
+    <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-baseline gap-3 min-w-0 flex-1">
+        <h3 className="text-sm font-semibold text-[var(--muted)] whitespace-nowrap">Week {weekNumber}</h3>
+        {mode === "edit" ? (
+          <input
+            type="text"
+            value={localPurpose}
+            onChange={(e) => setLocalPurpose(e.target.value)}
+            onBlur={() => onPurposeChange?.(localPurpose)}
+            placeholder="Add a goal for this week…"
+            maxLength={120}
+            className="flex-1 min-w-0 text-sm bg-transparent border-b border-transparent hover:border-[var(--border)] focus:border-[var(--accent)] focus:outline-none py-0 text-[var(--foreground)] placeholder:text-[var(--muted)]"
+          />
+        ) : localPurpose ? (
+          <p className="text-sm text-[var(--muted)] italic truncate">{localPurpose}</p>
+        ) : null}
+      </div>
+      <WeekMileageLabel lowMi={mileageLow} highMi={mileageHigh} />
     </div>
   );
 

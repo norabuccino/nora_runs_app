@@ -9,8 +9,9 @@ import {
   defaultDayMapping,
   resolvePaceSecondsPerMile,
   stepDurationSeconds,
+  weekMileageRange,
 } from "@/lib/paceUtils";
-import type { RunningPace } from "@/types/database";
+import type { RunningPace, PlanWorkout } from "@/types/database";
 
 // ── formatPace ─────────────────────────────────────────────────────────────────
 
@@ -231,6 +232,81 @@ describe("getWorkoutEstimate", () => {
     // 8 km / 1.60934 ≈ 4.971 mi × 540 ≈ 2684 sec → floor(2684/60) = 44m
     const result = getWorkoutEstimate(8, "km", "easy", null, paces);
     expect(result).toBe("44m");
+  });
+});
+
+// ── weekMileageRange ────────────────────────────────────────────────────────────
+
+describe("weekMileageRange", () => {
+  function mkWorkout(overrides: Partial<PlanWorkout>): PlanWorkout {
+    return {
+      id: "1",
+      plan_id: "p",
+      week_number: 1,
+      day_of_week: 0,
+      type: "run",
+      run_type: null,
+      strength_type: null,
+      title: "Run",
+      description: null,
+      distance_miles: null,
+      distance_unit: "mi",
+      pace_type: null,
+      duration_minutes: null,
+      notes: null,
+      sort_order: 0,
+      day_logic: "or",
+      library_workout_id: null,
+      ...overrides,
+    };
+  }
+
+  it("sums distances across days with a single workout each", () => {
+    const workouts = [
+      mkWorkout({ day_of_week: 0, distance_miles: 3 }),
+      mkWorkout({ day_of_week: 1, distance_miles: 5 }),
+    ];
+    expect(weekMileageRange(workouts)).toEqual({ low: 8, high: 8 });
+  });
+
+  it("takes min/max spread for OR (alternative) days", () => {
+    const workouts = [
+      mkWorkout({ day_of_week: 0, distance_miles: 3, day_logic: "or" }),
+      mkWorkout({ day_of_week: 0, distance_miles: 7, day_logic: "or" }),
+    ];
+    expect(weekMileageRange(workouts)).toEqual({ low: 3, high: 7 });
+  });
+
+  it("sums all workouts on an AND (all required) day", () => {
+    const workouts = [
+      mkWorkout({ day_of_week: 0, distance_miles: 3, day_logic: "and" }),
+      mkWorkout({ day_of_week: 0, distance_miles: 7, day_logic: "and" }),
+    ];
+    expect(weekMileageRange(workouts)).toEqual({ low: 10, high: 10 });
+  });
+
+  it("converts km distances to miles before summing", () => {
+    const workouts = [mkWorkout({ day_of_week: 0, distance_miles: 10, distance_unit: "km" })];
+    const { low, high } = weekMileageRange(workouts);
+    expect(low).toBeCloseTo(6.2137, 3);
+    expect(high).toBeCloseTo(6.2137, 3);
+  });
+
+  it("treats workouts with no distance as zero", () => {
+    const workouts = [mkWorkout({ day_of_week: 0, distance_miles: null })];
+    expect(weekMileageRange(workouts)).toEqual({ low: 0, high: 0 });
+  });
+
+  it("returns zero for an empty week", () => {
+    expect(weekMileageRange([])).toEqual({ low: 0, high: 0 });
+  });
+
+  it("respects a custom daysPerWeek and ignores out-of-range days", () => {
+    const workouts = [
+      mkWorkout({ day_of_week: 0, distance_miles: 3 }),
+      mkWorkout({ day_of_week: 5, distance_miles: 100 }),
+    ];
+    expect(weekMileageRange(workouts, 3)).toEqual({ low: 3, high: 3 });
   });
 });
 

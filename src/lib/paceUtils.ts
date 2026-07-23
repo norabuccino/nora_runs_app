@@ -1,4 +1,4 @@
-import type { RunningPace, PaceType } from "@/types/database";
+import type { RunningPace, PaceType, PlanWorkout } from "@/types/database";
 import { convertDistance, getStoredUnit, type DistanceUnit } from "@/lib/unitUtils";
 
 export function formatPace(secondsPerMile: number): string {
@@ -91,6 +91,42 @@ export function getWorkoutEstimate(
   }
   if (distance) return `${distance} ${distanceUnit ?? "mi"}`;
   return null;
+}
+
+// Estimate a week's total mileage range from its workouts. AND days (all required)
+// sum their distances; OR days (alternatives) contribute their min/max spread.
+export function weekMileageRange(
+  weekWorkouts: PlanWorkout[],
+  daysPerWeek = 7
+): { low: number; high: number } {
+  const byDay: Record<number, PlanWorkout[]> = {};
+  for (let d = 0; d < daysPerWeek; d++) byDay[d] = [];
+  weekWorkouts.forEach((w) => {
+    if (w.day_of_week < daysPerWeek) byDay[w.day_of_week].push(w);
+  });
+
+  let low = 0;
+  let high = 0;
+
+  for (let d = 0; d < daysPerWeek; d++) {
+    const day = byDay[d];
+    if (!day.length) continue;
+    const distances = day.map((w) =>
+      w.distance_miles
+        ? convertDistance(parseFloat(String(w.distance_miles)), (w.distance_unit ?? "mi") as DistanceUnit, "mi")
+        : 0
+    );
+    if ((day[0].day_logic ?? "or") === "and") {
+      const sum = distances.reduce((a, b) => a + b, 0);
+      low += sum;
+      high += sum;
+    } else {
+      low += Math.min(...distances);
+      high += Math.max(...distances);
+    }
+  }
+
+  return { low, high };
 }
 
 // Parse a YYYY-MM-DD string as local midnight (avoids UTC-shift timezone bugs).
