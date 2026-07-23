@@ -76,7 +76,7 @@ export function getWorkoutEstimate(
   durationMinutes: number | null,
   paces: RunningPace[]
 ): string | null {
-  if (durationMinutes) return `~${durationMinutes}m`;
+  if (durationMinutes) return `${durationMinutes}m`;
   // Convert to miles for duration estimation (paces stored as sec/mile)
   const KM_PER_MI = 1.60934;
   const M_PER_MI = 1609.34;

@@ -211,7 +211,7 @@ describe("getWorkoutEstimate", () => {
   ];
 
   it("returns duration directly when duration_minutes is set", () => {
-    expect(getWorkoutEstimate(5, "mi", "easy", 45, paces)).toBe("~45m");
+    expect(getWorkoutEstimate(5, "mi", "easy", 45, paces)).toBe("45m");
   });
 
   it("estimates from distance and named pace", () => {
