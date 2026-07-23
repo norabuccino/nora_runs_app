@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { updateUserPlan, deleteUserPlan } from "@/app/actions/userPlans";
-import { PLAN_TYPE_LABELS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, raceDateToStartDate, startDateToRaceDate } from "@/lib/paceUtils";
 import type { PlanWorkout, RunningPace, TrainingPlan } from "@/types/database";
 import { MyPlanWeeks } from "@/components/MyPlanWeeks";
 
@@ -82,11 +82,7 @@ export default async function MyPlanPage() {
     const raceDate = formData.get("race_date") as string;
     const totalWeeks = parseInt(formData.get("total_weeks") as string);
     if (raceDate && totalWeeks) {
-      const [y, m, d] = raceDate.split("-").map(Number);
-      const date = new Date(y, m - 1, d);
-      date.setDate(date.getDate() - (totalWeeks * 7 - 1));
-      const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-      await updateUserPlan(id, { start_date: startDate });
+      await updateUserPlan(id, { start_date: raceDateToStartDate(raceDate, totalWeeks) });
     }
   }
 
@@ -168,12 +164,7 @@ export default async function MyPlanPage() {
             const weeks = Array.from({ length: plan.total_weeks }, (_, i) => i + 1);
             const isStrength = plan.type === "strength";
 
-            const raceDateStr = (() => {
-              const [y, m, d] = activePlan.start_date.split("-").map(Number);
-              const date = new Date(y, m - 1, d);
-              date.setDate(date.getDate() + plan.total_weeks * 7 - 1);
-              return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-            })();
+            const raceDateStr = startDateToRaceDate(activePlan.start_date, plan.total_weeks);
 
             return (
               <div key={activePlan.id} className="space-y-8">

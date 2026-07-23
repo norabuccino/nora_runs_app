@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PLAN_TYPE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_COLORS, WEEKDAY_NAMES, defaultDayMapping, DAY_NAMES } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_COLORS, WEEKDAY_NAMES, defaultDayMapping, DAY_NAMES, raceDateToStartDate } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 import { getIsAdmin } from "@/lib/profile";
@@ -44,11 +44,7 @@ export default async function PlanDetailPage({ params }: Props) {
     } else {
       const raceDate = formData.get("race_date") as string;
       if (raceDate) {
-        const [y, m, d] = raceDate.split("-").map(Number);
-        const date = new Date(y, m - 1, d);
-        date.setDate(date.getDate() - (plan!.total_weeks * 7 - 1));
-        const startDate = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-        await assignPlan(id, startDate);
+        await assignPlan(id, raceDateToStartDate(raceDate, plan!.total_weeks));
       }
     }
   }

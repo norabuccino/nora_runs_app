@@ -130,9 +130,28 @@ export function weekMileageRange(
 }
 
 // Parse a YYYY-MM-DD string as local midnight (avoids UTC-shift timezone bugs).
-function parseDateLocal(dateStr: string): Date {
+export function parseDateLocal(dateStr: string): Date {
   const [y, m, d] = dateStr.split("-").map(Number);
   return new Date(y, m - 1, d);
+}
+
+// Inverse of parseDateLocal: format a local Date back to a YYYY-MM-DD string.
+export function formatDateLocal(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+// A plan's race date is its last day: start_date + (totalWeeks * 7 - 1) days.
+export function startDateToRaceDate(startDate: string, totalWeeks: number): string {
+  const date = parseDateLocal(startDate);
+  date.setDate(date.getDate() + totalWeeks * 7 - 1);
+  return formatDateLocal(date);
+}
+
+// Inverse: given a race date and plan length, back-calculate the start date.
+export function raceDateToStartDate(raceDate: string, totalWeeks: number): string {
+  const date = parseDateLocal(raceDate);
+  date.setDate(date.getDate() - (totalWeeks * 7 - 1));
+  return formatDateLocal(date);
 }
 
 // Given a user_plan start_date and today's date, return which week/day we're on.

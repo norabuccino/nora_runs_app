@@ -8,7 +8,7 @@ import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { getTodayPosition, scheduledDate, DAY_NAMES } from "@/lib/paceUtils";
+import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal } from "@/lib/paceUtils";
 import { markWorkoutComplete, unmarkWorkoutComplete } from "@/app/actions/userPlans";
 import {
   createScheduledWorkout,
@@ -395,8 +395,7 @@ export default function DashboardPage() {
   // Header info: if all active plans have no valid today position, show the first plan's status
   const firstCtx = planContexts[0];
   const firstPos = firstCtx.todayPos;
-  const [psy, psm, psd] = firstCtx.userPlan.start_date.split("-").map(Number);
-  const planStartDate = new Date(psy, psm - 1, psd);
+  const planStartDate = parseDateLocal(firstCtx.userPlan.start_date);
   today.setHours(0, 0, 0, 0);
   const planNotStarted = !firstPos && today < planStartDate;
   const planEnded = !firstPos && !planNotStarted;

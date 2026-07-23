@@ -11,6 +11,10 @@ import {
   stepDurationSeconds,
   weekMileageRange,
   resolveWorkoutTypeDisplay,
+  parseDateLocal,
+  formatDateLocal,
+  raceDateToStartDate,
+  startDateToRaceDate,
 } from "@/lib/paceUtils";
 import type { RunningPace, PlanWorkout } from "@/types/database";
 
@@ -125,6 +129,52 @@ describe("scheduledDate", () => {
     // rolling back to Jun 28 in US timezones after local normalization.
     const result = scheduledDate("2026-06-29", 1, 0);
     expect(result).toBe("2026-06-29");
+  });
+});
+
+// ── parseDateLocal / formatDateLocal ─────────────────────────────────────────────
+
+describe("parseDateLocal", () => {
+  it("parses a YYYY-MM-DD string as local midnight, not UTC", () => {
+    const date = parseDateLocal("2026-03-05");
+    expect(date.getFullYear()).toBe(2026);
+    expect(date.getMonth()).toBe(2); // 0-indexed
+    expect(date.getDate()).toBe(5);
+    expect(date.getHours()).toBe(0);
+  });
+});
+
+describe("formatDateLocal", () => {
+  it("formats a local Date back to YYYY-MM-DD", () => {
+    expect(formatDateLocal(new Date(2026, 2, 5))).toBe("2026-03-05");
+  });
+
+  it("pads single-digit months and days", () => {
+    expect(formatDateLocal(new Date(2026, 0, 9))).toBe("2026-01-09");
+  });
+
+  it("round-trips through parseDateLocal", () => {
+    expect(formatDateLocal(parseDateLocal("2026-11-23"))).toBe("2026-11-23");
+  });
+});
+
+// ── raceDateToStartDate / startDateToRaceDate ────────────────────────────────────
+
+describe("raceDateToStartDate", () => {
+  it("back-calculates the start date for an 18-week plan", () => {
+    // 18 weeks * 7 - 1 = 125 days before the race date
+    expect(raceDateToStartDate("2026-11-01", 18)).toBe("2026-06-29");
+  });
+});
+
+describe("startDateToRaceDate", () => {
+  it("is the exact inverse of raceDateToStartDate", () => {
+    const start = raceDateToStartDate("2026-11-01", 18);
+    expect(startDateToRaceDate(start, 18)).toBe("2026-11-01");
+  });
+
+  it("computes the race date as start + totalWeeks*7 - 1 days", () => {
+    expect(startDateToRaceDate("2026-06-29", 18)).toBe("2026-11-01");
   });
 });
 

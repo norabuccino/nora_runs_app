@@ -21,13 +21,12 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { DAY_NAMES, scheduledDate, weekMileageRange } from "@/lib/paceUtils";
+import { DAY_NAMES, scheduledDate, weekMileageRange, parseDateLocal } from "@/lib/paceUtils";
 import { WorkoutCard } from "./WorkoutCard";
 import { WeekMileageLabel } from "./WeekMileageLabel";
 
 function formatShortDate(dateStr: string): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return parseDateLocal(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
