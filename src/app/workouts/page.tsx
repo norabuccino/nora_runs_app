@@ -18,6 +18,8 @@ import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 import { displayDistance } from "@/lib/unitUtils";
 import { useCompactMode } from "@/hooks/useCompactMode";
+import { csvEscape } from "@/lib/csvUtils";
+import { byString, byStringDesc, byNumberAsc, byNumberDesc, thenBy } from "@/lib/sortUtils";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
@@ -30,31 +32,28 @@ function applySearch(items: LibraryWorkoutWithSteps[], query: string): LibraryWo
 }
 
 function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWorkoutWithSteps[] {
-  const sorted = [...items];
+  const byTitle = byString<LibraryWorkoutWithSteps>((w) => w.title);
   switch (sort) {
     case "az":
-      return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      return [...items].sort(byTitle);
     case "za":
-      return sorted.sort((a, b) => b.title.localeCompare(a.title));
-    case "type": {
-      return sorted.sort((a, b) => {
-        const t = a.type.localeCompare(b.type);
-        if (t !== 0) return t;
-        const rt = (a.run_type ?? "").localeCompare(b.run_type ?? "");
-        if (rt !== 0) return rt;
-        return a.title.localeCompare(b.title);
-      });
-    }
+      return [...items].sort(byStringDesc((w) => w.title));
+    case "type":
+      return [...items].sort(thenBy(
+        byString((w) => w.type),
+        byString((w) => w.run_type ?? ""),
+        byTitle
+      ));
     case "duration_desc":
-      return sorted.sort((a, b) => (b.duration_minutes ?? 0) - (a.duration_minutes ?? 0));
+      return [...items].sort(byNumberDesc((w) => w.duration_minutes ?? 0));
     case "duration_asc":
-      return sorted.sort((a, b) => (a.duration_minutes ?? 0) - (b.duration_minutes ?? 0));
+      return [...items].sort(byNumberAsc((w) => w.duration_minutes ?? 0));
     case "newest":
-      return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return [...items].sort(byStringDesc((w) => w.created_at));
     case "oldest":
-      return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
+      return [...items].sort(byString((w) => w.created_at));
     default:
-      return sorted;
+      return items;
   }
 }
 
@@ -80,7 +79,6 @@ export default function WorkoutsPage() {
   const [bulkSource, setBulkSource] = useState("");
 
   function handleExport() {
-    const csvEscape = (s: string | null | undefined) => s ? `"${s.replace(/"/g, '""')}"` : "";
     const headers = "type,run_type,strength_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes,source";
     const rows = workouts.map((w) =>
       [

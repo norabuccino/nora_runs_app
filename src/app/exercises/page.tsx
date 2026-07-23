@@ -8,6 +8,8 @@ import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { useCompactMode } from "@/hooks/useCompactMode";
+import { csvEscape } from "@/lib/csvUtils";
+import { byString, byStringDesc, thenBy } from "@/lib/sortUtils";
 
 interface ExerciseFormData {
   name: string;
@@ -31,18 +33,17 @@ const TYPE_FILTERS = [
 type SortKey = "az" | "za" | "newest" | "oldest" | "type";
 
 function applySort(items: Exercise[], sort: SortKey): Exercise[] {
-  const sorted = [...items];
+  const byName = byString<Exercise>((e) => e.name);
   switch (sort) {
-    case "az":    return sorted.sort((a, b) => a.name.localeCompare(b.name));
-    case "za":    return sorted.sort((a, b) => b.name.localeCompare(a.name));
-    case "newest": return sorted.sort((a, b) => b.created_at.localeCompare(a.created_at));
-    case "oldest": return sorted.sort((a, b) => a.created_at.localeCompare(b.created_at));
-    case "type":  return sorted.sort((a, b) => {
-      const ta = a.exercise_type ?? "";
-      const tb = b.exercise_type ?? "";
-      return ta !== tb ? ta.localeCompare(tb) : a.name.localeCompare(b.name);
-    });
-    default: return sorted;
+    case "az": return [...items].sort(byName);
+    case "za": return [...items].sort(byStringDesc((e) => e.name));
+    case "newest": return [...items].sort(byStringDesc((e) => e.created_at));
+    case "oldest": return [...items].sort(byString((e) => e.created_at));
+    case "type": return [...items].sort(thenBy(
+      byString((e) => e.exercise_type ?? ""),
+      byName
+    ));
+    default: return items;
   }
 }
 
@@ -199,7 +200,6 @@ export default function ExercisesPage() {
   useEffect(() => { load(); }, []);
 
   function handleExport() {
-    const csvEscape = (s: string | null) => s ? `"${s.replace(/"/g, '""')}"` : "";
     const headers = "name,exercise_type,description,video_url,source";
     const rows = exercises.map((e) =>
       [csvEscape(e.name), e.exercise_type ?? "", csvEscape(e.description), csvEscape(e.video_url), csvEscape(e.source)].join(",")
