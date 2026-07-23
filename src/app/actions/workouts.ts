@@ -103,6 +103,7 @@ export async function createWorkout(data: WorkoutData) {
     if (stepsError) throw new Error(stepsError.message);
   }
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${data.plan_id}`);
   revalidatePath(`/plans/${data.plan_id}/edit`);
 }
@@ -137,6 +138,7 @@ export async function updateWorkout(id: string, data: Partial<WorkoutData>) {
     }
   }
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${workout.plan_id}`);
   revalidatePath(`/plans/${workout.plan_id}/edit`);
 }
@@ -149,6 +151,7 @@ export async function deleteWorkout(id: string, planId: string) {
   const { error } = await supabase.from("plan_workouts").delete().eq("id", id);
   if (error) throw new Error(error.message);
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
 }
@@ -244,6 +247,7 @@ export async function copyWorkoutToDays(
     }
   }
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
 }
@@ -273,6 +277,7 @@ export async function batchUpdateWorkoutPositions(
     )
   );
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
 }
@@ -303,6 +308,7 @@ export async function updateDayLogic(
     .eq("day_of_week", dayOfWeek);
   if (error) throw new Error(error.message);
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
 }
@@ -342,6 +348,7 @@ export async function importWorkouts(
     imported++;
   }
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
   return { imported };

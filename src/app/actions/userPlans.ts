@@ -143,6 +143,7 @@ export async function markWorkoutComplete(
   );
 
   if (error) throw new Error(error.message);
+  revalidatePath("/my-plan");
   revalidatePath("/dashboard");
 }
 
@@ -190,5 +191,6 @@ export async function unmarkWorkoutComplete(userPlanId: string, planWorkoutId: s
     .eq("user_id", user.id);
 
   if (error) throw new Error(error.message);
+  revalidatePath("/my-plan");
   revalidatePath("/dashboard");
 }

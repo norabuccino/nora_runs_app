@@ -205,6 +205,7 @@ function PlanEditDnd({
 
   return (
     <DndContext
+      id="plan-edit-dnd"
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}

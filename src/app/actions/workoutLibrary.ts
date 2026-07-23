@@ -367,6 +367,7 @@ export async function addLibraryWorkoutToPlan(
     if (stepsError) throw new Error(stepsError.message);
   }
 
+  revalidatePath("/my-plan");
   revalidatePath(`/plans/${planId}`);
   revalidatePath(`/plans/${planId}/edit`);
 }

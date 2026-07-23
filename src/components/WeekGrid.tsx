@@ -457,6 +457,7 @@ export function WeekGrid({
   if (mode === "reorder") {
     return (
       <DndContext
+        id={`week-${weekNumber}-reorder`}
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
@@ -615,6 +616,7 @@ export function WeekGrid({
 
   return (
     <DndContext
+      id={`week-${weekNumber}-edit`}
       sensors={sensors}
       collisionDetection={closestCorners}
       onDragStart={handleDragStart}

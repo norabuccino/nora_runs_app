@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { updateUserPlan, deleteUserPlan } from "@/app/actions/userPlans";
 import { PLAN_TYPE_LABELS, raceDateToStartDate, startDateToRaceDate } from "@/lib/paceUtils";
-import type { PlanWorkout, RunningPace, TrainingPlan } from "@/types/database";
+import type { PlanWorkout, RunningPace, TrainingPlan, WorkoutLog } from "@/types/database";
 import { MyPlanWeeks } from "@/components/MyPlanWeeks";
 
 export default async function MyPlanPage() {
@@ -25,9 +25,11 @@ export default async function MyPlanPage() {
   let paces: RunningPace[] = [];
   const sourcePlanNamesMap: Record<string, string | null> = {};
   const weekNotesMapByPlan: Record<string, Record<number, string>> = {};
+  const logsMapByUserPlan: Record<string, WorkoutLog[]> = {};
 
   if (activePlans.length > 0) {
-    const [{ data: allWorkouts }, { data: p }, { data: sourcePlans }, { data: allNotes }] = await Promise.all([
+    const activeUserPlanIds = activePlans.map((up) => up.id);
+    const [{ data: allWorkouts }, { data: p }, { data: sourcePlans }, { data: allNotes }, { data: allLogs }] = await Promise.all([
       supabase
         .from("plan_workouts")
         .select("*")
@@ -40,6 +42,7 @@ export default async function MyPlanPage() {
         ? supabase.from("training_plans").select("id, name").in("id", sourcePlanIds)
         : Promise.resolve({ data: [], error: null }),
       supabase.from("plan_week_notes").select("*").in("plan_id", activePlanIds),
+      supabase.from("workout_logs").select("*").in("user_plan_id", activeUserPlanIds),
     ]);
 
     paces = p ?? [];
@@ -61,6 +64,10 @@ export default async function MyPlanPage() {
         .forEach((n: { week_number: number; purpose: string }) => {
           weekNotesMapByPlan[planId][n.week_number] = n.purpose;
         });
+    }
+
+    for (const userPlanId of activeUserPlanIds) {
+      logsMapByUserPlan[userPlanId] = ((allLogs ?? []) as WorkoutLog[]).filter((l) => l.user_plan_id === userPlanId);
     }
   }
 
@@ -268,7 +275,10 @@ export default async function MyPlanPage() {
                   <div className="space-y-10 overflow-x-auto pb-4">
                     <MyPlanWeeks
                       weeks={weeks}
+                      planId={activePlan.plan_id}
+                      userPlanId={activePlan.id}
                       planWorkouts={planWorkouts}
+                      logs={logsMapByUserPlan[activePlan.id] ?? []}
                       paces={paces}
                       weekNotesMap={weekNotesMap}
                       startDate={activePlan.start_date}
