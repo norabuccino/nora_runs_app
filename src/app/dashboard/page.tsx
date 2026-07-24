@@ -267,15 +267,25 @@ export default function DashboardPage() {
           ? { completed_at: sw.completed_at } as WorkoutLog
           : null;
         return (
-          <WorkoutCard
-            key={sw.id}
-            workout={adapted}
-            log={syntheticLog}
-            paces={paces}
-            mode="dashboard"
-            onComplete={() => handleScheduledComplete(sw)}
-            onUnComplete={() => handleScheduledUnComplete(sw)}
-          />
+          <div key={sw.id}>
+            <div className="flex justify-end h-4">
+              <button
+                onClick={() => handleScheduledDelete(sw)}
+                title="Remove"
+                className="w-5 h-5 flex items-center justify-center text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+              >
+                ×
+              </button>
+            </div>
+            <WorkoutCard
+              workout={adapted}
+              log={syntheticLog}
+              paces={paces}
+              mode="dashboard"
+              onComplete={() => handleScheduledComplete(sw)}
+              onUnComplete={() => handleScheduledUnComplete(sw)}
+            />
+          </div>
         );
       })}
     </div>
