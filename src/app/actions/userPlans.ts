@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -55,37 +56,37 @@ export async function assignPlan(planId: string, startDate: string, dayMapping?:
     .order("sort_order");
 
   if (sourceWorkouts?.length) {
-    const { data: newWorkouts, error: workoutsError } = await supabase
-      .from("plan_workouts")
-      .insert(
-        sourceWorkouts.map(({ id: _id, plan_id: _pid, ...rest }) => ({
-          ...rest,
-          plan_id: personalPlan.id,
-          day_of_week: dayMapping ? (dayMapping[rest.day_of_week] ?? rest.day_of_week) : rest.day_of_week,
-        }))
-      )
-      .select("id");
+    // Generate the new workout IDs ourselves so the old→new map is known before
+    // inserting — no need to rely on the insert's RETURNING order matching the
+    // input order (which Postgres/PostgREST don't actually guarantee).
+    const idMap: Record<string, string> = {};
+    const workoutsToInsert = sourceWorkouts.map(({ id, plan_id: _pid, ...rest }) => {
+      const newId = randomUUID();
+      idMap[id] = newId;
+      return {
+        ...rest,
+        id: newId,
+        plan_id: personalPlan.id,
+        day_of_week: dayMapping ? (dayMapping[rest.day_of_week] ?? rest.day_of_week) : rest.day_of_week,
+      };
+    });
+
+    const { error: workoutsError } = await supabase.from("plan_workouts").insert(workoutsToInsert);
     if (workoutsError) throw new Error(workoutsError.message);
 
-    // Copy workout steps; rely on insertion order matching to build old→new ID map
-    if (newWorkouts?.length) {
-      const idMap: Record<string, string> = {};
-      sourceWorkouts.forEach((w, i) => { idMap[w.id] = newWorkouts[i].id; });
+    const { data: sourceSteps } = await supabase
+      .from("workout_steps")
+      .select("*")
+      .in("plan_workout_id", sourceWorkouts.map((w) => w.id))
+      .order("step_order");
 
-      const { data: sourceSteps } = await supabase
-        .from("workout_steps")
-        .select("*")
-        .in("plan_workout_id", sourceWorkouts.map((w) => w.id))
-        .order("step_order");
-
-      if (sourceSteps?.length) {
-        const stepsToInsert = sourceSteps.map(({ id: _id, plan_workout_id, ...rest }) => ({
-          ...rest,
-          plan_workout_id: idMap[plan_workout_id!],
-        }));
-        const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
-        if (stepsError) throw new Error(stepsError.message);
-      }
+    if (sourceSteps?.length) {
+      const stepsToInsert = sourceSteps.map(({ id: _id, plan_workout_id, ...rest }) => ({
+        ...rest,
+        plan_workout_id: idMap[plan_workout_id!],
+      }));
+      const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
+      if (stepsError) throw new Error(stepsError.message);
     }
   }
 
