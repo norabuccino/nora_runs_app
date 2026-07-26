@@ -186,32 +186,36 @@ export function WorkoutCard({
       {mode === "dashboard" && (
         <div className="pt-1 border-t border-[var(--border)]" onClick={(e) => e.stopPropagation()}>
           {mileageFormOpen ? (
-            <form onSubmit={confirmMileageForm} className="flex items-center gap-1.5">
-              <input
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                autoFocus
-                value={mileageInput}
-                onChange={(e) => setMileageInput(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                className="w-16 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
-              />
-              <span className="text-xs text-[var(--muted)]">{unit}</span>
-              <button
-                type="submit"
-                className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
-              >
-                Save
-              </button>
-              <button
-                type="button"
-                onClick={cancelMileageForm}
-                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-              >
-                Cancel
-              </button>
+            <form onSubmit={confirmMileageForm} className="flex flex-col gap-1.5">
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  autoFocus
+                  value={mileageInput}
+                  onChange={(e) => setMileageInput(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-16 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
+                />
+                <span className="text-xs text-[var(--muted)]">{unit}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
+                >
+                  Save
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelMileageForm}
+                  className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           ) : isCompleted ? (
             <div className="flex items-center justify-between gap-2">
@@ -224,9 +228,13 @@ export function WorkoutCard({
               {hasDistance && onEditMileage && (
                 <button
                   onClick={openMileageForm}
-                  className="text-xs text-[var(--accent)] hover:opacity-80 transition-opacity"
+                  title="Edit mileage"
+                  className="w-5 h-5 flex items-center justify-center text-[var(--muted)] hover:text-[var(--accent)] transition-colors shrink-0"
                 >
-                  Edit mileage
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
                 </button>
               )}
             </div>
