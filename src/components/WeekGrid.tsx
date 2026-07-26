@@ -205,6 +205,8 @@ interface WeekGridProps {
   onPurposeChange?: (purpose: string) => void;
   startDate?: string;
   externalItems?: DayMap;
+  collapsible?: boolean;
+  defaultCollapsed?: boolean;
 }
 
 export function WeekGrid({
@@ -227,12 +229,15 @@ export function WeekGrid({
   onPurposeChange,
   startDate,
   externalItems,
+  collapsible = false,
+  defaultCollapsed = false,
 }: WeekGridProps) {
   const [items, setItems] = useState<DayMap>(() =>
     toDayMap(workouts.filter((w) => w.week_number === weekNumber), daysPerWeek)
   );
   const [activeId, setActiveId] = useState<string | null>(null);
   const [localPurpose, setLocalPurpose] = useState(purpose ?? "");
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
 
   useEffect(() => { setLocalPurpose(purpose ?? ""); }, [purpose]);
 
@@ -389,7 +394,24 @@ export function WeekGrid({
 
   const header = (
     <div className="flex items-baseline justify-between gap-3">
-      <div className="flex items-baseline gap-3 min-w-0 flex-1">
+      <div className="flex items-baseline gap-2 min-w-0 flex-1">
+        {collapsible && (
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Expand week" : "Collapse week"}
+            className="w-4 h-4 flex items-center justify-center text-[var(--muted)] hover:text-[var(--foreground)] transition-colors shrink-0"
+          >
+            <svg
+              width="8"
+              height="8"
+              viewBox="0 0 8 8"
+              fill="none"
+              className={`transition-transform ${collapsed ? "" : "rotate-90"}`}
+            >
+              <path d="M1 1L6 4L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        )}
         <h3 className="text-sm font-semibold text-[var(--muted)] whitespace-nowrap">Week {weekNumber}</h3>
         {mode === "edit" ? (
           <input
@@ -408,6 +430,10 @@ export function WeekGrid({
       <WeekMileageLabel lowMi={mileageLow} highMi={mileageHigh} actualMi={actualMileage} />
     </div>
   );
+
+  if (collapsible && collapsed) {
+    return <div className="space-y-2">{header}</div>;
+  }
 
   // ── View / dashboard mode — no DnD ──────────────────────────────────────────
 

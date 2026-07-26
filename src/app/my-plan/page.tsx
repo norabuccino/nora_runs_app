@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { updateUserPlan, deleteUserPlan } from "@/app/actions/userPlans";
-import { PLAN_TYPE_LABELS, raceDateToStartDate, startDateToRaceDate } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, raceDateToStartDate, startDateToRaceDate, getTodayPosition } from "@/lib/paceUtils";
 import type { PlanWorkout, RunningPace, TrainingPlan, WorkoutLog } from "@/types/database";
 import { MyPlanWeeks } from "@/components/MyPlanWeeks";
 
@@ -170,6 +170,7 @@ export default async function MyPlanPage() {
             const sourcePlanName = sourcePlanNamesMap[activePlan.plan_id] ?? null;
             const weeks = Array.from({ length: plan.total_weeks }, (_, i) => i + 1);
             const isStrength = plan.type === "strength";
+            const currentWeek = getTodayPosition(activePlan.start_date, plan.total_weeks)?.weekNumber;
 
             const raceDateStr = startDateToRaceDate(activePlan.start_date, plan.total_weeks);
 
@@ -283,6 +284,7 @@ export default async function MyPlanPage() {
                       weekNotesMap={weekNotesMap}
                       startDate={activePlan.start_date}
                       daysPerWeek={plan.days_per_week ?? undefined}
+                      currentWeek={currentWeek}
                     />
                   </div>
                 ) : (

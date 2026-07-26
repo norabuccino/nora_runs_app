@@ -20,6 +20,7 @@ interface MyPlanWeeksProps {
   weekNotesMap: Record<number, string>;
   startDate: string;
   daysPerWeek?: number;
+  currentWeek?: number;
 }
 
 export function MyPlanWeeks({
@@ -32,6 +33,7 @@ export function MyPlanWeeks({
   weekNotesMap,
   startDate,
   daysPerWeek,
+  currentWeek,
 }: MyPlanWeeksProps) {
   const router = useRouter();
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
@@ -80,6 +82,8 @@ export function MyPlanWeeks({
           purpose={weekNotesMap[weekNum]}
           startDate={startDate}
           daysPerWeek={daysPerWeek}
+          collapsible
+          defaultCollapsed={currentWeek != null && weekNum < currentWeek}
           onComplete={handleComplete}
           onUnComplete={handleUnComplete}
           onDelete={handleDelete}
