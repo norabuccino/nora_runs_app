@@ -117,6 +117,7 @@ function SortableCard({
   onCopy,
   onComplete,
   onUnComplete,
+  onEditMileage,
   onDetail,
 }: {
   workout: PlanWorkout;
@@ -128,6 +129,7 @@ function SortableCard({
   onCopy?: (w: PlanWorkout) => void;
   onComplete?: (w: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (w: PlanWorkout) => void;
+  onEditMileage?: (w: PlanWorkout, actualDistanceMiles: number | null) => void;
   onDetail?: (w: PlanWorkout) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -177,6 +179,7 @@ function SortableCard({
         onCopy={onCopy}
         onComplete={onComplete}
         onUnComplete={onUnComplete}
+        onEditMileage={onEditMileage}
         onDetail={onDetail}
       />
     </div>
@@ -195,6 +198,7 @@ interface WeekGridProps {
   purpose?: string;
   onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
+  onEditMileage?: (workout: PlanWorkout, actualDistanceMiles: number | null) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
   onAddWorkout?: (weekNumber: number, dayOfWeek: number, action: "library" | "form") => void;
@@ -219,6 +223,7 @@ export function WeekGrid({
   purpose,
   onComplete,
   onUnComplete,
+  onEditMileage,
   onEdit,
   onDelete,
   onAddWorkout,
@@ -474,7 +479,7 @@ export function WeekGrid({
                     dayWorkouts.flatMap((workout, i) => {
                       const log = logs.find((l) => l.plan_workout_id === workout.id) ?? null;
                       const card = (
-                        <WorkoutCard key={workout.id} workout={workout} log={log} paces={paces} mode={mode} onComplete={onComplete} onUnComplete={onUnComplete} onDetail={onDetail} />
+                        <WorkoutCard key={workout.id} workout={workout} log={log} paces={paces} mode={mode} onComplete={onComplete} onUnComplete={onUnComplete} onEditMileage={onEditMileage} onDetail={onDetail} />
                       );
                       if (i === 0) return [card];
                       return [andOrSep(dayLogic, dayIndex, i, false), card];
@@ -540,6 +545,7 @@ export function WeekGrid({
                               workoutMode="dashboard"
                               onComplete={onComplete}
                               onUnComplete={onUnComplete}
+                              onEditMileage={onEditMileage}
                               onDelete={onDelete}
                               onDetail={onDetail}
                             />

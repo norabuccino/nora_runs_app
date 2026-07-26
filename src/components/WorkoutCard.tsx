@@ -14,6 +14,7 @@ interface WorkoutCardProps {
   mode?: "view" | "dashboard" | "edit";
   onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
+  onEditMileage?: (workout: PlanWorkout, actualDistanceMiles: number | null) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
   onCopy?: (workout: PlanWorkout) => void;
@@ -27,13 +28,14 @@ export function WorkoutCard({
   mode = "view",
   onComplete,
   onUnComplete,
+  onEditMileage,
   onEdit,
   onDelete,
   onCopy,
   onDetail,
 }: WorkoutCardProps) {
   const [unit] = useUnitPreference();
-  const [enteringMileage, setEnteringMileage] = useState(false);
+  const [mileageFormOpen, setMileageFormOpen] = useState(false);
   const [mileageInput, setMileageInput] = useState("");
 
   const isCompleted = !!log?.completed_at;
@@ -42,32 +44,38 @@ export function WorkoutCard({
   const isStrength = workout.type === "strength";
   const hasDistance = !!workout.distance_miles;
 
+  function openMileageForm(e: React.MouseEvent) {
+    e.stopPropagation();
+    const currentMiles = (isCompleted ? log?.actual_distance_miles : null) ?? workout.distance_miles!;
+    const defaultVal = convertDistance(currentMiles, (workout.distance_unit ?? "mi") as DistanceUnit, unit);
+    setMileageInput(String(parseFloat(defaultVal.toFixed(2))));
+    setMileageFormOpen(true);
+  }
+
   function startComplete(e: React.MouseEvent) {
     e.stopPropagation();
     if (!hasDistance) {
       onComplete?.(workout);
       return;
     }
-    const defaultVal = convertDistance(
-      workout.distance_miles!,
-      (workout.distance_unit ?? "mi") as DistanceUnit,
-      unit
-    );
-    setMileageInput(String(parseFloat(defaultVal.toFixed(2))));
-    setEnteringMileage(true);
+    openMileageForm(e);
   }
 
-  function confirmComplete(e: React.FormEvent) {
+  function confirmMileageForm(e: React.FormEvent) {
     e.preventDefault();
     const parsed = parseFloat(mileageInput);
     const miles = Number.isFinite(parsed) ? convertDistance(parsed, unit, "mi") : null;
-    onComplete?.(workout, miles);
-    setEnteringMileage(false);
+    if (isCompleted) {
+      onEditMileage?.(workout, miles);
+    } else {
+      onComplete?.(workout, miles);
+    }
+    setMileageFormOpen(false);
   }
 
-  function cancelComplete(e: React.MouseEvent) {
+  function cancelMileageForm(e: React.MouseEvent) {
     e.stopPropagation();
-    setEnteringMileage(false);
+    setMileageFormOpen(false);
   }
 
   const estimate = isStrength
@@ -177,15 +185,8 @@ export function WorkoutCard({
 
       {mode === "dashboard" && (
         <div className="pt-1 border-t border-[var(--border)]" onClick={(e) => e.stopPropagation()}>
-          {isCompleted ? (
-            <button
-              onClick={() => onUnComplete?.(workout)}
-              className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-            >
-              Mark incomplete
-            </button>
-          ) : enteringMileage ? (
-            <form onSubmit={confirmComplete} className="flex items-center gap-1.5">
+          {mileageFormOpen ? (
+            <form onSubmit={confirmMileageForm} className="flex items-center gap-1.5">
               <input
                 type="number"
                 inputMode="decimal"
@@ -206,12 +207,29 @@ export function WorkoutCard({
               </button>
               <button
                 type="button"
-                onClick={cancelComplete}
+                onClick={cancelMileageForm}
                 className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
               >
                 Cancel
               </button>
             </form>
+          ) : isCompleted ? (
+            <div className="flex items-center justify-between gap-2">
+              <button
+                onClick={() => onUnComplete?.(workout)}
+                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Mark incomplete
+              </button>
+              {hasDistance && onEditMileage && (
+                <button
+                  onClick={openMileageForm}
+                  className="text-xs text-[var(--accent)] hover:opacity-80 transition-opacity"
+                >
+                  Edit mileage
+                </button>
+              )}
+            </div>
           ) : (
             <button
               onClick={startComplete}

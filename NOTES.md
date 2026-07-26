@@ -10,5 +10,6 @@ Ideas, bugs, and fixes to revisit while testing.
 - Bulk operations (`importWorkouts`, the workout-library bulk importer, `updateLibraryWorkout`'s propagate-to-linked-plans loop) do one sequential DB round-trip per row instead of batching — slow for larger imports (a full plan import can be 100+ rows)
 - Minor dead code flagged by lint, safe to remove: `switchWorkoutUnit`/`addSection` in `WorkoutForm.tsx`, `switchWorkoutUnit` in `WorkoutLibraryForm.tsx`, unused `paces` prop threaded into `PlanEditDnd`, unused `gridCols` in `WeekGrid.tsx`, redundant `copyWorkoutToDays` import in the plan editor page
 - `deletePlan()` in `actions/plans.ts` is fully implemented but never called from any UI — there's currently no way to delete a training plan through the app
+- Ad-hoc "Log a workout for today" (`scheduled_workouts`) entries with a distance still trigger the actual-mileage entry prompt on complete, but the value is silently discarded — `handleScheduledComplete` in `dashboard/page.tsx` ignores the args `WorkoutCard.onComplete` passes it, and `scheduled_workouts` has no `actual_distance_miles` column to store it in even if it were forwarded
 
 ## Someday / Maybe

@@ -7,7 +7,7 @@ import { WeekGrid } from "@/components/WeekGrid";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { scheduledDate } from "@/lib/paceUtils";
-import { markWorkoutComplete, unmarkWorkoutComplete } from "@/app/actions/userPlans";
+import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
 import { deleteWorkout, batchUpdateWorkoutPositions } from "@/app/actions/workouts";
 
 interface MyPlanWeeksProps {
@@ -55,6 +55,13 @@ export function MyPlanWeeks({
     });
   }
 
+  function handleEditMileage(workout: PlanWorkout, actualDistanceMiles: number | null) {
+    startTransition(async () => {
+      await updateWorkoutActualDistance(userPlanId, workout.id, actualDistanceMiles);
+      router.refresh();
+    });
+  }
+
   function handleDelete(workout: PlanWorkout) {
     startTransition(async () => {
       await deleteWorkout(workout.id, planId);
@@ -86,6 +93,7 @@ export function MyPlanWeeks({
           defaultCollapsed={currentWeek != null && weekNum < currentWeek}
           onComplete={handleComplete}
           onUnComplete={handleUnComplete}
+          onEditMileage={handleEditMileage}
           onDelete={handleDelete}
           onReorder={handleReorder}
           onAddWorkout={(weekNumber, dayOfWeek) => setAddTarget({ weekNumber, dayOfWeek })}

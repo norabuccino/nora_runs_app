@@ -9,7 +9,7 @@ import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal } from "@/lib/paceUtils";
-import { markWorkoutComplete, unmarkWorkoutComplete } from "@/app/actions/userPlans";
+import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
 import {
   createScheduledWorkout,
   markScheduledWorkoutComplete,
@@ -168,6 +168,15 @@ export default function DashboardPage() {
     if (!ctx) return;
     startTransition(async () => {
       await unmarkWorkoutComplete(ctx.userPlan.id, workout.id);
+      await load();
+    });
+  }
+
+  function handleEditMileage(workout: PlanWorkout, actualDistanceMiles: number | null) {
+    const ctx = findCtx(workout.plan_id);
+    if (!ctx) return;
+    startTransition(async () => {
+      await updateWorkoutActualDistance(ctx.userPlan.id, workout.id, actualDistanceMiles);
       await load();
     });
   }
@@ -513,6 +522,7 @@ export default function DashboardPage() {
                         mode="dashboard"
                         onComplete={handleComplete}
                         onUnComplete={handleUnComplete}
+                        onEditMileage={handleEditMileage}
                         onDetail={setDetailWorkout}
                       />
                     );
@@ -543,6 +553,7 @@ export default function DashboardPage() {
                   startDate={ctx.userPlan.start_date}
                   onComplete={handleComplete}
                   onUnComplete={handleUnComplete}
+                  onEditMileage={handleEditMileage}
                   onDelete={handleDeleteFromWeek}
                   onReorder={makeReorderHandler(ctx)}
                   onAddWorkout={(_, dayOfWeek) => setAddToPlanDay({ dayOfWeek, planId: ctx.plan.id })}

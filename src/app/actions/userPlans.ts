@@ -181,6 +181,27 @@ export async function deleteUserPlan(userPlanId: string) {
   revalidatePath("/dashboard");
 }
 
+export async function updateWorkoutActualDistance(
+  userPlanId: string,
+  planWorkoutId: string,
+  actualDistanceMiles: number | null
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("workout_logs")
+    .update({ actual_distance_miles: actualDistanceMiles })
+    .eq("user_plan_id", userPlanId)
+    .eq("plan_workout_id", planWorkoutId)
+    .eq("user_id", user.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/my-plan");
+  revalidatePath("/dashboard");
+}
+
 export async function unmarkWorkoutComplete(userPlanId: string, planWorkoutId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
