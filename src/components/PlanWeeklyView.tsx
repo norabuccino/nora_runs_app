@@ -6,6 +6,7 @@ import {
   DAY_NAMES,
   getWorkoutEstimate,
   weekMileageRange,
+  weekOverWeekIncreasePct,
   resolveWorkoutTypeDisplay,
 } from "@/lib/paceUtils";
 import { WeekMileageLabel } from "@/components/WeekMileageLabel";
@@ -29,6 +30,11 @@ export function PlanWeeklyView({ weeks, allWorkouts, daysPerWeek, weekNotes, pac
         {weeks.map((weekNum) => {
           const weekWorkouts = allWorkouts.filter((w) => w.week_number === weekNum);
           const { low, high } = weekMileageRange(weekWorkouts, daysPerWeek);
+          const previousRange = weekMileageRange(
+            allWorkouts.filter((w) => w.week_number === weekNum - 1),
+            daysPerWeek
+          );
+          const increasePct = weekOverWeekIncreasePct(previousRange, { low, high });
           return (
             <div key={weekNum} className="space-y-3">
               <div className="flex items-baseline justify-between gap-3">
@@ -40,7 +46,7 @@ export function PlanWeeklyView({ weeks, allWorkouts, daysPerWeek, weekNotes, pac
                     <p className="text-sm text-[var(--muted)] italic truncate">{weekNotes[weekNum]}</p>
                   )}
                 </div>
-                <WeekMileageLabel lowMi={low} highMi={high} />
+                <WeekMileageLabel lowMi={low} highMi={high} increasePct={increasePct} />
               </div>
               <div className="rounded-xl border border-[var(--border)] overflow-hidden">
                 {weekWorkouts.length === 0 ? (

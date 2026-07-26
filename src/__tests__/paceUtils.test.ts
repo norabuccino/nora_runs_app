@@ -11,6 +11,7 @@ import {
   stepDurationSeconds,
   weekMileageRange,
   weekActualMileage,
+  weekOverWeekIncreasePct,
   resolveWorkoutTypeDisplay,
   parseDateLocal,
   formatDateLocal,
@@ -434,6 +435,31 @@ describe("weekActualMileage", () => {
 
   it("returns zero for an empty week", () => {
     expect(weekActualMileage([], [])).toBe(0);
+  });
+});
+
+// ── weekOverWeekIncreasePct ─────────────────────────────────────────────────────
+
+describe("weekOverWeekIncreasePct", () => {
+  it("computes a straightforward percentage increase", () => {
+    expect(weekOverWeekIncreasePct({ low: 10, high: 10 }, { low: 12, high: 12 })).toBeCloseTo(20, 5);
+  });
+
+  it("computes a percentage decrease as negative", () => {
+    expect(weekOverWeekIncreasePct({ low: 20, high: 20 }, { low: 15, high: 15 })).toBeCloseTo(-25, 5);
+  });
+
+  it("returns zero for no change", () => {
+    expect(weekOverWeekIncreasePct({ low: 10, high: 10 }, { low: 10, high: 10 })).toBe(0);
+  });
+
+  it("compares using the midpoint of OR-day ranges", () => {
+    // previous mid = 9, current mid = 12 -> (12-9)/9 * 100
+    expect(weekOverWeekIncreasePct({ low: 8, high: 10 }, { low: 10, high: 14 })).toBeCloseTo(33.333, 2);
+  });
+
+  it("returns null when the previous week had zero mileage", () => {
+    expect(weekOverWeekIncreasePct({ low: 0, high: 0 }, { low: 10, high: 10 })).toBeNull();
   });
 });
 

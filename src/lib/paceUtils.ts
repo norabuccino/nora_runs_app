@@ -129,6 +129,20 @@ export function weekMileageRange(
   return { low, high };
 }
 
+// Percentage change in a week's average planned mileage vs the previous week's,
+// using the midpoint of each week's low/high range (OR-day alternatives contribute
+// a spread rather than a single number). Returns null when there's no previous
+// mileage to compare against (e.g. the first week, or a zero-mileage plan).
+export function weekOverWeekIncreasePct(
+  previous: { low: number; high: number },
+  current: { low: number; high: number }
+): number | null {
+  const prevMid = (previous.low + previous.high) / 2;
+  if (prevMid <= 0) return null;
+  const currMid = (current.low + current.high) / 2;
+  return ((currMid - prevMid) / prevMid) * 100;
+}
+
 // Sum actual logged mileage (in miles) for a week's workouts — only counts workouts
 // that are completed and have an actual_distance_miles value recorded.
 export function weekActualMileage(weekWorkouts: PlanWorkout[], logs: WorkoutLog[]): number {

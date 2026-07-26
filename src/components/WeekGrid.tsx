@@ -21,7 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { DAY_NAMES, scheduledDate, weekMileageRange, weekActualMileage, parseDateLocal } from "@/lib/paceUtils";
+import { DAY_NAMES, scheduledDate, weekMileageRange, weekActualMileage, weekOverWeekIncreasePct, parseDateLocal } from "@/lib/paceUtils";
 import { WorkoutCard } from "./WorkoutCard";
 import { WeekMileageLabel } from "./WeekMileageLabel";
 
@@ -391,6 +391,11 @@ export function WeekGrid({
   const lgGridCols = LG_GRID_COLS[daysPerWeek] ?? "lg:grid-cols-7";
   const { low: mileageLow, high: mileageHigh } = weekMileageRange(byDay.flat(), daysPerWeek);
   const actualMileage = weekActualMileage(byDay.flat(), logs);
+  const previousWeekRange = weekMileageRange(
+    workouts.filter((w) => w.week_number === weekNumber - 1),
+    daysPerWeek
+  );
+  const mileageIncreasePct = weekOverWeekIncreasePct(previousWeekRange, { low: mileageLow, high: mileageHigh });
 
   const header = (
     <div className="flex items-baseline justify-between gap-3">
@@ -427,7 +432,12 @@ export function WeekGrid({
           <p className="text-sm text-[var(--muted)] italic truncate">{localPurpose}</p>
         ) : null}
       </div>
-      <WeekMileageLabel lowMi={mileageLow} highMi={mileageHigh} actualMi={actualMileage} />
+      <WeekMileageLabel
+        lowMi={mileageLow}
+        highMi={mileageHigh}
+        actualMi={actualMileage}
+        increasePct={mileageIncreasePct}
+      />
     </div>
   );
 
