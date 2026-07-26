@@ -126,7 +126,8 @@ export async function updateUserPlan(
 export async function markWorkoutComplete(
   userPlanId: string,
   planWorkoutId: string,
-  scheduledDate: string
+  scheduledDate: string,
+  actualDistanceMiles?: number | null
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -139,6 +140,7 @@ export async function markWorkoutComplete(
       plan_workout_id: planWorkoutId,
       scheduled_date: scheduledDate,
       completed_at: new Date().toISOString(),
+      actual_distance_miles: actualDistanceMiles ?? null,
     },
     { onConflict: "user_plan_id,plan_workout_id" }
   );

@@ -1,4 +1,4 @@
-import type { RunningPace, PaceType, PlanWorkout } from "@/types/database";
+import type { RunningPace, PaceType, PlanWorkout, WorkoutLog } from "@/types/database";
 import { convertDistance, getStoredUnit, type DistanceUnit } from "@/lib/unitUtils";
 
 export function formatPace(secondsPerMile: number): string {
@@ -127,6 +127,17 @@ export function weekMileageRange(
   }
 
   return { low, high };
+}
+
+// Sum actual logged mileage (in miles) for a week's workouts — only counts workouts
+// that are completed and have an actual_distance_miles value recorded.
+export function weekActualMileage(weekWorkouts: PlanWorkout[], logs: WorkoutLog[]): number {
+  return weekWorkouts.reduce((sum, w) => {
+    const log = logs.find((l) => l.plan_workout_id === w.id);
+    return log?.completed_at && log.actual_distance_miles != null
+      ? sum + Number(log.actual_distance_miles)
+      : sum;
+  }, 0);
 }
 
 // Parse a YYYY-MM-DD string as local midnight (avoids UTC-shift timezone bugs).

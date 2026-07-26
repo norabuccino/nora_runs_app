@@ -10,13 +10,14 @@ import {
   resolvePaceSecondsPerMile,
   stepDurationSeconds,
   weekMileageRange,
+  weekActualMileage,
   resolveWorkoutTypeDisplay,
   parseDateLocal,
   formatDateLocal,
   raceDateToStartDate,
   startDateToRaceDate,
 } from "@/lib/paceUtils";
-import type { RunningPace, PlanWorkout } from "@/types/database";
+import type { RunningPace, PlanWorkout, WorkoutLog } from "@/types/database";
 
 // ── formatPace ─────────────────────────────────────────────────────────────────
 
@@ -358,6 +359,81 @@ describe("weekMileageRange", () => {
       mkWorkout({ day_of_week: 5, distance_miles: 100 }),
     ];
     expect(weekMileageRange(workouts, 3)).toEqual({ low: 3, high: 3 });
+  });
+});
+
+// ── weekActualMileage ───────────────────────────────────────────────────────────
+
+describe("weekActualMileage", () => {
+  function mkWorkout(overrides: Partial<PlanWorkout>): PlanWorkout {
+    return {
+      id: "1",
+      plan_id: "p",
+      week_number: 1,
+      day_of_week: 0,
+      type: "run",
+      run_type: null,
+      strength_type: null,
+      title: "Run",
+      description: null,
+      distance_miles: null,
+      distance_unit: "mi",
+      pace_type: null,
+      duration_minutes: null,
+      notes: null,
+      sort_order: 0,
+      day_logic: "or",
+      library_workout_id: null,
+      ...overrides,
+    };
+  }
+
+  function mkLog(overrides: Partial<WorkoutLog>): WorkoutLog {
+    return {
+      id: "log-1",
+      user_id: "u",
+      user_plan_id: "up",
+      plan_workout_id: "1",
+      scheduled_date: "2026-01-01",
+      completed_at: null,
+      actual_distance_miles: null,
+      actual_duration_seconds: null,
+      strava_activity_id: null,
+      custom_title: null,
+      custom_description: null,
+      notes: null,
+      ...overrides,
+    };
+  }
+
+  it("sums actual mileage for completed workouts", () => {
+    const workouts = [mkWorkout({ id: "1" }), mkWorkout({ id: "2" })];
+    const logs = [
+      mkLog({ plan_workout_id: "1", completed_at: "2026-01-01T00:00:00Z", actual_distance_miles: 6.2 }),
+      mkLog({ plan_workout_id: "2", completed_at: "2026-01-02T00:00:00Z", actual_distance_miles: 3 }),
+    ];
+    expect(weekActualMileage(workouts, logs)).toBeCloseTo(9.2, 5);
+  });
+
+  it("ignores workouts that aren't completed", () => {
+    const workouts = [mkWorkout({ id: "1" })];
+    const logs = [mkLog({ plan_workout_id: "1", completed_at: null, actual_distance_miles: 5 })];
+    expect(weekActualMileage(workouts, logs)).toBe(0);
+  });
+
+  it("ignores completed workouts with no actual mileage recorded", () => {
+    const workouts = [mkWorkout({ id: "1" })];
+    const logs = [mkLog({ plan_workout_id: "1", completed_at: "2026-01-01T00:00:00Z", actual_distance_miles: null })];
+    expect(weekActualMileage(workouts, logs)).toBe(0);
+  });
+
+  it("ignores workouts with no matching log", () => {
+    const workouts = [mkWorkout({ id: "1" })];
+    expect(weekActualMileage(workouts, [])).toBe(0);
+  });
+
+  it("returns zero for an empty week", () => {
+    expect(weekActualMileage([], [])).toBe(0);
   });
 });
 

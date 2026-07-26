@@ -153,12 +153,12 @@ export default function DashboardPage() {
     return planContexts.find((c) => c.plan.id === planId);
   }
 
-  function handleComplete(workout: PlanWorkout) {
+  function handleComplete(workout: PlanWorkout, actualDistanceMiles?: number | null) {
     const ctx = findCtx(workout.plan_id);
     if (!ctx) return;
     const date = scheduledDate(ctx.userPlan.start_date, workout.week_number, workout.day_of_week);
     startTransition(async () => {
-      await markWorkoutComplete(ctx.userPlan.id, workout.id, date);
+      await markWorkoutComplete(ctx.userPlan.id, workout.id, date, actualDistanceMiles);
       await load();
     });
   }

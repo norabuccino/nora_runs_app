@@ -38,10 +38,10 @@ export function MyPlanWeeks({
   const [addTarget, setAddTarget] = useState<{ weekNumber: number; dayOfWeek: number } | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleComplete(workout: PlanWorkout) {
+  function handleComplete(workout: PlanWorkout, actualDistanceMiles?: number | null) {
     const date = scheduledDate(startDate, workout.week_number, workout.day_of_week);
     startTransition(async () => {
-      await markWorkoutComplete(userPlanId, workout.id, date);
+      await markWorkoutComplete(userPlanId, workout.id, date, actualDistanceMiles);
       router.refresh();
     });
   }

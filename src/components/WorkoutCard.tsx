@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
 import { getWorkoutEstimate, resolveWorkoutTypeDisplay } from "@/lib/paceUtils";
-import { displayDistance } from "@/lib/unitUtils";
+import { displayDistance, convertDistance, type DistanceUnit } from "@/lib/unitUtils";
+import { useUnitPreference } from "@/hooks/useUnitPreference";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 
 interface WorkoutCardProps {
@@ -10,7 +12,7 @@ interface WorkoutCardProps {
   log?: WorkoutLog | null;
   paces?: RunningPace[];
   mode?: "view" | "dashboard" | "edit";
-  onComplete?: (workout: PlanWorkout) => void;
+  onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
@@ -30,10 +32,43 @@ export function WorkoutCard({
   onCopy,
   onDetail,
 }: WorkoutCardProps) {
+  const [unit] = useUnitPreference();
+  const [enteringMileage, setEnteringMileage] = useState(false);
+  const [mileageInput, setMileageInput] = useState("");
+
   const isCompleted = !!log?.completed_at;
   const title = log?.custom_title ?? workout.title;
   const description = log?.custom_description ?? workout.description;
   const isStrength = workout.type === "strength";
+  const hasDistance = !!workout.distance_miles;
+
+  function startComplete(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!hasDistance) {
+      onComplete?.(workout);
+      return;
+    }
+    const defaultVal = convertDistance(
+      workout.distance_miles!,
+      (workout.distance_unit ?? "mi") as DistanceUnit,
+      unit
+    );
+    setMileageInput(String(parseFloat(defaultVal.toFixed(2))));
+    setEnteringMileage(true);
+  }
+
+  function confirmComplete(e: React.FormEvent) {
+    e.preventDefault();
+    const parsed = parseFloat(mileageInput);
+    const miles = Number.isFinite(parsed) ? convertDistance(parsed, unit, "mi") : null;
+    onComplete?.(workout, miles);
+    setEnteringMileage(false);
+  }
+
+  function cancelComplete(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEnteringMileage(false);
+  }
 
   const estimate = isStrength
     ? null
@@ -115,6 +150,9 @@ export function WorkoutCard({
           {isCompleted && (
             <span className="text-xs text-green-600 dark:text-green-400 font-medium">
               ✓ Done
+              {log?.actual_distance_miles
+                ? ` · ${displayDistance(convertDistance(log.actual_distance_miles, "mi", unit), unit)}`
+                : ""}
             </span>
           )}
         </div>
@@ -138,17 +176,45 @@ export function WorkoutCard({
       </div>
 
       {mode === "dashboard" && (
-        <div className="pt-1 border-t border-[var(--border)]">
+        <div className="pt-1 border-t border-[var(--border)]" onClick={(e) => e.stopPropagation()}>
           {isCompleted ? (
             <button
-              onClick={(e) => { e.stopPropagation(); onUnComplete?.(workout); }}
+              onClick={() => onUnComplete?.(workout)}
               className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
             >
               Mark incomplete
             </button>
+          ) : enteringMileage ? (
+            <form onSubmit={confirmComplete} className="flex items-center gap-1.5">
+              <input
+                type="number"
+                inputMode="decimal"
+                step="0.01"
+                min="0"
+                autoFocus
+                value={mileageInput}
+                onChange={(e) => setMileageInput(e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+                className="w-16 rounded border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
+              />
+              <span className="text-xs text-[var(--muted)]">{unit}</span>
+              <button
+                type="submit"
+                className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={cancelComplete}
+                className="text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+              >
+                Cancel
+              </button>
+            </form>
           ) : (
             <button
-              onClick={(e) => { e.stopPropagation(); onComplete?.(workout); }}
+              onClick={startComplete}
               className="text-xs font-medium text-[var(--accent)] hover:opacity-80 transition-opacity"
             >
               Mark complete →

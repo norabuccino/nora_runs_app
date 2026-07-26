@@ -21,7 +21,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { DAY_NAMES, scheduledDate, weekMileageRange, parseDateLocal } from "@/lib/paceUtils";
+import { DAY_NAMES, scheduledDate, weekMileageRange, weekActualMileage, parseDateLocal } from "@/lib/paceUtils";
 import { WorkoutCard } from "./WorkoutCard";
 import { WeekMileageLabel } from "./WeekMileageLabel";
 
@@ -126,7 +126,7 @@ function SortableCard({
   onEdit?: (w: PlanWorkout) => void;
   onDelete?: (w: PlanWorkout) => void;
   onCopy?: (w: PlanWorkout) => void;
-  onComplete?: (w: PlanWorkout) => void;
+  onComplete?: (w: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (w: PlanWorkout) => void;
   onDetail?: (w: PlanWorkout) => void;
 }) {
@@ -193,7 +193,7 @@ interface WeekGridProps {
   mode?: "view" | "dashboard" | "edit" | "reorder";
   daysPerWeek?: number;
   purpose?: string;
-  onComplete?: (workout: PlanWorkout) => void;
+  onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
   onUnComplete?: (workout: PlanWorkout) => void;
   onEdit?: (workout: PlanWorkout) => void;
   onDelete?: (workout: PlanWorkout) => void;
@@ -385,6 +385,7 @@ export function WeekGrid({
   const gridCols = GRID_COLS[daysPerWeek] ?? "grid-cols-7";
   const lgGridCols = LG_GRID_COLS[daysPerWeek] ?? "lg:grid-cols-7";
   const { low: mileageLow, high: mileageHigh } = weekMileageRange(byDay.flat(), daysPerWeek);
+  const actualMileage = weekActualMileage(byDay.flat(), logs);
 
   const header = (
     <div className="flex items-baseline justify-between gap-3">
@@ -404,7 +405,7 @@ export function WeekGrid({
           <p className="text-sm text-[var(--muted)] italic truncate">{localPurpose}</p>
         ) : null}
       </div>
-      <WeekMileageLabel lowMi={mileageLow} highMi={mileageHigh} />
+      <WeekMileageLabel lowMi={mileageLow} highMi={mileageHigh} actualMi={actualMileage} />
     </div>
   );
 
