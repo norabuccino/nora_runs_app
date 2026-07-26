@@ -29,9 +29,11 @@ export function WeekMileageLabel({ lowMi, highMi, actualMi = 0, increasePct = nu
       {isAggressiveIncrease && (
         <span
           title={`Mileage is up ~${Math.round(increasePct!)}% from last week — more than the commonly recommended 10% per week`}
-          className="cursor-help"
+          className="cursor-help text-yellow-500 dark:text-yellow-400"
         >
-          ⚠️
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2 1 21h22L12 2Zm0 5.5c.55 0 1 .45 1 1v6a1 1 0 1 1-2 0v-6c0-.55.45-1 1-1ZM12 18a1.25 1.25 0 1 1 0-2.5A1.25 1.25 0 0 1 12 18Z" />
+          </svg>
         </span>
       )}
       {actualMi > 0 && (
