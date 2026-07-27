@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useState } from "react";
 
 const DEV_EMAIL = process.env.NEXT_PUBLIC_DEV_EMAIL;
@@ -50,12 +49,6 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold">Log in</h1>
-          <p className="text-sm text-gray-500">
-            Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="underline hover:text-black dark:hover:text-white">
-              Sign up
-            </Link>
-          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
