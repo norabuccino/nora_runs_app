@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **nora_runs_app** — helps the user plan marathon training and strength training.
 
 - **Repo:** https://github.com/norabuccino/nora_runs_app
-- **Domain:** noraboo22.com
+- **Domain:** workouts.norabuccino.com
 - **Stack:** Next.js 16 App Router, Supabase (auth + database), Tailwind CSS v4, Vercel
 
 ## Commands
