@@ -27,6 +27,7 @@ export const BADGE_DEFAULTS: BadgeColorMap = {
   "run-interval-run":     { lightBg: "#fee2e2", lightText: "#991b1b", darkBg: "#7f1d1d", darkText: "#fecaca" },
   "run-threshold-run":    { lightBg: "#fef3c7", lightText: "#92400e", darkBg: "#78350f", darkText: "#fde68a" },
   "run-recovery-run":     { lightBg: "#e5e0ff", lightText: "#4020b8", darkBg: "#251865", darkText: "#c5b8ff" },
+  "run-boost-run":        { lightBg: "#cffafe", lightText: "#155e75", darkBg: "#164e63", darkText: "#a5f3fc" },
   "run-race":             { lightBg: "#fce7f3", lightText: "#9d174d", darkBg: "#831843", darkText: "#fbcfe8" },
   "run-long-run":         { lightBg: "#e0e7ff", lightText: "#3730a3", darkBg: "#312e81", darkText: "#c7d2fe" },
   "run-mp-hmp-run":       { lightBg: "#fef9c3", lightText: "#854d0e", darkBg: "#713f12", darkText: "#fef08a" },

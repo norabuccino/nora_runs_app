@@ -57,7 +57,7 @@ export interface Database {
           week_number: number;
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
           description: string | null;
@@ -76,7 +76,7 @@ export interface Database {
           week_number: number;
           day_of_week: number;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
           description?: string | null;
@@ -95,7 +95,7 @@ export interface Database {
           week_number?: number;
           day_of_week?: number;
           type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
           description?: string | null;
@@ -189,7 +189,7 @@ export interface Database {
           user_id: string;
           scheduled_date: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
           description: string | null;
@@ -208,7 +208,7 @@ export interface Database {
           user_id: string;
           scheduled_date: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
           description?: string | null;
@@ -227,7 +227,7 @@ export interface Database {
           user_id?: string;
           scheduled_date?: string;
           type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
           description?: string | null;
@@ -423,7 +423,7 @@ export interface Database {
           id: string;
           user_id: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
           description: string | null;
@@ -439,7 +439,7 @@ export interface Database {
           id?: string;
           user_id: string;
           type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
           description?: string | null;
@@ -455,7 +455,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
-          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "race" | "long_run" | "mp_hmp_run" | null;
+          run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
           description?: string | null;

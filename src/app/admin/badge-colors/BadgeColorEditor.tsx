@@ -45,6 +45,7 @@ const COLUMNS = [
       { key: "run-interval-run", label: "Interval Run" },
       { key: "run-threshold-run", label: "Threshold Run" },
       { key: "run-recovery-run", label: "Recovery Run" },
+      { key: "run-boost-run", label: "Boost Run" },
       { key: "run-race", label: "Race" },
       { key: "run-long-run", label: "Long Run" },
       { key: "run-mp-hmp-run", label: "MP/HMP Run" },

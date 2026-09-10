@@ -13,7 +13,7 @@ const VALID_TYPES = new Set([
   "run", "strength", "rest", "cross_train", "bike", "swim", "yoga", "elliptical",
 ]);
 const VALID_RUN_TYPES = new Set([
-  "easy_run", "tempo_run", "interval_run", "threshold_run", "recovery_run", "race", "long_run", "mp_hmp_run",
+  "easy_run", "tempo_run", "interval_run", "threshold_run", "recovery_run", "boost_run", "race", "long_run", "mp_hmp_run",
 ]);
 const VALID_UNITS = new Set(["mi", "km", "m"]);
 
@@ -334,7 +334,7 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
               <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs text-[var(--muted)]">
                 <span><code className="text-[var(--foreground)]">type</code> — run, strength, bike, swim, yoga, elliptical, cross_train, rest</span>
                 <span><code className="text-[var(--foreground)]">title</code> — workout name</span>
-                <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, interval_run, threshold_run, recovery_run, race (runs only)</span>
+                <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, interval_run, threshold_run, recovery_run, boost_run, race (runs only)</span>
                 <span><code className="text-[var(--foreground)]">strength_type</code> — upper_body, lower_body, full_body, core (strength only)</span>
                 <span><code className="text-[var(--foreground)]">distance</code> + <code className="text-[var(--foreground)]">distance_unit</code> — e.g. 6, mi  (mi / km / m)</span>
                 <span><code className="text-[var(--foreground)]">pace_type</code> — matches a pace name you&apos;ve saved</span>

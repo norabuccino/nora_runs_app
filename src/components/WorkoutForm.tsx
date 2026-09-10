@@ -1371,6 +1371,7 @@ export function WorkoutForm({
                   <option value="interval_run">Interval Run</option>
                   <option value="threshold_run">Threshold Run</option>
                   <option value="recovery_run">Recovery Run</option>
+                  <option value="boost_run">Boost Run</option>
                   <option value="race">Race</option>
                 </select>
               </div>

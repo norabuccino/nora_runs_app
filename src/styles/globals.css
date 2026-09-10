@@ -70,6 +70,8 @@ body {
   --badge-run-threshold-run-text: #92400e;
   --badge-run-recovery-run-bg: #e5e0ff;
   --badge-run-recovery-run-text: #4020b8;
+  --badge-run-boost-run-bg: #cffafe;
+  --badge-run-boost-run-text: #155e75;
   --badge-run-race-bg: #fce7f3;
   --badge-run-race-text: #9d174d;
   --badge-run-long-run-bg: #e0e7ff;
@@ -148,6 +150,8 @@ body {
   --badge-run-threshold-run-text: #fde68a;
   --badge-run-recovery-run-bg: #251865;
   --badge-run-recovery-run-text: #c5b8ff;
+  --badge-run-boost-run-bg: #164e63;
+  --badge-run-boost-run-text: #a5f3fc;
   --badge-run-race-bg: #831843;
   --badge-run-race-text: #fbcfe8;
   --badge-run-long-run-bg: #312e81;

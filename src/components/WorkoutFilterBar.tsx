@@ -54,6 +54,7 @@ const RUN_TYPE_PILLS: { value: RunType | "all"; label: string }[] = [
   { value: "interval_run", label: RUN_TYPE_LABELS.interval_run },
   { value: "threshold_run", label: RUN_TYPE_LABELS.threshold_run },
   { value: "recovery_run", label: RUN_TYPE_LABELS.recovery_run },
+  { value: "boost_run", label: RUN_TYPE_LABELS.boost_run },
   { value: "race", label: RUN_TYPE_LABELS.race },
 ];
 
