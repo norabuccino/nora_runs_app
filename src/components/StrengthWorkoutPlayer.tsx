@@ -1,10 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { PlanWorkout, WorkoutStep } from "@/types/database";
-import { buildSessionBeats, formatStepDuration, stepTimedSeconds } from "@/lib/workoutSteps";
+import type { PlanWorkout, WorkoutStep, WorkoutSession, WorkoutSessionExerciseWithSets } from "@/types/database";
+import { buildSessionBeats, formatStepDuration, stepTimedSeconds, type SessionBeat } from "@/lib/workoutSteps";
+import {
+  getOrCreateWorkoutSession,
+  logSet,
+  completeWorkoutSession,
+  getLastPerformances,
+  type ExerciseHistoryEntry,
+} from "@/app/actions/strengthSessions";
+import { formatLoad, deriveCurrentLoad } from "@/lib/strengthProgression";
 
-const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume a session older than this
+const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
 
 function storageKey(workoutId: string) {
   return `strength-session:${workoutId}`;
@@ -37,6 +45,32 @@ function clearSavedSession(workoutId: string) {
   } catch {
     // ignore
   }
+}
+
+/** The set/round number a beat's performance is logged under for its exercise. */
+function beatSetNumber(beat: SessionBeat): number {
+  return beat.isSuperset ? beat.roundNumber! : beat.setNumber!;
+}
+
+/**
+ * DB-driven resume position: the first beat whose exercise is tracked but
+ * doesn't yet have a logged set for its slot. Falls back to the start if
+ * nothing in the workout is trackable, or the end if everything already is.
+ */
+function findResumeIndex(
+  beats: SessionBeat[],
+  sessionExerciseByStepId: Map<string, WorkoutSessionExerciseWithSets>
+): number {
+  let hadLoggable = false;
+  for (let i = 0; i < beats.length; i++) {
+    const se = sessionExerciseByStepId.get(beats[i].step.id);
+    if (!se) continue;
+    hadLoggable = true;
+    const setNum = beatSetNumber(beats[i]);
+    const logged = se.workout_set_logs.some((l) => l.set_number === setNum && l.completed);
+    if (!logged) return i;
+  }
+  return hadLoggable ? Math.max(0, beats.length - 1) : 0;
 }
 
 function playBeep() {
@@ -147,26 +181,99 @@ function Overlay({ children, onExit }: { children: React.ReactNode; onExit?: () 
   );
 }
 
+export type SessionSource =
+  | { planWorkoutId: string; sessionDate: string }
+  | { scheduledWorkoutId: string; sessionDate: string };
+
 interface StrengthWorkoutPlayerProps {
   workout: PlanWorkout;
   steps: WorkoutStep[];
+  /**
+   * When provided, the session is persisted: sets are logged as you go, "Last
+   * time" performance is shown per exercise, and progress resumes from the
+   * database rather than localStorage. Omit for read-only template browsing,
+   * which falls back to the old ephemeral, localStorage-only walkthrough.
+   */
+  sessionSource?: SessionSource;
   onExit: () => void;
   onFinish: () => void;
 }
 
-export function StrengthWorkoutPlayer({ workout, steps, onExit, onFinish }: StrengthWorkoutPlayerProps) {
+export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, onFinish }: StrengthWorkoutPlayerProps) {
   const beats = useMemo(() => buildSessionBeats(steps), [steps]);
-  const [beatIndex, setBeatIndex] = useState(() => loadSavedBeatIndex(workout.id, beats.length));
+  const tracked = !!sessionSource;
+
+  const [loadingSession, setLoadingSession] = useState(tracked);
+  const [session, setSession] = useState<WorkoutSession | null>(null);
+  const [sessionExercises, setSessionExercises] = useState<WorkoutSessionExerciseWithSets[]>([]);
+  const [lastPerf, setLastPerf] = useState<Record<string, ExerciseHistoryEntry>>({});
+  const [beatIndex, setBeatIndex] = useState(() => (tracked ? 0 : loadSavedBeatIndex(workout.id, beats.length)));
   const [finished, setFinished] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const [repsInput, setRepsInput] = useState("");
+
+  // Load or create the persisted session once, on mount.
+  useEffect(() => {
+    if (!sessionSource) return;
+    let cancelled = false;
+    (async () => {
+      const result = await getOrCreateWorkoutSession(sessionSource);
+      if (cancelled) return;
+      setSession(result.session);
+      setSessionExercises(result.exercises);
+      const exerciseIds = Array.from(
+        new Set(result.exercises.map((e) => e.exercise_id).filter((id): id is string => !!id))
+      );
+      const perf = exerciseIds.length > 0 ? await getLastPerformances(exerciseIds, result.session.id) : {};
+      if (cancelled) return;
+      setLastPerf(perf);
+      const stepMap = new Map(result.exercises.filter((e) => e.source_workout_step_id).map((e) => [e.source_workout_step_id!, e]));
+      setBeatIndex(findResumeIndex(beats, stepMap));
+      setLoadingSession(false);
+    })();
+    return () => { cancelled = true; };
+    // Run once on mount — steps/workout don't change during a session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
-    if (!finished) saveBeatIndex(workout.id, beatIndex);
-  }, [workout.id, beatIndex, finished]);
+    if (!tracked && !finished) saveBeatIndex(workout.id, beatIndex);
+  }, [workout.id, beatIndex, finished, tracked]);
+
+  const sessionExerciseByStepId = useMemo(
+    () => new Map(sessionExercises.filter((e) => e.source_workout_step_id).map((e) => [e.source_workout_step_id!, e])),
+    [sessionExercises]
+  );
+
+  // Reset the input fields whenever the current beat changes, prefilled from
+  // this session's own saved log (if resuming) or the last performance.
+  useEffect(() => {
+    if (loadingSession) return;
+    const beat = beats[beatIndex];
+    if (!beat) return;
+    const se = sessionExerciseByStepId.get(beat.step.id);
+    const setNum = beatSetNumber(beat);
+    const existing = se?.workout_set_logs.find((l) => l.set_number === setNum);
+    const last = se?.exercise_id ? lastPerf[se.exercise_id] : undefined;
+    const lastSet = last?.sets.find((s) => s.set_number === setNum) ?? last?.sets[last.sets.length - 1];
+    setWeightInput(existing?.weight != null ? String(existing.weight) : lastSet?.weight != null ? String(lastSet.weight) : "");
+    setRepsInput(
+      existing?.reps_completed != null ? String(existing.reps_completed) : beat.step.reps != null ? String(beat.step.reps) : ""
+    );
+  }, [beatIndex, loadingSession, beats, sessionExerciseByStepId, lastPerf]);
 
   if (beats.length === 0) {
     return (
       <Overlay onExit={onExit}>
         <p className="text-sm text-[var(--muted)]">This workout has no exercises to run through.</p>
+      </Overlay>
+    );
+  }
+
+  if (loadingSession) {
+    return (
+      <Overlay>
+        <p className="text-sm text-[var(--muted)]">Loading…</p>
       </Overlay>
     );
   }
@@ -189,10 +296,47 @@ export function StrengthWorkoutPlayer({ workout, steps, onExit, onFinish }: Stre
 
   const beat = beats[beatIndex];
   const isLast = beatIndex === beats.length - 1;
+  const sessionExercise = sessionExerciseByStepId.get(beat.step.id) ?? null;
+  const isWeighted = sessionExercise != null && sessionExercise.load_format != null;
+  const hasReps = beat.step.reps != null;
+  const timedSeconds = stepTimedSeconds(beat.step);
+  const isTimed = !hasReps && timedSeconds != null;
+  const isLoggable = sessionExercise != null;
+  const hasEditableInputs = isLoggable && (isWeighted || hasReps);
+
+  const lastPerfForExercise = sessionExercise?.exercise_id ? lastPerf[sessionExercise.exercise_id] : undefined;
+  const lastLoad = lastPerfForExercise ? deriveCurrentLoad(lastPerfForExercise.sets) : null;
+  const lastLoadLabel = lastLoad != null ? formatLoad(lastLoad, lastPerfForExercise!.loadFormat) : null;
+  const lastActual = lastPerfForExercise
+    ? lastPerfForExercise.sets
+        .map((s) => (s.reps_completed != null ? String(s.reps_completed) : s.duration_seconds != null ? `${s.duration_seconds}s` : null))
+        .filter((v): v is string => v != null)
+        .join(" / ")
+    : null;
+
+  function logCurrentBeat() {
+    if (!sessionExercise) return;
+    const setNum = beatSetNumber(beat);
+    const parsedWeight = isWeighted && weightInput.trim() !== "" ? parseFloat(weightInput) : null;
+    const parsedReps = hasReps && repsInput.trim() !== "" ? parseInt(repsInput, 10) : null;
+    const durationSeconds = isTimed ? timedSeconds : null;
+    void logSet(sessionExercise.id, setNum, {
+      weight: parsedWeight,
+      reps_completed: parsedReps,
+      duration_seconds: durationSeconds,
+      completed: true,
+    }).catch(() => {
+      // best-effort — the session still advances even if the write fails
+    });
+  }
 
   function advance() {
+    logCurrentBeat();
     if (isLast) {
-      clearSavedSession(workout.id);
+      if (session) {
+        void completeWorkoutSession(session.id).catch(() => {});
+      }
+      if (!tracked) clearSavedSession(workout.id);
       setFinished(true);
     } else {
       setBeatIndex((i) => i + 1);
@@ -205,11 +349,10 @@ export function StrengthWorkoutPlayer({ workout, steps, onExit, onFinish }: Stre
 
   function handleExit() {
     if (!confirm("End this workout session? Your progress will be lost.")) return;
-    clearSavedSession(workout.id);
+    if (!tracked) clearSavedSession(workout.id);
     onExit();
   }
 
-  const timedSeconds = stepTimedSeconds(beat.step);
   const repsLabel = beat.step.reps
     ? `${beat.step.reps} reps${beat.step.both_sides ? " (each side)" : ""}`
     : null;
@@ -241,10 +384,12 @@ export function StrengthWorkoutPlayer({ workout, steps, onExit, onFinish }: Stre
         </button>
       </div>
 
-      {/* Tap-anywhere exercise area */}
+      {/* Exercise area — tap-anywhere-to-advance only when there's no input to accidentally overwrite */}
       <div
-        onClick={advance}
-        className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center cursor-pointer select-none"
+        onClick={hasEditableInputs ? undefined : advance}
+        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto ${
+          hasEditableInputs ? "" : "cursor-pointer select-none"
+        }`}
       >
         {beat.groupName && (
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -270,12 +415,57 @@ export function StrengthWorkoutPlayer({ workout, steps, onExit, onFinish }: Stre
             Watch video →
           </a>
         )}
-        {timedSeconds != null && (
-          <div onClick={(e) => e.stopPropagation()}>
-            <ExerciseTimer seconds={timedSeconds} key={beatIndex} />
+
+        {isLoggable && (lastLoadLabel || lastActual) && (
+          <p className="text-xs text-[var(--muted)] max-w-sm">
+            Last time:{" "}
+            <span className="font-medium text-[var(--foreground)]">
+              {lastLoadLabel}
+              {lastLoadLabel && lastActual ? " — " : ""}
+              {lastActual}
+            </span>
+            {" · "}
+            {lastPerfForExercise!.sessionDate} · {lastPerfForExercise!.workoutTitle}
+          </p>
+        )}
+
+        {(isWeighted || hasReps) && (
+          <div className="flex gap-4 justify-center" onClick={(e) => e.stopPropagation()}>
+            {isWeighted && (
+              <label className="flex flex-col items-center gap-1">
+                <span className="text-xs text-[var(--muted)]">Weight</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  value={weightInput}
+                  onChange={(e) => setWeightInput(e.target.value)}
+                  className="w-24 text-center text-lg rounded-lg border border-[var(--border)] bg-[var(--background)] py-1.5"
+                />
+              </label>
+            )}
+            {hasReps && (
+              <label className="flex flex-col items-center gap-1">
+                <span className="text-xs text-[var(--muted)]">Reps</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={repsInput}
+                  onChange={(e) => setRepsInput(e.target.value)}
+                  className="w-20 text-center text-lg rounded-lg border border-[var(--border)] bg-[var(--background)] py-1.5"
+                />
+              </label>
+            )}
           </div>
         )}
-        <span className="mt-4 text-sm font-medium text-[var(--accent)]">Tap anywhere to mark done →</span>
+
+        {isTimed && (
+          <div onClick={(e) => e.stopPropagation()}>
+            <ExerciseTimer seconds={timedSeconds!} key={beatIndex} />
+          </div>
+        )}
+
+        {!hasEditableInputs && <span className="mt-4 text-sm font-medium text-[var(--accent)]">Tap anywhere to mark done →</span>}
       </div>
 
       {/* Footer nav */}

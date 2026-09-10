@@ -11,6 +11,10 @@ export type ExerciseImportRow = {
   video_url: string | null;
   source: string | null;
   is_private?: boolean;
+  loading_category?: string | null;
+  track_load?: boolean;
+  load_format?: string | null;
+  default_increment?: number | null;
 };
 
 export async function createExercise(data: {
@@ -20,6 +24,10 @@ export async function createExercise(data: {
   exercise_type?: string | null;
   source?: string | null;
   is_private?: boolean;
+  loading_category?: string | null;
+  track_load?: boolean;
+  load_format?: string | null;
+  default_increment?: number | null;
 }): Promise<Exercise> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -38,7 +46,18 @@ export async function createExercise(data: {
 
 export async function updateExercise(
   id: string,
-  data: { name?: string; description?: string | null; video_url?: string | null; exercise_type?: string | null; source?: string | null; is_private?: boolean }
+  data: {
+    name?: string;
+    description?: string | null;
+    video_url?: string | null;
+    exercise_type?: string | null;
+    source?: string | null;
+    is_private?: boolean;
+    loading_category?: string | null;
+    track_load?: boolean;
+    load_format?: string | null;
+    default_increment?: number | null;
+  }
 ): Promise<void> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -109,6 +128,10 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
     video_url: row.video_url,
     source: row.source,
     is_private: row.is_private ?? false,
+    loading_category: row.loading_category ?? null,
+    track_load: row.track_load ?? false,
+    load_format: row.load_format ?? null,
+    default_increment: row.default_increment ?? null,
   }));
 
   const { error } = await supabase.from("exercises").insert(inserts);

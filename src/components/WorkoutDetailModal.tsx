@@ -105,12 +105,14 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
   const [treadmillMode, setTreadmillMode] = useState(false);
   const [isStarting, startTransition] = useTransition();
   const [session, setSession] = useState<PlanWorkout | null>(null);
+  const [sessionDate, setSessionDate] = useState<string | null>(null);
 
   function handleStart() {
     startTransition(async () => {
       const todayISO = new Date().toISOString().split("T")[0];
       const scheduled = await createScheduledWorkoutFromLibrary(workout.id, todayISO);
       setSession(adaptScheduledWorkout(scheduled));
+      setSessionDate(todayISO);
     });
   }
 
@@ -122,6 +124,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
       });
     }
     setSession(null);
+    setSessionDate(null);
     onClose();
   }
 
@@ -327,11 +330,12 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
         </div>
       </div>
 
-      {session && (
+      {session && sessionDate && (
         <StrengthWorkoutPlayer
           workout={session}
           steps={workout.workout_steps}
-          onExit={() => setSession(null)}
+          sessionSource={{ scheduledWorkoutId: session.id, sessionDate }}
+          onExit={() => { setSession(null); setSessionDate(null); }}
           onFinish={finishSession}
         />
       )}

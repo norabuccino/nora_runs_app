@@ -105,6 +105,7 @@ export function MyPlanWeeks({
           workout={detailWorkout}
           onClose={() => setDetailWorkout(null)}
           onComplete={handleComplete}
+          sessionDate={scheduledDate(startDate, detailWorkout.week_number, detailWorkout.day_of_week)}
         />
       )}
       {addTarget && (

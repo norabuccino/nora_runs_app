@@ -313,6 +313,39 @@ export const EXERCISE_TYPE_COLORS: Record<string, string> = {
   mobility: "bg-[var(--badge-exercise-mobility-bg)] text-[var(--badge-exercise-mobility-text)]",
 };
 
+// Strength progression — how an exercise loads the body, for organizing the
+// progression dashboard. Free-text-with-label-map, same convention as
+// EXERCISE_TYPE_LABELS above (not a DB enum, no admin-configurable colors).
+export const LOADING_CATEGORY_LABELS: Record<string, string> = {
+  bilateral_squat: "Bilateral Squat / Knee Dominant",
+  unilateral_squat: "Unilateral Squat / Knee Dominant",
+  bilateral_hinge: "Bilateral Hinge / Posterior Chain",
+  unilateral_hinge: "Unilateral Hinge",
+  calf: "Calf / Lower Leg",
+  horizontal_push: "Horizontal Push",
+  vertical_push: "Vertical Push",
+  upper_pull: "Upper-Body Pull",
+  shoulder_isolation: "Shoulder Isolation",
+  arm_isolation: "Arm Isolation",
+  hip_isolation: "Hip Isolation",
+  core_carry: "Core / Carry",
+};
+
+// How a logged weight number should be interpreted for display, so
+// "DB RDL — 30 lb" is never ambiguous between total and per-hand.
+export const LOAD_FORMAT_LABELS: Record<string, string> = {
+  total: "Total weight",
+  per_hand: "Per hand",
+  per_side: "Per side",
+  single_db_kb: "Single dumbbell/kettlebell",
+  barbell_total: "Barbell total",
+  machine: "Machine weight",
+  bodyweight: "Bodyweight",
+  bodyweight_plus: "Bodyweight + added weight",
+  band: "Band / resistance level",
+  other: "Other",
+};
+
 export const STRENGTH_TYPE_LABELS: Record<string, string> = {
   upper_body: "Upper Body",
   lower_body: "Lower Body",

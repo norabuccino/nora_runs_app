@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
-import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
+import { getExerciseHistory, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
+import { formatLoad, deriveCurrentLoad } from "@/lib/strengthProgression";
 
 interface LibraryUsage {
   workout_id: string;
@@ -20,13 +22,28 @@ interface PlanUsage {
 interface ExerciseDetailModalProps {
   exercise: Exercise;
   onClose: () => void;
-  onEdit: (e: Exercise) => void;
+  onEdit?: (e: Exercise) => void;
 }
 
 export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetailModalProps) {
   const [libraryUsage, setLibraryUsage] = useState<LibraryUsage[]>([]);
   const [planUsage, setPlanUsage] = useState<PlanUsage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [history, setHistory] = useState<ExerciseHistoryEntry[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(exercise.track_load);
+
+  useEffect(() => {
+    if (!exercise.track_load) return;
+    let cancelled = false;
+    setLoadingHistory(true);
+    getExerciseHistory(exercise.id).then((entries) => {
+      if (!cancelled) {
+        setHistory(entries);
+        setLoadingHistory(false);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [exercise.id, exercise.track_load]);
 
   useEffect(() => {
     async function fetchUsage() {
@@ -89,6 +106,8 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
     : null;
 
   const hasUsage = libraryUsage.length > 0 || planUsage.length > 0;
+  const currentLoad = history[0] ? deriveCurrentLoad(history[0].sets) : null;
+  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, history[0].loadFormat) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -109,16 +128,23 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
                     🔒 Private
                   </span>
                 )}
+                {exercise.track_load && exercise.loading_category && (
+                  <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full border border-[var(--border)] text-[var(--muted)]">
+                    {LOADING_CATEGORY_LABELS[exercise.loading_category] ?? exercise.loading_category}
+                  </span>
+                )}
               </div>
               <h2 className="font-semibold text-lg leading-snug">{exercise.name}</h2>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => onEdit(exercise)}
-                className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--card)] transition-colors"
-              >
-                Edit
-              </button>
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(exercise)}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--card)] transition-colors"
+                >
+                  Edit
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
@@ -150,6 +176,45 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
             >
               ▶ Watch video
             </a>
+          )}
+
+          {/* Strength history */}
+          {exercise.track_load && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Strength history</p>
+                {currentLoadLabel && (
+                  <p className="text-xs text-[var(--muted)]">
+                    Current: <span className="font-medium text-[var(--foreground)]">{currentLoadLabel}</span>
+                  </p>
+                )}
+              </div>
+              {loadingHistory ? (
+                <p className="text-xs text-[var(--muted)]">Loading…</p>
+              ) : history.length === 0 ? (
+                <p className="text-xs text-[var(--muted)]">No logged performances yet.</p>
+              ) : (
+                <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+                  {history.map((entry) => {
+                    const load = deriveCurrentLoad(entry.sets);
+                    const loadLabel = load != null ? formatLoad(load, entry.loadFormat) : null;
+                    const actual = entry.sets
+                      .map((s) => s.reps_completed ?? (s.duration_seconds ? `${s.duration_seconds}s` : null))
+                      .filter((v) => v != null)
+                      .join(" / ");
+                    return (
+                      <div key={entry.sessionId} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+                        <div className="min-w-0">
+                          <p className="font-medium">{entry.sessionDate} · {entry.workoutTitle}</p>
+                          {actual && <p className="text-[var(--muted)] mt-0.5">{actual}</p>}
+                        </div>
+                        {loadLabel && <span className="font-medium shrink-0">{loadLabel}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
 
           {/* Library workouts */}

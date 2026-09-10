@@ -82,9 +82,11 @@ interface PlanWorkoutDetailModalProps {
   workout: PlanWorkout;
   onClose: () => void;
   onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
+  /** The calendar date this occurrence falls on — enables persisted session tracking (see StrengthWorkoutPlayer). Omit for read-only template browsing. */
+  sessionDate?: string;
 }
 
-export function PlanWorkoutDetailModal({ workout, onClose, onComplete }: PlanWorkoutDetailModalProps) {
+export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDate }: PlanWorkoutDetailModalProps) {
   const [steps, setSteps] = useState<WorkoutStep[]>([]);
   const [loadingSteps, setLoadingSteps] = useState(true);
   const [paces, setPaces] = useState<RunningPace[]>([]);
@@ -246,6 +248,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete }: PlanWor
         <StrengthWorkoutPlayer
           workout={workout}
           steps={steps}
+          sessionSource={sessionDate ? { planWorkoutId: workout.id, sessionDate } : undefined}
           onExit={() => setSessionOpen(false)}
           onFinish={() => {
             onComplete?.(workout);

@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } from "@/app/actions/exercises";
-import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { useCompactMode } from "@/hooks/useCompactMode";
@@ -18,9 +18,24 @@ interface ExerciseFormData {
   exercise_type: string;
   source: string;
   is_private: boolean;
+  loading_category: string;
+  track_load: boolean;
+  load_format: string;
+  default_increment: string;
 }
 
-const EMPTY_FORM: ExerciseFormData = { name: "", description: "", video_url: "", exercise_type: "", source: "", is_private: false };
+const EMPTY_FORM: ExerciseFormData = {
+  name: "",
+  description: "",
+  video_url: "",
+  exercise_type: "",
+  source: "",
+  is_private: false,
+  loading_category: "",
+  track_load: false,
+  load_format: "",
+  default_increment: "",
+};
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
@@ -143,6 +158,64 @@ function ExerciseModal({
               <span className="text-sm">Private — only visible to you</span>
             </label>
 
+            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+              <input
+                type="checkbox"
+                checked={form.track_load}
+                onChange={(e) => setForm((p) => ({ ...p, track_load: e.target.checked }))}
+                className="w-4 h-4 accent-[var(--accent)]"
+              />
+              <span className="text-sm">Track load — log weight/reps and show up in Strength Progression</span>
+            </label>
+
+            {form.track_load && (
+              <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
+                <div className="space-y-1">
+                  <label className={labelClass}>Loading category <span className="text-[var(--muted)]">(optional)</span></label>
+                  <select
+                    value={form.loading_category}
+                    onChange={(e) => setForm((p) => ({ ...p, loading_category: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— None —</option>
+                    {Object.entries(LOADING_CATEGORY_LABELS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={labelClass}>Load format</label>
+                  <select
+                    value={form.load_format}
+                    onChange={(e) => setForm((p) => ({ ...p, load_format: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— Select format —</option>
+                    {Object.entries(LOAD_FORMAT_LABELS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[var(--muted)]">
+                    How to interpret a logged number — e.g. per hand so &quot;15&quot; means 15 lb/hand, not 15 lb total.
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className={labelClass}>Default increment <span className="text-[var(--muted)]">(optional)</span></label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    value={form.default_increment}
+                    onChange={(e) => setForm((p) => ({ ...p, default_increment: e.target.value }))}
+                    placeholder="e.g. 2.5"
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
+
             {error && <p className="text-xs text-red-500">{error}</p>}
 
             <div className="flex gap-2 pt-1">
@@ -200,9 +273,19 @@ export default function ExercisesPage() {
   useEffect(() => { load(); }, []);
 
   function handleExport() {
-    const headers = "name,exercise_type,description,video_url,source";
+    const headers = "name,exercise_type,description,video_url,source,loading_category,track_load,load_format,default_increment";
     const rows = exercises.map((e) =>
-      [csvEscape(e.name), e.exercise_type ?? "", csvEscape(e.description), csvEscape(e.video_url), csvEscape(e.source)].join(",")
+      [
+        csvEscape(e.name),
+        e.exercise_type ?? "",
+        csvEscape(e.description),
+        csvEscape(e.video_url),
+        csvEscape(e.source),
+        e.loading_category ?? "",
+        e.track_load ? "true" : "false",
+        e.load_format ?? "",
+        e.default_increment ?? "",
+      ].join(",")
     );
     const csv = [headers, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -245,6 +328,10 @@ export default function ExercisesPage() {
         exercise_type: data.exercise_type || null,
         source: data.source.trim() || null,
         is_private: data.is_private,
+        loading_category: data.loading_category || null,
+        track_load: data.track_load,
+        load_format: data.track_load ? data.load_format || null : null,
+        default_increment: data.track_load && data.default_increment ? parseFloat(data.default_increment) : null,
       });
       setCreating(false);
       await load();
@@ -267,6 +354,10 @@ export default function ExercisesPage() {
         exercise_type: data.exercise_type || null,
         source: data.source.trim() || null,
         is_private: data.is_private,
+        loading_category: data.loading_category || null,
+        track_load: data.track_load,
+        load_format: data.track_load ? data.load_format || null : null,
+        default_increment: data.track_load && data.default_increment ? parseFloat(data.default_increment) : null,
       });
       setEditing(null);
       await load();
@@ -569,6 +660,10 @@ export default function ExercisesPage() {
             exercise_type: editing.exercise_type ?? "",
             source: editing.source ?? "",
             is_private: editing.is_private,
+            loading_category: editing.loading_category ?? "",
+            track_load: editing.track_load,
+            load_format: editing.load_format ?? "",
+            default_increment: editing.default_increment != null ? String(editing.default_increment) : "",
           }}
           onSave={handleUpdate}
           onCancel={() => { setEditing(null); setSaveError(null); }}

@@ -252,6 +252,10 @@ export interface Database {
           exercise_type: string | null;
           source: string | null;
           is_private: boolean;
+          loading_category: string | null;
+          track_load: boolean;
+          load_format: string | null;
+          default_increment: number | null;
           created_at: string;
         };
         Insert: {
@@ -263,6 +267,10 @@ export interface Database {
           exercise_type?: string | null;
           source?: string | null;
           is_private?: boolean;
+          loading_category?: string | null;
+          track_load?: boolean;
+          load_format?: string | null;
+          default_increment?: number | null;
           created_at?: string;
         };
         Update: {
@@ -274,6 +282,139 @@ export interface Database {
           exercise_type?: string | null;
           source?: string | null;
           is_private?: boolean;
+          loading_category?: string | null;
+          track_load?: boolean;
+          load_format?: string | null;
+          default_increment?: number | null;
+          created_at?: string;
+        };
+      };
+      workout_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          session_date: string;
+          plan_workout_id: string | null;
+          scheduled_workout_id: string | null;
+          title: string;
+          workout_type: string;
+          strength_type: string | null;
+          notes: string | null;
+          completed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          session_date: string;
+          plan_workout_id?: string | null;
+          scheduled_workout_id?: string | null;
+          title: string;
+          workout_type: string;
+          strength_type?: string | null;
+          notes?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          session_date?: string;
+          plan_workout_id?: string | null;
+          scheduled_workout_id?: string | null;
+          title?: string;
+          workout_type?: string;
+          strength_type?: string | null;
+          notes?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+        };
+      };
+      workout_session_exercises: {
+        Row: {
+          id: string;
+          session_id: string;
+          exercise_id: string | null;
+          source_workout_step_id: string | null;
+          step_order: number;
+          repeat_group_id: number | null;
+          repeat_count: number;
+          group_name: string | null;
+          planned_sets: number | null;
+          planned_reps: number | null;
+          planned_duration_minutes: number | null;
+          planned_duration_unit: string;
+          load_format: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_id: string;
+          exercise_id?: string | null;
+          source_workout_step_id?: string | null;
+          step_order?: number;
+          repeat_group_id?: number | null;
+          repeat_count?: number;
+          group_name?: string | null;
+          planned_sets?: number | null;
+          planned_reps?: number | null;
+          planned_duration_minutes?: number | null;
+          planned_duration_unit?: string;
+          load_format?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_id?: string;
+          exercise_id?: string | null;
+          source_workout_step_id?: string | null;
+          step_order?: number;
+          repeat_group_id?: number | null;
+          repeat_count?: number;
+          group_name?: string | null;
+          planned_sets?: number | null;
+          planned_reps?: number | null;
+          planned_duration_minutes?: number | null;
+          planned_duration_unit?: string;
+          load_format?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+      };
+      workout_set_logs: {
+        Row: {
+          id: string;
+          session_exercise_id: string;
+          set_number: number;
+          weight: number | null;
+          reps_completed: number | null;
+          duration_seconds: number | null;
+          rpe: number | null;
+          completed: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          session_exercise_id: string;
+          set_number: number;
+          weight?: number | null;
+          reps_completed?: number | null;
+          duration_seconds?: number | null;
+          rpe?: number | null;
+          completed?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          session_exercise_id?: string;
+          set_number?: number;
+          weight?: number | null;
+          reps_completed?: number | null;
+          duration_seconds?: number | null;
+          rpe?: number | null;
+          completed?: boolean;
           created_at?: string;
         };
       };
@@ -534,3 +675,9 @@ export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | 
 export type DifficultyType = "beginner" | "intermediate" | "advanced";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
 export type AppSetting = Database["public"]["Tables"]["app_settings"]["Row"];
+
+// Strength progression
+export type WorkoutSession = Database["public"]["Tables"]["workout_sessions"]["Row"];
+export type WorkoutSessionExercise = Database["public"]["Tables"]["workout_session_exercises"]["Row"];
+export type WorkoutSetLog = Database["public"]["Tables"]["workout_set_logs"]["Row"];
+export type WorkoutSessionExerciseWithSets = WorkoutSessionExercise & { workout_set_logs: WorkoutSetLog[] };

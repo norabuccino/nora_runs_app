@@ -18,6 +18,7 @@ const navLinks = [
   { href: "/plans", label: "Plans" },
   { href: "/workouts", label: "Workouts" },
   { href: "/exercises", label: "Exercises" },
+  { href: "/progression", label: "Progression" },
   { href: "/paces", label: "Paces" },
 ];
 

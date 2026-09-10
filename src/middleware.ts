@@ -43,6 +43,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/paces") ||
       pathname.startsWith("/workouts") ||
       pathname.startsWith("/exercises") ||
+      pathname.startsWith("/progression") ||
       pathname.startsWith("/admin");
 
     if (!user && isProtectedRoute) {

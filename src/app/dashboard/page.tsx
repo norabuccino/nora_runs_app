@@ -551,6 +551,10 @@ export default function DashboardPage() {
           workout={detailWorkout}
           onClose={() => setDetailWorkout(null)}
           onComplete={handleComplete}
+          sessionDate={(() => {
+            const ctx = findCtx(detailWorkout.plan_id);
+            return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
+          })()}
         />
       )}
 
