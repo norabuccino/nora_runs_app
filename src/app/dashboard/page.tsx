@@ -356,6 +356,27 @@ export default function DashboardPage() {
     </>
   );
 
+  const detailModal = detailWorkout && (
+    <PlanWorkoutDetailModal
+      workout={detailWorkout}
+      source={detailSource}
+      onClose={() => setDetailWorkout(null)}
+      onComplete={
+        detailSource === "scheduled"
+          ? () => handleScheduledComplete(detailWorkout.id)
+          : handleComplete
+      }
+      sessionDate={
+        detailSource === "scheduled"
+          ? todayISO
+          : (() => {
+              const ctx = findCtx(detailWorkout.plan_id);
+              return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
+            })()
+      }
+    />
+  );
+
   if (!hasActivePlans) {
     return (
       <div className="space-y-6">
@@ -398,6 +419,7 @@ export default function DashboardPage() {
 
         {addWorkoutButton}
         {addModeModals}
+        {detailModal}
       </div>
     );
   }
@@ -558,26 +580,7 @@ export default function DashboardPage() {
 
       {addModeModals}
 
-      {detailWorkout && (
-        <PlanWorkoutDetailModal
-          workout={detailWorkout}
-          source={detailSource}
-          onClose={() => setDetailWorkout(null)}
-          onComplete={
-            detailSource === "scheduled"
-              ? () => handleScheduledComplete(detailWorkout.id)
-              : handleComplete
-          }
-          sessionDate={
-            detailSource === "scheduled"
-              ? todayISO
-              : (() => {
-                  const ctx = findCtx(detailWorkout.plan_id);
-                  return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
-                })()
-          }
-        />
-      )}
+      {detailModal}
 
       {addToPlanDay !== null && (() => {
         const ctx = findCtx(addToPlanDay.planId);
