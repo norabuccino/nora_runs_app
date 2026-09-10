@@ -231,6 +231,7 @@ export async function copyWorkoutToDays(
           label: s.label,
           pace_type: s.pace_type,
           duration_minutes: s.duration_minutes,
+          duration_unit: s.duration_unit,
           distance_miles: s.distance_miles,
           distance_unit: s.distance_unit ?? "mi",
           notes: s.notes,
