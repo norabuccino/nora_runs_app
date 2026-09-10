@@ -84,9 +84,11 @@ interface PlanWorkoutDetailModalProps {
   onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
   /** The calendar date this occurrence falls on — enables persisted session tracking (see StrengthWorkoutPlayer). Omit for read-only template browsing. */
   sessionDate?: string;
+  /** Which table `workout.id` refers to — determines how steps are fetched and how a session is tracked. Defaults to "plan". */
+  source?: "plan" | "scheduled";
 }
 
-export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDate }: PlanWorkoutDetailModalProps) {
+export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDate, source = "plan" }: PlanWorkoutDetailModalProps) {
   const [steps, setSteps] = useState<WorkoutStep[]>([]);
   const [loadingSteps, setLoadingSteps] = useState(true);
   const [paces, setPaces] = useState<RunningPace[]>([]);
@@ -105,16 +107,17 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
   useEffect(() => {
     async function fetchSteps() {
       const supabase = createClient();
+      const column = source === "scheduled" ? "scheduled_workout_id" : "plan_workout_id";
       const { data } = await supabase
         .from("workout_steps")
         .select("*")
-        .eq("plan_workout_id", workout.id)
+        .eq(column, workout.id)
         .order("step_order");
       setSteps(data ?? []);
       setLoadingSteps(false);
     }
     fetchSteps();
-  }, [workout.id]);
+  }, [workout.id, source]);
 
   const isStrength = workout.type === "strength";
   const hasDistanceSteps = steps.some((s) => s.distance_miles != null);
@@ -248,7 +251,13 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
         <StrengthWorkoutPlayer
           workout={workout}
           steps={steps}
-          sessionSource={sessionDate ? { planWorkoutId: workout.id, sessionDate } : undefined}
+          sessionSource={
+            sessionDate
+              ? source === "scheduled"
+                ? { scheduledWorkoutId: workout.id, sessionDate }
+                : { planWorkoutId: workout.id, sessionDate }
+              : undefined
+          }
           onExit={() => setSessionOpen(false)}
           onFinish={() => {
             onComplete?.(workout);

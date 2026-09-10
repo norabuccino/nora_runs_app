@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [addToPlanDay, setAddToPlanDay] = useState<{ dayOfWeek: number; planId: string } | null>(null);
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
+  const [detailSource, setDetailSource] = useState<"plan" | "scheduled">("plan");
   const [isPending, startTransition] = useTransition();
 
   const todayISO = new Date().toISOString().split("T")[0];
@@ -176,18 +177,28 @@ export default function DashboardPage() {
     };
   }
 
-  function handleScheduledComplete(sw: ScheduledWorkoutWithSteps) {
+  function handleScheduledComplete(id: string) {
     startTransition(async () => {
-      await markScheduledWorkoutComplete(sw.id);
+      await markScheduledWorkoutComplete(id);
       await load();
     });
   }
 
-  function handleScheduledUnComplete(sw: ScheduledWorkoutWithSteps) {
+  function handleScheduledUnComplete(id: string) {
     startTransition(async () => {
-      await unmarkScheduledWorkoutComplete(sw.id);
+      await unmarkScheduledWorkoutComplete(id);
       await load();
     });
+  }
+
+  function openPlanDetail(workout: PlanWorkout) {
+    setDetailWorkout(workout);
+    setDetailSource("plan");
+  }
+
+  function openScheduledDetail(workout: PlanWorkout) {
+    setDetailWorkout(workout);
+    setDetailSource("scheduled");
   }
 
   function handleScheduledDelete(sw: ScheduledWorkoutWithSteps) {
@@ -270,8 +281,9 @@ export default function DashboardPage() {
               log={syntheticLog}
               paces={paces}
               mode="dashboard"
-              onComplete={() => handleScheduledComplete(sw)}
-              onUnComplete={() => handleScheduledUnComplete(sw)}
+              onComplete={() => handleScheduledComplete(sw.id)}
+              onUnComplete={() => handleScheduledUnComplete(sw.id)}
+              onDetail={openScheduledDetail}
             />
           </div>
         );
@@ -502,7 +514,7 @@ export default function DashboardPage() {
                         onComplete={handleComplete}
                         onUnComplete={handleUnComplete}
                         onEditMileage={handleEditMileage}
-                        onDetail={setDetailWorkout}
+                        onDetail={openPlanDetail}
                       />
                     );
                   })
@@ -536,7 +548,7 @@ export default function DashboardPage() {
                   onDelete={handleDeleteFromWeek}
                   onReorder={makeReorderHandler(ctx)}
                   onAddWorkout={(_, dayOfWeek) => setAddToPlanDay({ dayOfWeek, planId: ctx.plan.id })}
-                  onDetail={setDetailWorkout}
+                  onDetail={openPlanDetail}
                 />
               </div>
             </div>
@@ -549,12 +561,21 @@ export default function DashboardPage() {
       {detailWorkout && (
         <PlanWorkoutDetailModal
           workout={detailWorkout}
+          source={detailSource}
           onClose={() => setDetailWorkout(null)}
-          onComplete={handleComplete}
-          sessionDate={(() => {
-            const ctx = findCtx(detailWorkout.plan_id);
-            return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
-          })()}
+          onComplete={
+            detailSource === "scheduled"
+              ? () => handleScheduledComplete(detailWorkout.id)
+              : handleComplete
+          }
+          sessionDate={
+            detailSource === "scheduled"
+              ? todayISO
+              : (() => {
+                  const ctx = findCtx(detailWorkout.plan_id);
+                  return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
+                })()
+          }
         />
       )}
 
