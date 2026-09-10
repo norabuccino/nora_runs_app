@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import type { PlanWorkout, WorkoutLog, UserPlan, TrainingPlan, RunningPace, ScheduledWorkoutWithSteps, ScheduledWorkout } from "@/types/database";
+import type { PlanWorkout, WorkoutLog, UserPlan, TrainingPlan, RunningPace, ScheduledWorkoutWithSteps } from "@/types/database";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
@@ -19,6 +19,7 @@ import {
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
+import { adaptScheduledWorkout as adaptScheduled } from "@/lib/scheduledWorkout";
 
 interface PlanContext {
   userPlan: UserPlan;
@@ -31,28 +32,6 @@ interface PlanContext {
 }
 
 type AddMode = null | "choose" | "from-scratch" | "from-library";
-
-function adaptScheduled(sw: ScheduledWorkout): PlanWorkout {
-  return {
-    id: sw.id,
-    plan_id: "",
-    week_number: 0,
-    day_of_week: 0,
-    type: sw.type,
-    run_type: sw.run_type,
-    strength_type: sw.strength_type,
-    title: sw.title,
-    description: sw.description,
-    distance_miles: sw.distance_miles,
-    distance_unit: sw.distance_unit,
-    pace_type: sw.pace_type,
-    duration_minutes: sw.duration_minutes,
-    notes: sw.notes,
-    sort_order: sw.sort_order,
-    day_logic: "or",
-    library_workout_id: sw.library_workout_id,
-  };
-}
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);

@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LibraryWorkoutWithSteps, RunningPace, WorkoutStep } from "@/types/database";
+import type { LibraryWorkoutWithSteps, PlanWorkout, RunningPace, WorkoutStep } from "@/types/database";
 import { STEP_TYPE_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
+import { adaptScheduledWorkout } from "@/lib/scheduledWorkout";
+import { createScheduledWorkoutFromLibrary, markScheduledWorkoutComplete } from "@/app/actions/scheduledWorkouts";
+import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
 
 function StepRow({
   step,
@@ -100,6 +103,27 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
   const [loadingUsage, setLoadingUsage] = useState(true);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [treadmillMode, setTreadmillMode] = useState(false);
+  const [isStarting, startTransition] = useTransition();
+  const [session, setSession] = useState<PlanWorkout | null>(null);
+
+  function handleStart() {
+    startTransition(async () => {
+      const todayISO = new Date().toISOString().split("T")[0];
+      const scheduled = await createScheduledWorkoutFromLibrary(workout.id, todayISO);
+      setSession(adaptScheduledWorkout(scheduled));
+    });
+  }
+
+  function finishSession() {
+    if (session) {
+      const finishedId = session.id;
+      startTransition(async () => {
+        await markScheduledWorkoutComplete(finishedId);
+      });
+    }
+    setSession(null);
+    onClose();
+  }
 
   useEffect(() => {
     async function fetchPaces() {
@@ -211,6 +235,17 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
             <p className="text-sm text-[var(--muted)]">{workout.description}</p>
           )}
 
+          {/* Start Workout — logs a copy as today's scheduled workout */}
+          {isStrength && workout.workout_steps.length > 0 && (
+            <button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="w-full py-2.5 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60"
+            >
+              {isStarting ? "Starting…" : "▶ Start Workout"}
+            </button>
+          )}
+
           {/* Steps / Exercises */}
           {workout.workout_steps.length > 0 && (
             <div className="space-y-1.5">
@@ -291,6 +326,15 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           </div>
         </div>
       </div>
+
+      {session && (
+        <StrengthWorkoutPlayer
+          workout={session}
+          steps={workout.workout_steps}
+          onExit={() => setSession(null)}
+          onFinish={finishSession}
+        />
+      )}
     </div>
   );
 }
