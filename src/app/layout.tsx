@@ -8,7 +8,7 @@ import { getBadgeColors } from "@/app/actions/badgeColors";
 import { buildBadgeColorStyle } from "@/lib/badgeColorUtils";
 
 export const metadata: Metadata = {
-  title: "NBB Running App",
+  title: "Workouts",
   description: "Plan your marathon and strength training",
 };
 

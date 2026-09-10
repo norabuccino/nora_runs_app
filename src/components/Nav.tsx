@@ -42,7 +42,7 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
       <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="font-bold text-sm tracking-tight">
-            NBB Running
+            Workout Planner
           </Link>
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (
