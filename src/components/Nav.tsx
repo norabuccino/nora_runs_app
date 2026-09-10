@@ -40,7 +40,7 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
 
   return (
     <nav className="border-b border-[var(--border)] bg-[var(--background)] sticky top-0 z-50">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-6">
           <Link href="/dashboard" className="font-bold text-sm tracking-tight">
             Workout Planner
