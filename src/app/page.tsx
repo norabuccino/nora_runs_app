@@ -4,7 +4,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-8">
       <div className="max-w-2xl text-center space-y-6">
-        <h1 className="text-5xl font-bold tracking-tight">NBB Running App</h1>
+        <h1 className="text-5xl font-bold tracking-tight">Workout Planner</h1>
         <p className="text-lg text-gray-600 dark:text-gray-400">
           Log your runs, track your progress, crush your goals.
         </p>
