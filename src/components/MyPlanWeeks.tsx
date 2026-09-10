@@ -104,6 +104,7 @@ export function MyPlanWeeks({
         <PlanWorkoutDetailModal
           workout={detailWorkout}
           onClose={() => setDetailWorkout(null)}
+          onComplete={handleComplete}
         />
       )}
       {addTarget && (

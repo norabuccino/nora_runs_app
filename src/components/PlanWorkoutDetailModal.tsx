@@ -6,36 +6,8 @@ import type { PlanWorkout, RunningPace, WorkoutStep } from "@/types/database";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { STEP_TYPE_LABELS, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
-
-type StepSegment =
-  | { type: "step"; step: WorkoutStep }
-  | { type: "group"; repeatCount: number; steps: WorkoutStep[] };
-
-function groupSteps(steps: WorkoutStep[]): StepSegment[] {
-  const segments: StepSegment[] = [];
-  let i = 0;
-  while (i < steps.length) {
-    const gid = steps[i].repeat_group_id;
-    if (gid === null) {
-      segments.push({ type: "step", step: steps[i] });
-      i++;
-    } else {
-      const group: WorkoutStep[] = [];
-      while (i < steps.length && steps[i].repeat_group_id === gid) {
-        group.push(steps[i]);
-        i++;
-      }
-      segments.push({ type: "group", repeatCount: group[0].repeat_count, steps: group });
-    }
-  }
-  return segments;
-}
-
-function formatStepDuration(durationMinutes: number | null, durationUnit: string): string | null {
-  if (!durationMinutes) return null;
-  if (durationUnit === "sec") return `${Math.round(durationMinutes * 60)} sec`;
-  return `${durationMinutes} min`;
-}
+import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
+import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
 
 function StepRow({
   step,
@@ -109,13 +81,15 @@ function StepRow({
 interface PlanWorkoutDetailModalProps {
   workout: PlanWorkout;
   onClose: () => void;
+  onComplete?: (workout: PlanWorkout, actualDistanceMiles?: number | null) => void;
 }
 
-export function PlanWorkoutDetailModal({ workout, onClose }: PlanWorkoutDetailModalProps) {
+export function PlanWorkoutDetailModal({ workout, onClose, onComplete }: PlanWorkoutDetailModalProps) {
   const [steps, setSteps] = useState<WorkoutStep[]>([]);
   const [loadingSteps, setLoadingSteps] = useState(true);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [treadmillMode, setTreadmillMode] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(false);
 
   useEffect(() => {
     async function fetchPaces() {
@@ -204,6 +178,16 @@ export function PlanWorkoutDetailModal({ workout, onClose }: PlanWorkoutDetailMo
             <p className="text-sm text-[var(--muted)]">{workout.description}</p>
           )}
 
+          {/* Start Workout */}
+          {isStrength && !loadingSteps && steps.length > 0 && (
+            <button
+              onClick={() => setSessionOpen(true)}
+              className="w-full py-2.5 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              ▶ Start Workout
+            </button>
+          )}
+
           {/* Steps / Exercises */}
           {loadingSteps ? (
             <p className="text-xs text-[var(--muted)]">Loading…</p>
@@ -257,6 +241,19 @@ export function PlanWorkoutDetailModal({ workout, onClose }: PlanWorkoutDetailMo
           )}
         </div>
       </div>
+
+      {sessionOpen && (
+        <StrengthWorkoutPlayer
+          workout={workout}
+          steps={steps}
+          onExit={() => setSessionOpen(false)}
+          onFinish={() => {
+            onComplete?.(workout);
+            setSessionOpen(false);
+            onClose();
+          }}
+        />
+      )}
     </div>
   );
 }

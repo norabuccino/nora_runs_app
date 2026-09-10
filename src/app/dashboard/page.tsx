@@ -571,6 +571,7 @@ export default function DashboardPage() {
         <PlanWorkoutDetailModal
           workout={detailWorkout}
           onClose={() => setDetailWorkout(null)}
+          onComplete={handleComplete}
         />
       )}
 

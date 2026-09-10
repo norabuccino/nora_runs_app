@@ -6,36 +6,7 @@ import type { LibraryWorkoutWithSteps, RunningPace, WorkoutStep } from "@/types/
 import { STEP_TYPE_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
-
-type StepSegment =
-  | { type: "step"; step: WorkoutStep }
-  | { type: "group"; repeatCount: number; steps: WorkoutStep[] };
-
-function groupSteps(steps: WorkoutStep[]): StepSegment[] {
-  const segments: StepSegment[] = [];
-  let i = 0;
-  while (i < steps.length) {
-    const gid = steps[i].repeat_group_id;
-    if (gid === null) {
-      segments.push({ type: "step", step: steps[i] });
-      i++;
-    } else {
-      const group: WorkoutStep[] = [];
-      while (i < steps.length && steps[i].repeat_group_id === gid) {
-        group.push(steps[i]);
-        i++;
-      }
-      segments.push({ type: "group", repeatCount: group[0].repeat_count, steps: group });
-    }
-  }
-  return segments;
-}
-
-function formatStepDuration(durationMinutes: number | null, durationUnit: string): string | null {
-  if (!durationMinutes) return null;
-  if (durationUnit === "sec") return `${Math.round(durationMinutes * 60)} sec`;
-  return `${durationMinutes} min`;
-}
+import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
 
 function StepRow({
   step,
