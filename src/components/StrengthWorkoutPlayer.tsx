@@ -363,16 +363,29 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     ? `Set ${beat.setNumber} of ${beat.totalSets}`
     : null;
 
+  const nextBeat = !isLast ? beats[beatIndex + 1] : null;
+  const nextIsSameExercise = nextBeat != null && nextBeat.step.id === beat.step.id;
+  const nextRepsLabel = nextBeat?.step.reps
+    ? `${nextBeat.step.reps} reps${nextBeat.step.both_sides ? " (each side)" : ""}`
+    : null;
+  const nextDurationLabel = nextBeat && !nextRepsLabel
+    ? formatStepDuration(nextBeat.step.duration_minutes, nextBeat.step.duration_unit)
+    : null;
+  const nextDetail = nextRepsLabel || nextDurationLabel;
+
   return (
     <div className="fixed inset-0 z-[60] bg-[var(--background)] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
         <div className="min-w-0">
           <p className="text-xs text-[var(--muted)] truncate">{workout.title}</p>
+          <p key={beatIndex} className="text-sm font-semibold animate-[beat-enter_0.25s_ease-out]">
+            Step {beatIndex + 1} of {beats.length}
+          </p>
           <div className="mt-1 h-1.5 w-40 max-w-[40vw] rounded-full bg-[var(--border)] overflow-hidden">
             <div
-              className="h-full bg-[var(--accent)] transition-all"
-              style={{ width: `${(beatIndex / beats.length) * 100}%` }}
+              className="h-full bg-[var(--accent)] transition-all duration-300"
+              style={{ width: `${((beatIndex + 1) / beats.length) * 100}%` }}
             />
           </div>
         </div>
@@ -384,10 +397,12 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         </button>
       </div>
 
-      {/* Exercise area — tap-anywhere-to-advance only when there's no input to accidentally overwrite */}
+      {/* Exercise area — tap-anywhere-to-advance only when there's no input to accidentally overwrite.
+          Keyed by beatIndex so the enter animation replays on every advance, making the step change unmistakable. */}
       <div
+        key={beatIndex}
         onClick={hasEditableInputs ? undefined : advance}
-        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto ${
+        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] ${
           hasEditableInputs ? "" : "cursor-pointer select-none"
         }`}
       >
@@ -463,6 +478,18 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           <div onClick={(e) => e.stopPropagation()}>
             <ExerciseTimer seconds={timedSeconds!} key={beatIndex} />
           </div>
+        )}
+
+        {nextBeat ? (
+          <div className="mt-2 px-4 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] max-w-sm">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Up next</span>
+            <p className="text-sm font-medium">
+              {nextIsSameExercise ? `${nextBeat.step.label || "Exercise"} — next set` : nextBeat.step.label || "Exercise"}
+            </p>
+            {nextDetail && <p className="text-xs text-[var(--muted)]">{nextDetail}</p>}
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-[var(--muted)] italic">Last exercise — finish strong!</p>
         )}
 
         {!hasEditableInputs && <span className="mt-4 text-sm font-medium text-[var(--accent)]">Tap anywhere to mark done →</span>}
