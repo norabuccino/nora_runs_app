@@ -118,6 +118,24 @@ describe("buildSessionBeats", () => {
     );
   });
 
+  it("lets each exercise in a per-exercise-mode superset run its own set count, dropping out once it's done", () => {
+    // "Per exercise" mode: at least one step in the group carries its own `sets`
+    // value instead of relying on the group's shared repeat_count.
+    const a = makeStep({ id: "a", repeat_group_id: 1, repeat_count: 1, sets: 3, group_name: "Warm Up" });
+    const b = makeStep({ id: "b", repeat_group_id: 1, repeat_count: 1, sets: 4, group_name: "Warm Up" });
+    const beats = buildSessionBeats([a, b]);
+    expect(beats.map((beat) => [beat.step.id, beat.roundNumber, beat.totalRounds])).toEqual([
+      ["a", 1, 3],
+      ["b", 1, 4],
+      ["a", 2, 3],
+      ["b", 2, 4],
+      ["a", 3, 3],
+      ["b", 3, 4],
+      ["b", 4, 4],
+    ]);
+    expect(beats.every((beat) => beat.isSuperset)).toBe(true);
+  });
+
   it("concatenates standalone exercises and superset groups in order", () => {
     const warmup = makeStep({ id: "warmup", sets: 1 });
     const a = makeStep({ id: "a", repeat_group_id: 1, repeat_count: 2 });
