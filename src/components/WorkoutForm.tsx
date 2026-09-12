@@ -1285,10 +1285,18 @@ export function WorkoutForm({
   }
 
   function handleAddSection() {
-    setForm((prev) => {
-      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
-      return { ...prev, steps: [...prev.steps, blankStep(nextGroupId, 1, prev.distance_unit as DistanceUnit)] };
-    });
+    const nextGroupId = Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
+    setForm((prev) => ({
+      ...prev,
+      steps: [
+        ...prev.steps,
+        { ...blankStep(nextGroupId, 1, prev.distance_unit as DistanceUnit), sets: "1" },
+      ],
+    }));
+    // Named groups run each exercise through its own set count rather than a
+    // shared repeat_count, so default "Per exercise" on for a newly created
+    // named group (a superset created via addRepeatGroup defaults it off).
+    setPerExerciseSetsGroupIds((prev) => new Set(prev).add(nextGroupId));
   }
   const stepsEmptyText = isStrength
     ? "No exercises yet. Add exercises below, or create a named group (e.g. Warm Up) to organize them."

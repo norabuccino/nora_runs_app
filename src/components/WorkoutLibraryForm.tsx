@@ -280,14 +280,18 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   }
 
   function addSection() {
+    const nextGroupId = Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
     setForm((prev) => {
-      const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
       const unit = prev.distance_unit as DistanceUnit;
       return {
         ...prev,
-        steps: [...prev.steps, blankStep(nextGroupId, 1, unit)],
+        steps: [...prev.steps, { ...blankStep(nextGroupId, 1, unit), sets: "1" }],
       };
     });
+    // Named groups run each exercise through its own set count rather than a
+    // shared repeat_count, so default "Per exercise" on for a newly created
+    // named group (a superset created via addRepeatGroup defaults it off).
+    setPerExerciseSetsGroupIds((prev) => new Set(prev).add(nextGroupId));
   }
 
   function ungroup(groupId: number) {
