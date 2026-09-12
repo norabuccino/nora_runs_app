@@ -118,22 +118,24 @@ describe("buildSessionBeats", () => {
     );
   });
 
-  it("lets each exercise in a per-exercise-mode superset run its own set count, dropping out once it's done", () => {
-    // "Per exercise" mode: at least one step in the group carries its own `sets`
-    // value instead of relying on the group's shared repeat_count.
+  it("runs a named group's exercises through their own sets in full, not round-robin, when per-exercise sets are used", () => {
+    // "Per exercise" mode (WorkoutForm): at least one step in the group carries
+    // its own `sets` value. That marks it a named group rather than a true
+    // superset — each exercise should complete all of its own sets before the
+    // next one starts, same as a standalone exercise, just sharing the label.
     const a = makeStep({ id: "a", repeat_group_id: 1, repeat_count: 1, sets: 3, group_name: "Warm Up" });
     const b = makeStep({ id: "b", repeat_group_id: 1, repeat_count: 1, sets: 4, group_name: "Warm Up" });
     const beats = buildSessionBeats([a, b]);
-    expect(beats.map((beat) => [beat.step.id, beat.roundNumber, beat.totalRounds])).toEqual([
+    expect(beats.map((beat) => [beat.step.id, beat.setNumber, beat.totalSets])).toEqual([
       ["a", 1, 3],
-      ["b", 1, 4],
       ["a", 2, 3],
-      ["b", 2, 4],
       ["a", 3, 3],
+      ["b", 1, 4],
+      ["b", 2, 4],
       ["b", 3, 4],
       ["b", 4, 4],
     ]);
-    expect(beats.every((beat) => beat.isSuperset)).toBe(true);
+    expect(beats.every((beat) => !beat.isSuperset && beat.groupName === "Warm Up")).toBe(true);
   });
 
   it("concatenates standalone exercises and superset groups in order", () => {

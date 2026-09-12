@@ -47,9 +47,12 @@ export function stepTimedSeconds(step: WorkoutStep): number | null {
 
 /**
  * One atomic beat in a strength workout session: a single set of a single
- * exercise. Standalone exercises expand into one beat per set; superset
- * groups expand into one beat per exercise per round, looping through every
- * exercise in the group before repeating for the next round.
+ * exercise. Standalone exercises expand into one beat per set. A grouped
+ * segment expands one of two ways depending on whether it's a true superset
+ * or just a named group (see `buildSessionBeats`): round-robin through every
+ * exercise once per round (superset), or each exercise's own sets in full
+ * before moving to the next (named group) — same shape as a standalone step,
+ * just carrying the shared `groupName`.
  */
 export interface SessionBeat {
   step: WorkoutStep;
@@ -79,35 +82,43 @@ export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
         });
       }
     } else {
-      // Normally every exercise in the group shares the group's repeat_count
-      // (true round-robin superset). "Per exercise" mode (WorkoutForm) instead
-      // gives each exercise its own `sets` value, so it should run for its own
-      // count rather than the shared one — still round-robin, but an exercise
-      // drops out of later rounds once its own count is exhausted while
-      // others continue.
-      const perExerciseSets = segment.steps.some((s) => s.sets != null && s.sets > 0);
-      const roundsForStep = (step: WorkoutStep) =>
-        perExerciseSets
-          ? step.sets && step.sets > 0
-            ? step.sets
-            : 1
-          : segment.repeatCount && segment.repeatCount > 0
-          ? segment.repeatCount
-          : 1;
-      const maxRounds = Math.max(...segment.steps.map(roundsForStep));
-      for (let roundNumber = 1; roundNumber <= maxRounds; roundNumber++) {
+      // WorkoutForm's "Per exercise" toggle marks a group as a named group
+      // rather than a true superset — the exercises are just gathered under
+      // a shared label, and each one carries its own `sets` value instead of
+      // the group sharing one repeat_count. Detect that the same way the
+      // form does (any step in the group has its own `sets`) and run each
+      // exercise through all of its own sets before moving to the next,
+      // instead of round-robin-ing between exercises.
+      const isNamedGroup = segment.steps.some((s) => s.sets != null && s.sets > 0);
+      if (isNamedGroup) {
         for (const step of segment.steps) {
-          const totalRounds = roundsForStep(step);
-          if (roundNumber > totalRounds) continue;
-          beats.push({
-            step,
-            setNumber: null,
-            totalSets: null,
-            roundNumber,
-            totalRounds,
-            groupName: step.group_name ?? null,
-            isSuperset: true,
-          });
+          const totalSets = step.sets && step.sets > 0 ? step.sets : 1;
+          for (let setNumber = 1; setNumber <= totalSets; setNumber++) {
+            beats.push({
+              step,
+              setNumber,
+              totalSets,
+              roundNumber: null,
+              totalRounds: null,
+              groupName: step.group_name ?? null,
+              isSuperset: false,
+            });
+          }
+        }
+      } else {
+        const totalRounds = segment.repeatCount && segment.repeatCount > 0 ? segment.repeatCount : 1;
+        for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
+          for (const step of segment.steps) {
+            beats.push({
+              step,
+              setNumber: null,
+              totalSets: null,
+              roundNumber,
+              totalRounds,
+              groupName: step.group_name ?? null,
+              isSuperset: true,
+            });
+          }
         }
       }
     }
