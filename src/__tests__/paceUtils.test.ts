@@ -15,6 +15,7 @@ import {
   resolveWorkoutTypeDisplay,
   parseDateLocal,
   formatDateLocal,
+  mondayOfWeek,
   raceDateToStartDate,
   startDateToRaceDate,
 } from "@/lib/paceUtils";
@@ -157,6 +158,27 @@ describe("formatDateLocal", () => {
 
   it("round-trips through parseDateLocal", () => {
     expect(formatDateLocal(parseDateLocal("2026-11-23"))).toBe("2026-11-23");
+  });
+});
+
+// ── mondayOfWeek ──────────────────────────────────────────────────────────────
+
+describe("mondayOfWeek", () => {
+  it("returns the same date when it's already a Monday", () => {
+    expect(mondayOfWeek(parseDateLocal("2026-09-14"))).toBe("2026-09-14");
+  });
+
+  it("returns the preceding Monday for a mid-week date", () => {
+    expect(mondayOfWeek(parseDateLocal("2026-09-16"))).toBe("2026-09-14");
+  });
+
+  it("treats Sunday as the last day of its week, not the first", () => {
+    expect(mondayOfWeek(parseDateLocal("2026-09-20"))).toBe("2026-09-14");
+  });
+
+  it("rolls back across a month boundary", () => {
+    // 2026-09-13 is a Sunday; its week starts the Monday before.
+    expect(mondayOfWeek(parseDateLocal("2026-09-13"))).toBe("2026-09-07");
   });
 });
 

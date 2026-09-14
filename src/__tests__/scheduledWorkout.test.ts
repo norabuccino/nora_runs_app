@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { groupScheduledWorkoutHistory } from "@/lib/scheduledWorkout";
+import { buildScheduledWeekDays } from "@/lib/scheduledWorkout";
 
 interface FakeScheduledWorkout {
   id: string;
@@ -10,38 +10,38 @@ function sw(id: string, scheduled_date: string): FakeScheduledWorkout {
   return { id, scheduled_date };
 }
 
-describe("groupScheduledWorkoutHistory", () => {
-  it("separates today's workouts from prior days", () => {
-    const { today, history } = groupScheduledWorkoutHistory(
-      [sw("a", "2026-09-14"), sw("b", "2026-09-13")],
-      "2026-09-14"
-    );
-    expect(today.map((w) => w.id)).toEqual(["a"]);
-    expect(history).toHaveLength(1);
-    expect(history[0].date).toBe("2026-09-13");
-    expect(history[0].workouts.map((w) => w.id)).toEqual(["b"]);
+describe("buildScheduledWeekDays", () => {
+  it("returns all 7 days of the week starting at weekStartISO, in order", () => {
+    const days = buildScheduledWeekDays("2026-09-14", []);
+    expect(days.map((d) => d.date)).toEqual([
+      "2026-09-14",
+      "2026-09-15",
+      "2026-09-16",
+      "2026-09-17",
+      "2026-09-18",
+      "2026-09-19",
+      "2026-09-20",
+    ]);
   });
 
-  it("groups multiple workouts on the same past day together", () => {
-    const { history } = groupScheduledWorkoutHistory(
-      [sw("a", "2026-09-12"), sw("b", "2026-09-12")],
-      "2026-09-14"
-    );
-    expect(history).toHaveLength(1);
-    expect(history[0].workouts.map((w) => w.id)).toEqual(["a", "b"]);
+  it("returns an empty workouts array for days with nothing scheduled", () => {
+    const days = buildScheduledWeekDays("2026-09-14", []);
+    expect(days.every((d) => d.workouts.length === 0)).toBe(true);
   });
 
-  it("orders past days most-recent-first", () => {
-    const { history } = groupScheduledWorkoutHistory(
-      [sw("a", "2026-09-09"), sw("b", "2026-09-13"), sw("c", "2026-09-11")],
-      "2026-09-14"
-    );
-    expect(history.map((d) => d.date)).toEqual(["2026-09-13", "2026-09-11", "2026-09-09"]);
+  it("buckets workouts under their matching day, including future days", () => {
+    const days = buildScheduledWeekDays("2026-09-14", [
+      sw("a", "2026-09-14"),
+      sw("b", "2026-09-18"),
+      sw("c", "2026-09-18"),
+    ]);
+    expect(days[0].workouts.map((w) => w.id)).toEqual(["a"]);
+    expect(days[4].workouts.map((w) => w.id)).toEqual(["b", "c"]);
+    expect(days[1].workouts).toEqual([]);
   });
 
-  it("returns empty today and history when there are no scheduled workouts", () => {
-    const { today, history } = groupScheduledWorkoutHistory([], "2026-09-14");
-    expect(today).toEqual([]);
-    expect(history).toEqual([]);
+  it("ignores workouts scheduled outside the given week", () => {
+    const days = buildScheduledWeekDays("2026-09-14", [sw("a", "2026-09-21")]);
+    expect(days.every((d) => d.workouts.length === 0)).toBe(true);
   });
 });

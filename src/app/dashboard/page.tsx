@@ -8,7 +8,7 @@ import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, formatDateLocal } from "@/lib/paceUtils";
+import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, mondayOfWeek } from "@/lib/paceUtils";
 import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
 import {
   createScheduledWorkout,
@@ -19,7 +19,7 @@ import {
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
-import { adaptScheduledWorkout as adaptScheduled, groupScheduledWorkoutHistory } from "@/lib/scheduledWorkout";
+import { adaptScheduledWorkout as adaptScheduled, buildScheduledWeekDays } from "@/lib/scheduledWorkout";
 
 interface PlanContext {
   userPlan: UserPlan;
@@ -38,22 +38,23 @@ function formatDayLabel(dateStr: string): string {
 }
 
 export default function DashboardPage() {
+  const todayISO = new Date().toISOString().split("T")[0];
+  // The calendar week (Monday–Sunday) containing today — used to plan ahead
+  // and look back at ad-hoc scheduled workouts when not following a plan.
+  const weekStartISO = mondayOfWeek(new Date());
+  const weekEndISO = scheduledDate(weekStartISO, 1, 6);
+
   const [loading, setLoading] = useState(true);
   const [planContexts, setPlanContexts] = useState<PlanContext[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [scheduledWorkouts, setScheduledWorkouts] = useState<ScheduledWorkoutWithSteps[]>([]);
   const [addMode, setAddMode] = useState<AddMode>(null);
+  const [addDate, setAddDate] = useState<string>(todayISO);
   const [addToPlanDay, setAddToPlanDay] = useState<{ dayOfWeek: number; planId: string } | null>(null);
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
   const [detailSource, setDetailSource] = useState<"plan" | "scheduled">("plan");
   const [detailScheduledDate, setDetailScheduledDate] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
-
-  const todayISO = new Date().toISOString().split("T")[0];
-  const weekAgo = new Date();
-  weekAgo.setHours(0, 0, 0, 0);
-  weekAgo.setDate(weekAgo.getDate() - 6);
-  const weekAgoISO = formatDateLocal(weekAgo);
 
   async function load() {
     const supabase = createClient();
@@ -64,8 +65,8 @@ export default function DashboardPage() {
       supabase
         .from("scheduled_workouts")
         .select("*, workout_steps(*)")
-        .gte("scheduled_date", weekAgoISO)
-        .lte("scheduled_date", todayISO)
+        .gte("scheduled_date", weekStartISO)
+        .lte("scheduled_date", weekEndISO)
         .order("scheduled_date")
         .order("sort_order"),
     ]);
@@ -241,7 +242,7 @@ export default function DashboardPage() {
     }));
 
     await createScheduledWorkout({
-      scheduled_date: todayISO,
+      scheduled_date: addDate,
       type: formData.type,
       run_type: formData.run_type || null,
       strength_type: formData.strength_type || null,
@@ -298,10 +299,8 @@ export default function DashboardPage() {
     );
   }
 
-  const { today: todaysScheduled, history: scheduledHistory } = groupScheduledWorkoutHistory(
-    scheduledWorkouts,
-    todayISO
-  );
+  const todaysScheduled = scheduledWorkouts.filter((sw) => sw.scheduled_date === todayISO);
+  const scheduledWeekDays = buildScheduledWeekDays(weekStartISO, scheduledWorkouts);
 
   // Scheduled workouts for today — rendered in every state
   const scheduledSection = todaysScheduled.length > 0 ? (
@@ -310,27 +309,65 @@ export default function DashboardPage() {
     </div>
   ) : null;
 
-  // Past days' ad-hoc scheduled workouts, grouped by date, most recent first —
-  // gives a look-back "history" for users not following a plan (a plan's own
-  // WeekGrid already shows prior days for free).
-  const scheduledHistorySection = scheduledHistory.length > 0 ? (
+  function openAddModalForDate(date: string) {
+    setAddDate(date);
+    setAddMode("choose");
+  }
+
+  // A Monday–Sunday planner for ad-hoc scheduled workouts: lets users not on
+  // a plan look back at what they've logged this week, and plan ahead by
+  // adding library/from-scratch workouts to upcoming days — mirroring what a
+  // plan's own WeekGrid gives for free.
+  const scheduledWeekSection = (
     <div className="space-y-3">
       <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">This week</h2>
-      <div className="space-y-4">
-        {scheduledHistory.map(({ date, workouts }) => (
-          <div key={date} className="space-y-2">
-            <p className="text-xs text-[var(--muted)]">{formatDayLabel(date)}</p>
-            <div className="space-y-2">{workouts.map(scheduledCard)}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 lg:grid-cols-7 gap-y-3 lg:gap-2 lg:overflow-x-auto">
+        {scheduledWeekDays.map(({ date, workouts }) => {
+          const isToday = date === todayISO;
+          const labelColor = isToday ? "text-[var(--accent)]" : "text-[var(--muted)]";
+          return (
+            <div key={date} className="min-w-0 lg:min-w-[120px] space-y-2">
+              <div className="flex lg:hidden items-center gap-2">
+                <span className={`text-xs font-semibold ${labelColor}`}>
+                  {parseDateLocal(date).toLocaleDateString("en-US", { weekday: "short" })}
+                </span>
+                <span className="text-[10px] text-[var(--muted)] opacity-70">
+                  {parseDateLocal(date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </span>
+                <div className="h-px flex-1 bg-[var(--border)]" />
+              </div>
+              <div className="hidden lg:block text-center">
+                <p className={`text-xs font-medium ${labelColor}`}>
+                  {parseDateLocal(date).toLocaleDateString("en-US", { weekday: "short" })}
+                </p>
+                <p className="text-[10px] text-[var(--muted)] opacity-70">
+                  {parseDateLocal(date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                {workouts.map(scheduledCard)}
+                <button
+                  onClick={() => openAddModalForDate(date)}
+                  className={
+                    workouts.length === 0
+                      ? "w-full h-14 rounded-lg border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
+                      : "w-full text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors py-1"
+                  }
+                >
+                  + Add
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
-  ) : null;
+  );
 
   // "Log a workout" button — shown in every state
   const addWorkoutButton = (
     <button
-      onClick={() => setAddMode("choose")}
+      onClick={() => openAddModalForDate(todayISO)}
       className="text-xs text-[var(--accent)] hover:underline"
     >
       + Log a workout for today
@@ -344,7 +381,9 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
           <div className="w-full sm:max-w-sm bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-semibold">Log a workout for today</h2>
+              <h2 className="font-semibold">
+                {addDate === todayISO ? "Log a workout for today" : `Plan a workout for ${formatDayLabel(addDate)}`}
+              </h2>
               <button
                 onClick={() => setAddMode(null)}
                 className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
@@ -374,7 +413,7 @@ export default function DashboardPage() {
 
       {addMode === "from-library" && (
         <LibraryPickerModal
-          scheduledDate={todayISO}
+          scheduledDate={addDate}
           onAdded={async () => { setAddMode(null); await load(); }}
           onCancel={() => setAddMode("choose")}
         />
@@ -382,7 +421,7 @@ export default function DashboardPage() {
 
       {addMode === "from-scratch" && (
         <WorkoutForm
-          scheduledDate={todayISO}
+          scheduledDate={addDate}
           paces={paces}
           onSave={handleCreateFromScratch}
           onCancel={() => setAddMode(null)}
@@ -421,7 +460,12 @@ export default function DashboardPage() {
           <p className="text-sm text-[var(--muted)] mt-1">{dateStr}</p>
         </div>
 
-        {scheduledSection}
+        {scheduledSection && (
+          <div className="space-y-3">
+            <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">Today</h2>
+            {scheduledSection}
+          </div>
+        )}
 
         <p className="text-sm text-[var(--muted)]">No active training plan. How would you like to train?</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -455,7 +499,7 @@ export default function DashboardPage() {
 
         {addWorkoutButton}
 
-        {scheduledHistorySection}
+        {scheduledWeekSection}
 
         {addModeModals}
         {detailModal}
@@ -549,7 +593,7 @@ export default function DashboardPage() {
 
           {addWorkoutButton}
 
-          {scheduledHistorySection}
+          {scheduledWeekSection}
         </div>
       ) : (
         <>

@@ -1,39 +1,37 @@
 import type { PlanWorkout, ScheduledWorkout } from "@/types/database";
+import { formatDateLocal, parseDateLocal } from "@/lib/paceUtils";
 
-export interface ScheduledWorkoutHistoryDay<T> {
+export interface ScheduledWeekDay<T> {
   date: string;
   workouts: T[];
 }
 
 /**
- * Splits a list of scheduled workouts (already fetched for some date window)
- * into today's workouts and a "history" of prior days, grouped by date and
- * ordered most-recent-first. Used to give non-plan (ad-hoc) users a look-back
- * at what they've logged this week, mirroring what a plan's own WeekGrid
- * already shows for prior days.
+ * Buckets a list of scheduled workouts into all 7 calendar days of the week
+ * starting at weekStartISO (typically the Monday containing "today"), one
+ * entry per day in order regardless of whether it has any workouts yet.
+ * Lets non-plan (ad-hoc) users both look back at what they've logged this
+ * week and plan ahead by adding workouts to upcoming days — mirroring what a
+ * plan's own WeekGrid gives for free.
  */
-export function groupScheduledWorkoutHistory<T extends { scheduled_date: string }>(
-  scheduledWorkouts: T[],
-  todayISO: string
-): { today: T[]; history: ScheduledWorkoutHistoryDay<T>[] } {
-  const today: T[] = [];
+export function buildScheduledWeekDays<T extends { scheduled_date: string }>(
+  weekStartISO: string,
+  scheduledWorkouts: T[]
+): ScheduledWeekDay<T>[] {
   const byDate = new Map<string, T[]>();
-
   for (const sw of scheduledWorkouts) {
-    if (sw.scheduled_date === todayISO) {
-      today.push(sw);
-    } else {
-      const list = byDate.get(sw.scheduled_date) ?? [];
-      list.push(sw);
-      byDate.set(sw.scheduled_date, list);
-    }
+    const list = byDate.get(sw.scheduled_date) ?? [];
+    list.push(sw);
+    byDate.set(sw.scheduled_date, list);
   }
 
-  const history = [...byDate.entries()]
-    .sort(([a], [b]) => (a < b ? 1 : -1))
-    .map(([date, workouts]) => ({ date, workouts }));
-
-  return { today, history };
+  const start = parseDateLocal(weekStartISO);
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    const date = formatDateLocal(d);
+    return { date, workouts: byDate.get(date) ?? [] };
+  });
 }
 
 /**

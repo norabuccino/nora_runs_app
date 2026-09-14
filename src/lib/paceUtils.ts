@@ -165,6 +165,17 @@ export function formatDateLocal(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+// Monday of the local calendar week containing `date`, as a YYYY-MM-DD string.
+// Used to anchor ad-hoc (non-plan) week views that aren't tied to a plan start date.
+export function mondayOfWeek(date: Date): string {
+  const day = date.getDay(); // 0 = Sunday ... 6 = Saturday
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  const monday = new Date(date);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() + diffToMonday);
+  return formatDateLocal(monday);
+}
+
 // A plan's race date is its last day: start_date + (totalWeeks * 7 - 1) days.
 export function startDateToRaceDate(startDate: string, totalWeeks: number): string {
   const date = parseDateLocal(startDate);
