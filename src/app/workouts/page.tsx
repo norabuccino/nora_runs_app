@@ -16,7 +16,7 @@ import {
 } from "@/app/actions/workoutLibrary";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
-import { WORKOUT_TYPE_LABELS, WORKOUT_TYPE_COLORS } from "@/lib/paceUtils";
+import { WORKOUT_TYPE_LABELS, WORKOUT_TYPE_TEXT_COLORS } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
@@ -419,11 +419,11 @@ export default function WorkoutsPage() {
                 <button
                   key={type}
                   onClick={() => enterCategory(type)}
-                  className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-left space-y-2 hover:border-[var(--foreground)] transition-colors"
+                  className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-center space-y-1 hover:border-[var(--foreground)] transition-colors"
                 >
-                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${WORKOUT_TYPE_COLORS[type]}`}>
+                  <p className={`text-lg font-semibold ${WORKOUT_TYPE_TEXT_COLORS[type]}`}>
                     {WORKOUT_TYPE_LABELS[type]}
-                  </span>
+                  </p>
                   <p className="text-xs text-[var(--muted)]">
                     {count} workout{count === 1 ? "" : "s"}
                   </p>

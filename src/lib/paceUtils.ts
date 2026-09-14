@@ -242,6 +242,15 @@ export const WORKOUT_TYPE_COLORS: Record<string, string> = {
   elliptical: "bg-[var(--badge-workout-elliptical-bg)] text-[var(--badge-workout-elliptical-text)]",
 };
 
+// Text-only variant of WORKOUT_TYPE_COLORS — same per-type color, no badge
+// background — for places the type name is shown large rather than as a pill.
+export const WORKOUT_TYPE_TEXT_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(WORKOUT_TYPE_COLORS).map(([type, classes]) => [
+    type,
+    classes.split(" ").filter((c) => c.startsWith("text-")).join(" "),
+  ])
+);
+
 export const PLAN_TYPE_LABELS: Record<string, string> = {
   marathon: "Marathon",
   half_marathon: "Half Marathon",
