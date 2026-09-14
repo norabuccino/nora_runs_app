@@ -413,7 +413,7 @@ export default function WorkoutsPage() {
       {!loading && workouts.length > 0 && category === null && (
         <div className="space-y-4">
           <p className="text-sm text-[var(--muted)]">Pick a category to browse, or view everything at once.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {CATEGORY_TYPES.map((type) => {
               const count = workouts.filter((w) => w.type === type).length;
               return (
