@@ -16,12 +16,16 @@ import {
 } from "@/app/actions/workoutLibrary";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { WORKOUT_TYPE_LABELS, WORKOUT_TYPE_COLORS } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
 import { byString, byStringDesc, byNumberAsc, byNumberDesc, thenBy } from "@/lib/sortUtils";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
+
+// Order shown on the category landing page — mirrors WorkoutFilterBar's type pills.
+const CATEGORY_TYPES: WorkoutType[] = ["run", "strength", "bike", "swim", "yoga", "elliptical", "cross_train", "rest"];
 
 function applySearch(items: LibraryWorkoutWithSteps[], query: string): LibraryWorkoutWithSteps[] {
   if (!query.trim()) return items;
@@ -68,6 +72,8 @@ export default function WorkoutsPage() {
   const [showImport, setShowImport] = useState(false);
   const [detail, setDetail] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
+  // null = on the category-picker landing page; set once a category (or "all") is chosen.
+  const [category, setCategory] = useState<WorkoutType | "all" | null>(null);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const [isPending, startTransition] = useTransition();
@@ -264,6 +270,17 @@ export default function WorkoutsPage() {
     });
   }
 
+  function enterCategory(type: WorkoutType | "all") {
+    setFilter({ ...DEFAULT_FILTER, type });
+    setCategory(type);
+  }
+
+  function backToCategories() {
+    setCategory(null);
+    setFilter(DEFAULT_FILTER);
+    setSearch("");
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -389,8 +406,49 @@ export default function WorkoutsPage() {
         </div>
       )}
 
-      {!loading && workouts.length > 0 && (
+      {/* Category landing page — most people want just their one category,
+          not the whole library, so land here first and filter down from a
+          click rather than defaulting straight into the full list. */}
+      {!loading && workouts.length > 0 && category === null && (
         <div className="space-y-4">
+          <p className="text-sm text-[var(--muted)]">Pick a category to browse, or view everything at once.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {CATEGORY_TYPES.map((type) => {
+              const count = workouts.filter((w) => w.type === type).length;
+              return (
+                <button
+                  key={type}
+                  onClick={() => enterCategory(type)}
+                  className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-left space-y-2 hover:border-[var(--foreground)] transition-colors"
+                >
+                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${WORKOUT_TYPE_COLORS[type]}`}>
+                    {WORKOUT_TYPE_LABELS[type]}
+                  </span>
+                  <p className="text-xs text-[var(--muted)]">
+                    {count} workout{count === 1 ? "" : "s"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => enterCategory("all")}
+            className="text-sm text-[var(--accent)] hover:underline"
+          >
+            View all workouts →
+          </button>
+        </div>
+      )}
+
+      {!loading && workouts.length > 0 && category !== null && (
+        <div className="space-y-4">
+          <button
+            onClick={backToCategories}
+            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            ← All categories
+          </button>
+
           {/* Search + sort */}
           <div className="flex gap-2 items-center">
             <input
