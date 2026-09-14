@@ -8,7 +8,7 @@ import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal } from "@/lib/paceUtils";
+import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, formatDateLocal } from "@/lib/paceUtils";
 import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
 import {
   createScheduledWorkout,
@@ -19,7 +19,7 @@ import {
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
-import { adaptScheduledWorkout as adaptScheduled } from "@/lib/scheduledWorkout";
+import { adaptScheduledWorkout as adaptScheduled, groupScheduledWorkoutHistory } from "@/lib/scheduledWorkout";
 
 interface PlanContext {
   userPlan: UserPlan;
@@ -33,6 +33,10 @@ interface PlanContext {
 
 type AddMode = null | "choose" | "from-scratch" | "from-library";
 
+function formatDayLabel(dateStr: string): string {
+  return parseDateLocal(dateStr).toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+}
+
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [planContexts, setPlanContexts] = useState<PlanContext[]>([]);
@@ -42,9 +46,14 @@ export default function DashboardPage() {
   const [addToPlanDay, setAddToPlanDay] = useState<{ dayOfWeek: number; planId: string } | null>(null);
   const [detailWorkout, setDetailWorkout] = useState<PlanWorkout | null>(null);
   const [detailSource, setDetailSource] = useState<"plan" | "scheduled">("plan");
+  const [detailScheduledDate, setDetailScheduledDate] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
 
   const todayISO = new Date().toISOString().split("T")[0];
+  const weekAgo = new Date();
+  weekAgo.setHours(0, 0, 0, 0);
+  weekAgo.setDate(weekAgo.getDate() - 6);
+  const weekAgoISO = formatDateLocal(weekAgo);
 
   async function load() {
     const supabase = createClient();
@@ -55,7 +64,9 @@ export default function DashboardPage() {
       supabase
         .from("scheduled_workouts")
         .select("*, workout_steps(*)")
-        .eq("scheduled_date", todayISO)
+        .gte("scheduled_date", weekAgoISO)
+        .lte("scheduled_date", todayISO)
+        .order("scheduled_date")
         .order("sort_order"),
     ]);
 
@@ -196,9 +207,10 @@ export default function DashboardPage() {
     setDetailSource("plan");
   }
 
-  function openScheduledDetail(workout: PlanWorkout) {
+  function openScheduledDetail(workout: PlanWorkout, date: string) {
     setDetailWorkout(workout);
     setDetailSource("scheduled");
+    setDetailScheduledDate(date);
   }
 
   function handleScheduledDelete(sw: ScheduledWorkoutWithSteps) {
@@ -257,37 +269,61 @@ export default function DashboardPage() {
   const activePlanContexts = planContexts.filter((ctx) => ctx.todayPos !== null);
   const hasActivePlans = planContexts.length > 0;
 
+  function scheduledCard(sw: ScheduledWorkoutWithSteps) {
+    const adapted = adaptScheduled(sw);
+    const syntheticLog = sw.completed_at
+      ? { completed_at: sw.completed_at } as WorkoutLog
+      : null;
+    return (
+      <div key={sw.id}>
+        <div className="flex justify-end h-4">
+          <button
+            onClick={() => handleScheduledDelete(sw)}
+            title="Remove"
+            className="w-5 h-5 flex items-center justify-center text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
+          >
+            ×
+          </button>
+        </div>
+        <WorkoutCard
+          workout={adapted}
+          log={syntheticLog}
+          paces={paces}
+          mode="dashboard"
+          onComplete={() => handleScheduledComplete(sw.id)}
+          onUnComplete={() => handleScheduledUnComplete(sw.id)}
+          onDetail={() => openScheduledDetail(adapted, sw.scheduled_date)}
+        />
+      </div>
+    );
+  }
+
+  const { today: todaysScheduled, history: scheduledHistory } = groupScheduledWorkoutHistory(
+    scheduledWorkouts,
+    todayISO
+  );
+
   // Scheduled workouts for today — rendered in every state
-  const scheduledSection = scheduledWorkouts.length > 0 ? (
+  const scheduledSection = todaysScheduled.length > 0 ? (
     <div className="space-y-2">
-      {scheduledWorkouts.map((sw) => {
-        const adapted = adaptScheduled(sw);
-        const syntheticLog = sw.completed_at
-          ? { completed_at: sw.completed_at } as WorkoutLog
-          : null;
-        return (
-          <div key={sw.id}>
-            <div className="flex justify-end h-4">
-              <button
-                onClick={() => handleScheduledDelete(sw)}
-                title="Remove"
-                className="w-5 h-5 flex items-center justify-center text-sm leading-none text-[var(--muted)] hover:text-red-500 transition-colors"
-              >
-                ×
-              </button>
-            </div>
-            <WorkoutCard
-              workout={adapted}
-              log={syntheticLog}
-              paces={paces}
-              mode="dashboard"
-              onComplete={() => handleScheduledComplete(sw.id)}
-              onUnComplete={() => handleScheduledUnComplete(sw.id)}
-              onDetail={openScheduledDetail}
-            />
+      {todaysScheduled.map(scheduledCard)}
+    </div>
+  ) : null;
+
+  // Past days' ad-hoc scheduled workouts, grouped by date, most recent first —
+  // gives a look-back "history" for users not following a plan (a plan's own
+  // WeekGrid already shows prior days for free).
+  const scheduledHistorySection = scheduledHistory.length > 0 ? (
+    <div className="space-y-3">
+      <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">This week</h2>
+      <div className="space-y-4">
+        {scheduledHistory.map(({ date, workouts }) => (
+          <div key={date} className="space-y-2">
+            <p className="text-xs text-[var(--muted)]">{formatDayLabel(date)}</p>
+            <div className="space-y-2">{workouts.map(scheduledCard)}</div>
           </div>
-        );
-      })}
+        ))}
+      </div>
     </div>
   ) : null;
 
@@ -368,7 +404,7 @@ export default function DashboardPage() {
       }
       sessionDate={
         detailSource === "scheduled"
-          ? todayISO
+          ? detailScheduledDate
           : (() => {
               const ctx = findCtx(detailWorkout.plan_id);
               return ctx ? scheduledDate(ctx.userPlan.start_date, detailWorkout.week_number, detailWorkout.day_of_week) : undefined;
@@ -418,6 +454,9 @@ export default function DashboardPage() {
         </div>
 
         {addWorkoutButton}
+
+        {scheduledHistorySection}
+
         {addModeModals}
         {detailModal}
       </div>
@@ -509,6 +548,8 @@ export default function DashboardPage() {
           )}
 
           {addWorkoutButton}
+
+          {scheduledHistorySection}
         </div>
       ) : (
         <>
