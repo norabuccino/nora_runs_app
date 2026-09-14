@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { PlanWorkout, WorkoutLog, UserPlan, TrainingPlan, RunningPace, ScheduledWorkoutWithSteps } from "@/types/database";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { WeekGrid } from "@/components/WeekGrid";
+import { ScheduledWeekGrid } from "@/components/ScheduledWeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, mondayOfWeek } from "@/lib/paceUtils";
@@ -15,6 +16,7 @@ import {
   markScheduledWorkoutComplete,
   unmarkScheduledWorkoutComplete,
   deleteScheduledWorkout,
+  batchUpdateScheduledWorkoutPositions,
 } from "@/app/actions/scheduledWorkouts";
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
@@ -314,52 +316,33 @@ export default function DashboardPage() {
     setAddMode("choose");
   }
 
+  function handleScheduledReorder(updates: { id: string; scheduled_date: string; sort_order: number }[]) {
+    startTransition(async () => {
+      await batchUpdateScheduledWorkoutPositions(updates);
+      await load();
+    });
+  }
+
   // A Monday–Sunday planner for ad-hoc scheduled workouts: lets users not on
-  // a plan look back at what they've logged this week, and plan ahead by
-  // adding library/from-scratch workouts to upcoming days — mirroring what a
-  // plan's own WeekGrid gives for free.
+  // a plan look back at what they've logged this week, and plan ahead —
+  // including dragging a workout to a different day — by adding
+  // library/from-scratch workouts to upcoming days, mirroring what a plan's
+  // own WeekGrid gives for free.
   const scheduledWeekSection = (
     <div className="space-y-3">
       <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">This week</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-7 gap-y-3 lg:gap-2 lg:overflow-x-auto">
-        {scheduledWeekDays.map(({ date, workouts }) => {
-          const isToday = date === todayISO;
-          const labelColor = isToday ? "text-[var(--accent)]" : "text-[var(--muted)]";
-          return (
-            <div key={date} className="min-w-0 lg:min-w-[120px] space-y-2">
-              <div className="flex lg:hidden items-center gap-2">
-                <span className={`text-xs font-semibold ${labelColor}`}>
-                  {parseDateLocal(date).toLocaleDateString("en-US", { weekday: "short" })}
-                </span>
-                <span className="text-[10px] text-[var(--muted)] opacity-70">
-                  {parseDateLocal(date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </span>
-                <div className="h-px flex-1 bg-[var(--border)]" />
-              </div>
-              <div className="hidden lg:block text-center">
-                <p className={`text-xs font-medium ${labelColor}`}>
-                  {parseDateLocal(date).toLocaleDateString("en-US", { weekday: "short" })}
-                </p>
-                <p className="text-[10px] text-[var(--muted)] opacity-70">
-                  {parseDateLocal(date).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                {workouts.map(scheduledCard)}
-                <button
-                  onClick={() => openAddModalForDate(date)}
-                  className={
-                    workouts.length === 0
-                      ? "w-full h-14 rounded-lg border border-dashed border-[var(--border)] flex items-center justify-center text-xs text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] transition-colors"
-                      : "w-full text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors py-1"
-                  }
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-          );
-        })}
+      <div className="sm:overflow-x-auto sm:pb-2">
+        <ScheduledWeekGrid
+          days={scheduledWeekDays}
+          paces={paces}
+          todayISO={todayISO}
+          onComplete={handleScheduledComplete}
+          onUnComplete={handleScheduledUnComplete}
+          onDelete={handleScheduledDelete}
+          onDetail={openScheduledDetail}
+          onAddWorkout={openAddModalForDate}
+          onReorder={handleScheduledReorder}
+        />
       </div>
     </div>
   );

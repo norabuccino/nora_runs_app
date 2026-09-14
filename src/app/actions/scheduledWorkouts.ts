@@ -132,6 +132,26 @@ export async function createScheduledWorkoutFromLibrary(
   return workout;
 }
 
+export async function batchUpdateScheduledWorkoutPositions(
+  updates: { id: string; scheduled_date: string; sort_order: number }[]
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  await Promise.all(
+    updates.map(({ id, scheduled_date, sort_order }) =>
+      supabase
+        .from("scheduled_workouts")
+        .update({ scheduled_date, sort_order })
+        .eq("id", id)
+        .eq("user_id", user.id)
+    )
+  );
+
+  revalidatePath("/dashboard");
+}
+
 export async function deleteScheduledWorkout(id: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
