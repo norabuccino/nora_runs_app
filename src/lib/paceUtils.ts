@@ -269,6 +269,15 @@ export const PLAN_TYPE_COLORS: Record<string, string> = {
   custom: "bg-[var(--badge-plan-custom-bg)] text-[var(--badge-plan-custom-text)]",
 };
 
+// Text-only variant of PLAN_TYPE_COLORS — same per-type color, no badge
+// background — for places the type name is shown large rather than as a pill.
+export const PLAN_TYPE_TEXT_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(PLAN_TYPE_COLORS).map(([type, classes]) => [
+    type,
+    classes.split(" ").filter((c) => c.startsWith("text-")).join(" "),
+  ])
+);
+
 export const WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 const DEFAULT_DAY_MAPPINGS: Record<number, number[]> = {

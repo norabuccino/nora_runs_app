@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { PlanCard } from "@/components/PlanCard";
 import type { TrainingPlan, PlanType } from "@/types/database";
-import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, PLAN_TYPE_TEXT_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
 
 const FILTER_TABS: { value: PlanType | "all"; label: string }[] = [
@@ -18,6 +18,9 @@ const FILTER_TABS: { value: PlanType | "all"; label: string }[] = [
   { value: "custom", label: PLAN_TYPE_LABELS.custom },
 ];
 
+// Order shown on the category landing page.
+const CATEGORY_TYPES: PlanType[] = ["marathon", "half_marathon", "5k_10k", "base_building", "strength", "custom"];
+
 export default function PlansPage() {
   const [plans, setPlans] = useState<TrainingPlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,8 @@ export default function PlansPage() {
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyType | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [isAdmin, setIsAdmin] = useState(false);
+  // null = on the category-picker landing page; set once a category (or "all") is chosen.
+  const [category, setCategory] = useState<PlanType | "all" | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -42,6 +47,20 @@ export default function PlansPage() {
     }
     load();
   }, []);
+
+  function enterCategory(type: PlanType | "all") {
+    setActiveFilter(type);
+    setDifficultyFilter("all");
+    setSourceFilter("all");
+    setCategory(type);
+  }
+
+  function backToCategories() {
+    setCategory(null);
+    setActiveFilter("all");
+    setDifficultyFilter("all");
+    setSourceFilter("all");
+  }
 
   const filtered = plans.filter((p) => {
     if (activeFilter !== "all" && p.type !== activeFilter) return false;
@@ -98,8 +117,49 @@ export default function PlansPage() {
         </div>
       )}
 
-      {!loading && plans.length > 0 && (
+      {/* Category landing page — most people want just their one plan type,
+          not the whole list, so land here first and filter down from a
+          click rather than defaulting straight into everything. */}
+      {!loading && plans.length > 0 && category === null && (
+        <div className="space-y-4">
+          <p className="text-sm text-[var(--muted)]">Pick a category to browse, or view everything at once.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {CATEGORY_TYPES.map((type) => {
+              const count = plans.filter((p) => p.type === type).length;
+              return (
+                <button
+                  key={type}
+                  onClick={() => enterCategory(type)}
+                  className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-center space-y-1 hover:border-[var(--foreground)] transition-colors"
+                >
+                  <p className={`text-lg font-semibold ${PLAN_TYPE_TEXT_COLORS[type]}`}>
+                    {PLAN_TYPE_LABELS[type]}
+                  </p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {count} plan{count === 1 ? "" : "s"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => enterCategory("all")}
+            className="text-sm text-[var(--accent)] hover:underline"
+          >
+            View all plans →
+          </button>
+        </div>
+      )}
+
+      {!loading && plans.length > 0 && category !== null && (
         <div className="space-y-5">
+          <button
+            onClick={backToCategories}
+            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            ← All categories
+          </button>
+
           {/* Plan type filter */}
           {visibleTabs.length > 2 && (
             <div className="flex flex-wrap gap-1.5">
@@ -109,7 +169,7 @@ export default function PlansPage() {
                 return (
                   <button
                     key={value}
-                    onClick={() => setActiveFilter(value)}
+                    onClick={() => enterCategory(value)}
                     className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                       isActive
                         ? value === "all"
