@@ -21,6 +21,7 @@ export interface ScheduledWorkoutStepData {
   video_url?: string | null;
   exercise_id?: string | null;
   both_sides?: boolean;
+  stroke_style?: string | null;
 }
 
 export interface ScheduledWorkoutData {
@@ -37,6 +38,7 @@ export interface ScheduledWorkoutData {
   notes?: string | null;
   library_workout_id?: string | null;
   steps?: ScheduledWorkoutStepData[];
+  bike_location?: string | null;
 }
 
 export async function createScheduledWorkout(data: ScheduledWorkoutData): Promise<ScheduledWorkout> {
@@ -96,6 +98,7 @@ export async function createScheduledWorkoutFromLibrary(
       duration_minutes: source.duration_minutes,
       notes: source.notes,
       library_workout_id: libraryWorkoutId,
+      bike_location: source.bike_location,
     })
     .select()
     .single();
@@ -123,6 +126,7 @@ export async function createScheduledWorkoutFromLibrary(
         video_url: s.video_url ?? null,
         exercise_id: s.exercise_id ?? null,
         both_sides: s.both_sides ?? false,
+        stroke_style: s.stroke_style ?? null,
       }))
     );
     if (stepsError) throw new Error(stepsError.message);

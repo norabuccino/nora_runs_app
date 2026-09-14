@@ -15,7 +15,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
-import { STRENGTH_TYPE_LABELS } from "@/lib/paceUtils";
+import { STRENGTH_TYPE_LABELS, BIKE_LOCATION_LABELS } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
 import {
@@ -50,6 +50,7 @@ export interface WorkoutLibraryFormData {
   notes: string;
   source: string;
   steps: WorkoutStepFormRow[];
+  bike_location: "indoor" | "outdoor" | "";
 }
 
 function blankStep(
@@ -76,6 +77,7 @@ function blankStep(
     weight_suggestion: "",
     video_url: "",
     both_sides: false,
+    stroke_style: "",
   };
 }
 
@@ -164,11 +166,18 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         weight_suggestion: s.weight_suggestion ?? "",
         video_url: s.video_url ?? "",
         both_sides: s.both_sides ?? false,
+        stroke_style: s.stroke_style ?? "",
       })) ?? [blankStep()],
+    bike_location: (existing?.bike_location as "indoor" | "outdoor" | null) ?? "",
   }));
 
   const isStrength = form.type === "strength";
   const isRun = form.type === "run";
+  const isBike = form.type === "bike";
+  const isSwim = form.type === "swim";
+  const isRest = form.type === "rest";
+  const hasSimpleDuration = form.type === "yoga" || form.type === "cross_train" || form.type === "elliptical";
+  const showSteps = isRun || isStrength || isSwim;
 
   function updateStep(index: number, key: StringStepKey, value: string) {
     setForm((prev) => {
@@ -234,6 +243,12 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
       const nextGroupId = Math.max(0, ...prev.steps.map((s) => s.repeat_group_id ?? 0)) + 1;
       const unit = prev.distance_unit as DistanceUnit;
       const strength = prev.type === "strength";
+      // Swim intervals default to a single step per rep — the "on 2:00" send-off
+      // convention already bakes in recovery, so a separate rest step would be
+      // the exception; add one via "+ Add step to group" when it's needed.
+      if (prev.type === "swim") {
+        return { ...prev, steps: [...prev.steps, blankStep(nextGroupId, 2, unit)] };
+      }
       return {
         ...prev,
         steps: [
@@ -426,7 +441,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   }
 
   const { totalDistInUnit, totalDurationMin } = (() => {
-    if (isStrength) return { totalDistInUnit: 0, totalDurationMin: 0 };
+    if (!isRun) return { totalDistInUnit: 0, totalDurationMin: 0 };
     const segs = buildSegments(form.steps);
     let distMiSum = 0;
     let durSum = 0;
@@ -472,14 +487,13 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     try {
       await onSave({
         ...form,
-        distance_miles:
-          !isStrength && totalDistInUnit > 0
-            ? String(parseFloat(totalDistInUnit.toFixed(4)))
-            : isStrength ? "" : form.distance_miles,
-        duration_minutes:
-          !isStrength && totalDurationMin > 0
-            ? String(totalDurationMin)
-            : isStrength ? "" : form.duration_minutes,
+        distance_miles: isRun
+          ? (totalDistInUnit > 0 ? String(parseFloat(totalDistInUnit.toFixed(4))) : form.distance_miles)
+          : (isStrength || isSwim ? "" : form.distance_miles),
+        duration_minutes: isRun
+          ? (totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes)
+          : (isStrength || isSwim ? "" : form.duration_minutes),
+        bike_location: isBike ? form.bike_location : "",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -526,6 +540,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                     type: newType,
                     run_type: newType !== "run" ? "" : p.run_type,
                     strength_type: newType !== "strength" ? "" : p.strength_type,
+                    bike_location: newType !== "bike" ? "" : p.bike_location,
                   }));
                 }}
                 className={inputClass}
@@ -580,13 +595,86 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               </div>
             )}
 
+            {isBike && (
+              <div className="space-y-1">
+                <label className={labelClass}>Location</label>
+                <div className="flex rounded-lg border border-[var(--border)] overflow-hidden w-fit">
+                  {Object.entries(BIKE_LOCATION_LABELS).map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, bike_location: val as "indoor" | "outdoor" }))}
+                      className={`px-3 py-1.5 text-sm transition-colors ${
+                        form.bike_location === val
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                      }`}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {isBike && (
+              <div className="flex gap-3">
+                <div className="flex-1 space-y-1">
+                  <label className={labelClass}>Duration (min)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.duration_minutes}
+                    onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <label className={labelClass}>Distance</label>
+                    <UnitToggle
+                      units={["mi", "km"]}
+                      active={form.distance_unit}
+                      onChange={(u) => setForm((p) => ({ ...p, distance_unit: u }))}
+                    />
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={form.distance_miles}
+                    onChange={(e) => setForm((p) => ({ ...p, distance_miles: e.target.value }))}
+                    className={inputClass}
+                  />
+                </div>
+              </div>
+            )}
+
+            {hasSimpleDuration && (
+              <div className="space-y-1">
+                <label className={labelClass}>Duration (min)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.duration_minutes}
+                  onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
+                  className={inputClass}
+                />
+              </div>
+            )}
+
             <div className="space-y-1">
               <label className={labelClass}>Title</label>
               <input
                 type="text"
                 value={form.title}
                 onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={isStrength ? "e.g. Upper body push day" : isRun ? "e.g. Easy 6 miles" : "e.g. Workout title"}
+                placeholder={
+                  isStrength ? "e.g. Upper body push day"
+                  : isRun ? "e.g. Easy 6 miles"
+                  : isRest ? "e.g. Rest day"
+                  : "e.g. Workout title"
+                }
                 className={inputClass}
               />
             </div>
@@ -613,108 +701,112 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
             </div>
 
             {/* Steps / Exercises */}
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                {isStrength ? "Exercises" : "Steps"}
-              </span>
+            {showSteps && (
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                  {isStrength ? "Exercises" : "Steps"}
+                </span>
 
-              {form.steps.length === 0 && (
-                <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
-              )}
+                {form.steps.length === 0 && (
+                  <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
+                )}
 
-              <DndContext
-                sensors={outerSensors}
-                collisionDetection={closestCenter}
-                onDragEnd={onSegmentDragEnd}
-              >
-                <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
-                  <div className="space-y-2">
-                    {segments.map((seg, si) => {
-                      if (seg.type === "step") {
+                <DndContext
+                  sensors={outerSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={onSegmentDragEnd}
+                >
+                  <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {segments.map((seg, si) => {
+                        if (seg.type === "step") {
+                          return (
+                            <SortableStepCard
+                              key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
+                              id={`step-${seg.index}`}
+                              step={form.steps[seg.index]}
+                              actualIndex={seg.index}
+                              label={`Step ${si + 1}`}
+                              isStrength={isStrength}
+                              isSwim={isSwim}
+                              paces={localPaces}
+                              onRemove={removeStep}
+                              onUpdate={updateStep}
+                              onToggleBothSides={toggleBothSides}
+                              onSwitchUnit={switchStepUnit}
+                              onSwitchDurationUnit={switchStepDurationUnit}
+                              onCreatePace={handleCreatePace}
+                              onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
+                              inputClass={inputClass}
+                              labelClass={labelClass}
+                            />
+                          );
+                        }
                         return (
-                          <SortableStepCard
-                            key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
-                            id={`step-${seg.index}`}
-                            step={form.steps[seg.index]}
-                            actualIndex={seg.index}
-                            label={`Step ${si + 1}`}
+                          <SortableGroupContainer
+                            key={`group-${seg.groupId}`}
+                            id={`group-${seg.groupId}`}
+                            groupId={seg.groupId}
+                            repeatCount={seg.repeatCount}
+                            groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
+                            indices={seg.indices}
+                            steps={form.steps}
                             isStrength={isStrength}
+                            isSwim={isSwim}
+                            perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
                             paces={localPaces}
+                            onUpdateRepeatCount={updateGroupRepeatCount}
+                            onUpdateGroupName={updateGroupName}
+                            onTogglePerExerciseSets={togglePerExerciseSets}
+                            onUngroup={ungroup}
+                            onAddStepToGroup={handleAddStepToGroup}
+                            onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
+                            onGroupDragEnd={onGroupDragEnd}
                             onRemove={removeStep}
                             onUpdate={updateStep}
                             onToggleBothSides={toggleBothSides}
                             onSwitchUnit={switchStepUnit}
                             onSwitchDurationUnit={switchStepDurationUnit}
                             onCreatePace={handleCreatePace}
-                            onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                             inputClass={inputClass}
                             labelClass={labelClass}
                           />
                         );
-                      }
-                      return (
-                        <SortableGroupContainer
-                          key={`group-${seg.groupId}`}
-                          id={`group-${seg.groupId}`}
-                          groupId={seg.groupId}
-                          repeatCount={seg.repeatCount}
-                          groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
-                          indices={seg.indices}
-                          steps={form.steps}
-                          isStrength={isStrength}
-                          perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
-                          paces={localPaces}
-                          onUpdateRepeatCount={updateGroupRepeatCount}
-                          onUpdateGroupName={updateGroupName}
-                          onTogglePerExerciseSets={togglePerExerciseSets}
-                          onUngroup={ungroup}
-                          onAddStepToGroup={handleAddStepToGroup}
-                          onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
-                          onGroupDragEnd={onGroupDragEnd}
-                          onRemove={removeStep}
-                          onUpdate={updateStep}
-                          onToggleBothSides={toggleBothSides}
-                          onSwitchUnit={switchStepUnit}
-                          onSwitchDurationUnit={switchStepDurationUnit}
-                          onCreatePace={handleCreatePace}
-                          inputClass={inputClass}
-                          labelClass={labelClass}
-                        />
-                      );
-                    })}
-                  </div>
-                </SortableContext>
-              </DndContext>
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
 
-              <div className="flex gap-3 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleAddStep}
-                  className="text-xs text-[var(--accent)] hover:underline"
-                >
-                  {addStepLabel}
-                </button>
-                <button
-                  type="button"
-                  onClick={addRepeatGroup}
-                  className="text-xs text-[var(--accent)] hover:underline"
-                >
-                  {addGroupLabel}
-                </button>
-                {isStrength && (
+                <div className="flex gap-3 flex-wrap">
                   <button
                     type="button"
-                    onClick={addSection}
+                    onClick={handleAddStep}
                     className="text-xs text-[var(--accent)] hover:underline"
                   >
-                    + Add named group
+                    {addStepLabel}
                   </button>
-                )}
+                  <button
+                    type="button"
+                    onClick={addRepeatGroup}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
+                    {addGroupLabel}
+                  </button>
+                  {isStrength && (
+                    <button
+                      type="button"
+                      onClick={addSection}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      + Add named group
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Totals (run workouts only) */}
-            {!isStrength && (totalDistInUnit > 0 || totalDurationMin > 0 || isRun) && (
+            {isRun && (
               <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
                 {(totalDistInUnit > 0 || totalDurationMin > 0) && (
                   <div className="flex flex-wrap gap-4">

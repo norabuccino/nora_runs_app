@@ -1,14 +1,17 @@
-export type DistanceUnit = "mi" | "km" | "m";
+export type DistanceUnit = "mi" | "km" | "m" | "yd";
 export type GlobalUnit = "mi" | "km";
 
 const KM_PER_MI = 1.60934;
 const MI_PER_KM = 1 / KM_PER_MI;
 const M_PER_MI = 1609.34;
 const MI_PER_M = 1 / M_PER_MI;
+const YD_PER_MI = 1760;
+const MI_PER_YD = 1 / YD_PER_MI;
 
 export function toMiles(value: number, unit: DistanceUnit): number {
   if (unit === "mi") return value;
   if (unit === "km") return value * MI_PER_KM;
+  if (unit === "yd") return value * MI_PER_YD;
   return value * MI_PER_M;
 }
 
@@ -17,6 +20,7 @@ export function convertDistance(value: number, from: DistanceUnit, to: DistanceU
   const miles = toMiles(value, from);
   if (to === "mi") return miles;
   if (to === "km") return miles * KM_PER_MI;
+  if (to === "yd") return miles * YD_PER_MI;
   return miles * M_PER_MI;
 }
 
@@ -40,6 +44,6 @@ export function getStoredUnit(): GlobalUnit {
 export function displayDistance(value: number | null, unit: string): string | null {
   if (!value) return null;
   const u = unit ?? "mi";
-  if (u === "m") return `${Math.round(value)} m`;
+  if (u === "m" || u === "yd") return `${Math.round(value)} ${u}`;
   return `${parseFloat(value.toFixed(1))} ${u}`;
 }

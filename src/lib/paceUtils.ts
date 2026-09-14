@@ -419,3 +419,15 @@ export const STEP_TYPE_LABELS: Record<string, string> = {
   recovery: "Recovery",
   cooldown: "Cool-down",
 };
+
+export const STROKE_LABELS: Record<string, string> = {
+  freestyle: "Free",
+  backstroke: "Back",
+  breaststroke: "Breast",
+  butterfly: "Fly",
+};
+
+export const BIKE_LOCATION_LABELS: Record<string, string> = {
+  indoor: "Indoor",
+  outdoor: "Outdoor",
+};

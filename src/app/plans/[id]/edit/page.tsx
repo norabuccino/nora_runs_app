@@ -379,6 +379,7 @@ export default function EditPlanPage() {
         video_url: s.video_url || null,
         exercise_id: s.exercise_id || null,
         both_sides: s.both_sides ?? false,
+        stroke_style: s.stroke_style || null,
       };
     });
 
@@ -398,6 +399,7 @@ export default function EditPlanPage() {
       notes: data.notes || null,
       sort_order: data.sort_order,
       steps,
+      bike_location: data.bike_location || null,
     };
 
     const existing = flow.step === "form" ? flow.existing : null;

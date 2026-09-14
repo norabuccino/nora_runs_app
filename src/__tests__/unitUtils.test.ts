@@ -18,10 +18,15 @@ describe("toMiles", () => {
     expect(toMiles(1609.34, "m")).toBeCloseTo(1, 5);
   });
 
+  it("converts yards to miles", () => {
+    expect(toMiles(1760, "yd")).toBeCloseTo(1, 5);
+  });
+
   it("handles zero distance", () => {
     expect(toMiles(0, "mi")).toBe(0);
     expect(toMiles(0, "km")).toBe(0);
     expect(toMiles(0, "m")).toBe(0);
+    expect(toMiles(0, "yd")).toBe(0);
   });
 });
 
@@ -48,6 +53,20 @@ describe("convertDistance", () => {
 
   it("converts meters to km", () => {
     expect(convertDistance(1000, "m", "km")).toBeCloseTo(1000 / 1609.34 * KM_PER_MI, 3);
+  });
+
+  it("converts yards to miles", () => {
+    expect(convertDistance(1760, "yd", "mi")).toBeCloseTo(1, 5);
+  });
+
+  it("converts miles to yards", () => {
+    expect(convertDistance(1, "mi", "yd")).toBeCloseTo(1760, 1);
+  });
+
+  it("does not conflate yards with meters", () => {
+    // A 100 yd swim rep is ~91.4 m, not 100 m — regression guard for the
+    // "yd" branch falling through to the "m" conversion factor.
+    expect(convertDistance(100, "yd", "m")).toBeCloseTo(91.44, 1);
   });
 
   it("round-trips mi → km → mi", () => {
@@ -117,5 +136,10 @@ describe("displayDistance", () => {
   it("rounds meter distances to the nearest integer", () => {
     expect(displayDistance(400, "m")).toBe("400 m");
     expect(displayDistance(400.7, "m")).toBe("401 m");
+  });
+
+  it("rounds yard distances to the nearest integer", () => {
+    expect(displayDistance(100, "yd")).toBe("100 yd");
+    expect(displayDistance(50.4, "yd")).toBe("50 yd");
   });
 });

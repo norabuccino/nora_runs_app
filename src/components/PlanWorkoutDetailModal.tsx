@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { PlanWorkout, RunningPace, WorkoutStep } from "@/types/database";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
-import { STEP_TYPE_LABELS, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
+import { STEP_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
 import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
@@ -70,6 +70,7 @@ function StepRow({
             {step.distance_miles && (
               <span>{displayDistance(step.distance_miles, step.distance_unit ?? "mi")}</span>
             )}
+            {step.stroke_style && <span>{STROKE_LABELS[step.stroke_style] ?? step.stroke_style}</span>}
             {step.pace_type && <span className="capitalize">{step.pace_type}</span>}
           </>
         )}
@@ -126,6 +127,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
       ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
       : null;
   const durationLabel = workout.duration_minutes ? `${workout.duration_minutes} min` : null;
+  const locationLabel = workout.bike_location ? BIKE_LOCATION_LABELS[workout.bike_location] ?? workout.bike_location : null;
   const groupLabel = isStrength ? "Superset" : "Repeat";
 
   return (
@@ -160,9 +162,15 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
             </div>
           </div>
 
-          {/* Distance / duration */}
-          {(distanceLabel || durationLabel) && (
+          {/* Distance / duration / location */}
+          {(distanceLabel || durationLabel || locationLabel) && (
             <div className="flex gap-4">
+              {locationLabel && (
+                <div>
+                  <p className="text-xs text-[var(--muted)]">Location</p>
+                  <p className="text-sm font-medium">{locationLabel}</p>
+                </div>
+              )}
               {distanceLabel && (
                 <div>
                   <p className="text-xs text-[var(--muted)]">Distance</p>

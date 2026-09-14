@@ -241,6 +241,7 @@ export default function DashboardPage() {
       video_url: s.video_url || null,
       exercise_id: s.exercise_id || null,
       both_sides: s.both_sides,
+      stroke_style: s.stroke_style || null,
     }));
 
     await createScheduledWorkout({
@@ -256,6 +257,7 @@ export default function DashboardPage() {
       duration_minutes: formData.duration_minutes ? parseFloat(formData.duration_minutes) : null,
       notes: formData.notes || null,
       steps,
+      bike_location: formData.bike_location || null,
     });
     setAddMode(null);
     await load();

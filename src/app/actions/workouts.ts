@@ -21,6 +21,7 @@ export interface WorkoutStepData {
   weight_suggestion?: string | null;
   video_url?: string | null;
   exercise_id?: string | null;
+  stroke_style?: string | null;
 }
 
 export interface WorkoutData {
@@ -39,6 +40,7 @@ export interface WorkoutData {
   notes?: string | null;
   sort_order?: number;
   steps?: WorkoutStepData[];
+  bike_location?: string | null;
 }
 
 export interface ImportWorkoutRow {

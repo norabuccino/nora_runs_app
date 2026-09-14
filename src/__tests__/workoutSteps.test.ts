@@ -26,6 +26,7 @@ function makeStep(overrides: Partial<WorkoutStep>): WorkoutStep {
     exercise_id: null,
     duration_unit: "min",
     both_sides: false,
+    stroke_style: null,
     ...overrides,
   };
 }

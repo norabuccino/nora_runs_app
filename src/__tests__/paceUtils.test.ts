@@ -332,6 +332,7 @@ describe("weekMileageRange", () => {
       sort_order: 0,
       day_logic: "or",
       library_workout_id: null,
+      bike_location: null,
       ...overrides,
     };
   }
@@ -407,6 +408,7 @@ describe("weekActualMileage", () => {
       sort_order: 0,
       day_logic: "or",
       library_workout_id: null,
+      bike_location: null,
       ...overrides,
     };
   }

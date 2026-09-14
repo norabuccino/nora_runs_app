@@ -69,6 +69,7 @@ export interface Database {
           sort_order: number;
           day_logic: "and" | "or";
           library_workout_id: string | null;
+          bike_location: "indoor" | "outdoor" | null;
         };
         Insert: {
           id?: string;
@@ -88,6 +89,7 @@ export interface Database {
           sort_order?: number;
           day_logic?: "and" | "or";
           library_workout_id?: string | null;
+          bike_location?: "indoor" | "outdoor" | null;
         };
         Update: {
           id?: string;
@@ -107,6 +109,7 @@ export interface Database {
           sort_order?: number;
           day_logic?: "and" | "or";
           library_workout_id?: string | null;
+          bike_location?: "indoor" | "outdoor" | null;
         };
       };
       workout_steps: {
@@ -133,6 +136,7 @@ export interface Database {
           exercise_id: string | null;
           duration_unit: string;
           both_sides: boolean;
+          stroke_style: "freestyle" | "backstroke" | "breaststroke" | "butterfly" | null;
         };
         Insert: {
           id?: string;
@@ -157,6 +161,7 @@ export interface Database {
           video_url?: string | null;
           exercise_id?: string | null;
           both_sides?: boolean;
+          stroke_style?: "freestyle" | "backstroke" | "breaststroke" | "butterfly" | null;
         };
         Update: {
           id?: string;
@@ -181,6 +186,7 @@ export interface Database {
           video_url?: string | null;
           exercise_id?: string | null;
           both_sides?: boolean;
+          stroke_style?: "freestyle" | "backstroke" | "breaststroke" | "butterfly" | null;
         };
       };
       scheduled_workouts: {
@@ -202,6 +208,7 @@ export interface Database {
           completed_at: string | null;
           sort_order: number;
           created_at: string;
+          bike_location: "indoor" | "outdoor" | null;
         };
         Insert: {
           id?: string;
@@ -221,6 +228,7 @@ export interface Database {
           completed_at?: string | null;
           sort_order?: number;
           created_at?: string;
+          bike_location?: "indoor" | "outdoor" | null;
         };
         Update: {
           id?: string;
@@ -240,6 +248,7 @@ export interface Database {
           completed_at?: string | null;
           sort_order?: number;
           created_at?: string;
+          bike_location?: "indoor" | "outdoor" | null;
         };
       };
       exercises: {
@@ -434,6 +443,7 @@ export interface Database {
           notes: string | null;
           source: string | null;
           created_at: string;
+          bike_location: "indoor" | "outdoor" | null;
         };
         Insert: {
           id?: string;
@@ -450,6 +460,7 @@ export interface Database {
           notes?: string | null;
           source?: string | null;
           created_at?: string;
+          bike_location?: "indoor" | "outdoor" | null;
         };
         Update: {
           id?: string;
@@ -466,6 +477,7 @@ export interface Database {
           notes?: string | null;
           source?: string | null;
           created_at?: string;
+          bike_location?: "indoor" | "outdoor" | null;
         };
       };
       user_plans: {

@@ -18,6 +18,7 @@ export interface LibraryWorkoutData {
   notes?: string | null;
   source?: string | null;
   steps?: WorkoutStepData[];
+  bike_location?: string | null;
 }
 
 export async function createLibraryWorkout(data: LibraryWorkoutData) {
@@ -84,6 +85,7 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
         pace_type: workoutRow.pace_type ?? null,
         duration_minutes: workoutRow.duration_minutes ?? null,
         notes: workoutRow.notes ?? null,
+        bike_location: workoutRow.bike_location ?? null,
       })
       .eq("library_workout_id", id);
 
@@ -325,12 +327,14 @@ export async function addLibraryWorkoutToPlan(
       title: workout.title,
       description: workout.description,
       distance_miles: workout.distance_miles,
+      distance_unit: workout.distance_unit ?? "mi",
       pace_type: workout.pace_type,
       duration_minutes: workout.duration_minutes,
       notes: workout.notes,
       sort_order: existingCount,
       day_logic: dayLogic,
       library_workout_id: workout.id,
+      bike_location: workout.bike_location ?? null,
     })
     .select()
     .single();
@@ -363,6 +367,7 @@ export async function addLibraryWorkoutToPlan(
       weight_suggestion: s.weight_suggestion ?? null,
       video_url: s.video_url ?? null,
       exercise_id: s.exercise_id ?? null,
+      stroke_style: s.stroke_style ?? null,
     }));
     const { error: stepsError } = await supabase.from("workout_steps").insert(stepsToInsert);
     if (stepsError) throw new Error(stepsError.message);

@@ -59,5 +59,6 @@ export function adaptScheduledWorkout(sw: ScheduledWorkout): PlanWorkout {
     sort_order: sw.sort_order,
     day_logic: "or",
     library_workout_id: sw.library_workout_id,
+    bike_location: sw.bike_location,
   };
 }

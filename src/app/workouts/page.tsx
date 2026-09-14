@@ -208,6 +208,7 @@ export default function WorkoutsPage() {
       duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
       notes: data.notes || null,
       source: data.source || null,
+      bike_location: data.bike_location || null,
       steps: data.steps.map((s) => {
         const rawDur = s.duration_minutes ? parseFloat(s.duration_minutes) : null;
         return {
@@ -228,6 +229,7 @@ export default function WorkoutsPage() {
           video_url: s.video_url || null,
           exercise_id: s.exercise_id || null,
           both_sides: s.both_sides ?? false,
+          stroke_style: s.stroke_style || null,
         };
       }),
     };
