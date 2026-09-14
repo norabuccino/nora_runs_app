@@ -55,10 +55,6 @@ body {
   --badge-workout-bike-text: #155e75;
   --badge-workout-swim-bg: #e0f2fe;
   --badge-workout-swim-text: #075985;
-  --badge-workout-yoga-bg: #ede9fe;
-  --badge-workout-yoga-text: #5b21b6;
-  --badge-workout-elliptical-bg: #ecfccb;
-  --badge-workout-elliptical-text: #3f6212;
 
   /* Plan types */
   --badge-plan-marathon-bg: #f3e8ff;
@@ -135,10 +131,6 @@ body {
   --badge-workout-bike-text: #a5f3fc;
   --badge-workout-swim-bg: #0c4a6e;
   --badge-workout-swim-text: #bae6fd;
-  --badge-workout-yoga-bg: #4c1d95;
-  --badge-workout-yoga-text: #ddd6fe;
-  --badge-workout-elliptical-bg: #365314;
-  --badge-workout-elliptical-text: #d9f99d;
 
   /* Plan types */
   --badge-plan-marathon-bg: #581c87;

@@ -19,6 +19,7 @@ export interface LibraryWorkoutData {
   source?: string | null;
   steps?: WorkoutStepData[];
   bike_location?: string | null;
+  cross_train_type?: string | null;
 }
 
 export async function createLibraryWorkout(data: LibraryWorkoutData) {
@@ -86,6 +87,7 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
         duration_minutes: workoutRow.duration_minutes ?? null,
         notes: workoutRow.notes ?? null,
         bike_location: workoutRow.bike_location ?? null,
+        cross_train_type: workoutRow.cross_train_type ?? null,
       })
       .eq("library_workout_id", id);
 
@@ -335,6 +337,7 @@ export async function addLibraryWorkoutToPlan(
       day_logic: dayLogic,
       library_workout_id: workout.id,
       bike_location: workout.bike_location ?? null,
+      cross_train_type: workout.cross_train_type ?? null,
     })
     .select()
     .single();

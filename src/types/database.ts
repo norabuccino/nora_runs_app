@@ -56,7 +56,7 @@ export interface Database {
           plan_id: string;
           week_number: number;
           day_of_week: number;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
@@ -70,13 +70,14 @@ export interface Database {
           day_logic: "and" | "or";
           library_workout_id: string | null;
           bike_location: "indoor" | "outdoor" | null;
+          cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Insert: {
           id?: string;
           plan_id: string;
           week_number: number;
           day_of_week: number;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
@@ -90,13 +91,14 @@ export interface Database {
           day_logic?: "and" | "or";
           library_workout_id?: string | null;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Update: {
           id?: string;
           plan_id?: string;
           week_number?: number;
           day_of_week?: number;
-          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
@@ -110,6 +112,7 @@ export interface Database {
           day_logic?: "and" | "or";
           library_workout_id?: string | null;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
       };
       workout_steps: {
@@ -194,7 +197,7 @@ export interface Database {
           id: string;
           user_id: string;
           scheduled_date: string;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
@@ -209,12 +212,13 @@ export interface Database {
           sort_order: number;
           created_at: string;
           bike_location: "indoor" | "outdoor" | null;
+          cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Insert: {
           id?: string;
           user_id: string;
           scheduled_date: string;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
@@ -229,12 +233,13 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Update: {
           id?: string;
           user_id?: string;
           scheduled_date?: string;
-          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
@@ -249,6 +254,7 @@ export interface Database {
           sort_order?: number;
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
       };
       exercises: {
@@ -431,7 +437,7 @@ export interface Database {
         Row: {
           id: string;
           user_id: string;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type: string | null;
           title: string;
@@ -444,11 +450,12 @@ export interface Database {
           source: string | null;
           created_at: string;
           bike_location: "indoor" | "outdoor" | null;
+          cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Insert: {
           id?: string;
           user_id: string;
-          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title: string;
@@ -461,11 +468,12 @@ export interface Database {
           source?: string | null;
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
         Update: {
           id?: string;
           user_id?: string;
-          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim" | "yoga" | "elliptical";
+          type?: "run" | "strength" | "rest" | "cross_train" | "bike" | "swim";
           run_type?: "easy_run" | "interval_run" | "threshold_run" | "recovery_run" | "boost_run" | "race" | "long_run" | "mp_hmp_run" | null;
           strength_type?: string | null;
           title?: string;
@@ -478,6 +486,7 @@ export interface Database {
           source?: string | null;
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
+          cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
         };
       };
       user_plans: {
@@ -674,6 +683,7 @@ export type ScheduledWorkout = Database["public"]["Tables"]["scheduled_workouts"
 // Domain-specific union types
 export type WorkoutType = PlanWorkout["type"];
 export type RunType = NonNullable<PlanWorkout["run_type"]>;
+export type CrossTrainType = NonNullable<PlanWorkout["cross_train_type"]>;
 export type PlanType = TrainingPlan["type"];
 export type PaceType = NonNullable<PlanWorkout["pace_type"]>;
 export type UserPlanStatus = UserPlan["status"];

@@ -1,12 +1,13 @@
 "use client";
 
-import type { WorkoutType, RunType, StrengthType } from "@/types/database";
-import { WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS } from "@/lib/paceUtils";
+import type { WorkoutType, RunType, StrengthType, CrossTrainType } from "@/types/database";
+import { WORKOUT_TYPE_LABELS, RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS, CROSS_TRAIN_TYPE_LABELS } from "@/lib/paceUtils";
 
 export interface WorkoutFilter {
   type: WorkoutType | "all";
   runType: RunType | "all";
   strengthType: StrengthType | "all";
+  crossTrainType: CrossTrainType | "all";
   source: string | "all";
 }
 
@@ -14,19 +15,28 @@ export const DEFAULT_FILTER: WorkoutFilter = {
   type: "all",
   runType: "all",
   strengthType: "all",
+  crossTrainType: "all",
   source: "all",
 };
 
 export const NO_SOURCE_SENTINEL = "__none__";
 
 export function applyWorkoutFilter<
-  T extends { type: string; run_type?: string | null; strength_type?: string | null; source?: string | null }
+  T extends {
+    type: string;
+    run_type?: string | null;
+    strength_type?: string | null;
+    cross_train_type?: string | null;
+    source?: string | null;
+  }
 >(items: T[], filter: WorkoutFilter): T[] {
   return items.filter((w) => {
     if (filter.type !== "all" && w.type !== filter.type) return false;
     if (filter.type === "run" && filter.runType !== "all" && w.run_type !== filter.runType)
       return false;
     if (filter.type === "strength" && filter.strengthType !== "all" && w.strength_type !== filter.strengthType)
+      return false;
+    if (filter.type === "cross_train" && filter.crossTrainType !== "all" && w.cross_train_type !== filter.crossTrainType)
       return false;
     if (filter.source === NO_SOURCE_SENTINEL && w.source) return false;
     if (filter.source !== "all" && filter.source !== NO_SOURCE_SENTINEL && (w.source ?? null) !== filter.source) return false;
@@ -40,8 +50,6 @@ const TYPE_PILLS: { value: WorkoutType | "all"; label: string }[] = [
   { value: "strength", label: WORKOUT_TYPE_LABELS.strength },
   { value: "bike", label: WORKOUT_TYPE_LABELS.bike },
   { value: "swim", label: WORKOUT_TYPE_LABELS.swim },
-  { value: "yoga", label: WORKOUT_TYPE_LABELS.yoga },
-  { value: "elliptical", label: WORKOUT_TYPE_LABELS.elliptical },
   { value: "cross_train", label: WORKOUT_TYPE_LABELS.cross_train },
   { value: "rest", label: WORKOUT_TYPE_LABELS.rest },
 ];
@@ -68,6 +76,15 @@ const STRENGTH_TYPE_PILLS: { value: StrengthType | "all"; label: string }[] = [
   { value: "mobility", label: STRENGTH_TYPE_LABELS.mobility },
 ];
 
+const CROSS_TRAIN_TYPE_PILLS: { value: CrossTrainType | "all"; label: string }[] = [
+  { value: "all", label: "All cross-training" },
+  { value: "walk", label: CROSS_TRAIN_TYPE_LABELS.walk },
+  { value: "elliptical", label: CROSS_TRAIN_TYPE_LABELS.elliptical },
+  { value: "yoga", label: CROSS_TRAIN_TYPE_LABELS.yoga },
+  { value: "mobility", label: CROSS_TRAIN_TYPE_LABELS.mobility },
+  { value: "other", label: CROSS_TRAIN_TYPE_LABELS.other },
+];
+
 interface WorkoutFilterBarProps {
   filter: WorkoutFilter;
   onChange: (filter: WorkoutFilter) => void;
@@ -77,7 +94,7 @@ interface WorkoutFilterBarProps {
 
 export function WorkoutFilterBar({ filter, onChange, sources = [], hasUnsourced = false }: WorkoutFilterBarProps) {
   function setType(type: WorkoutType | "all") {
-    onChange({ ...filter, type, runType: "all", strengthType: "all" });
+    onChange({ ...filter, type, runType: "all", strengthType: "all", crossTrainType: "all" });
   }
 
   function setRunType(runType: RunType | "all") {
@@ -86,6 +103,10 @@ export function WorkoutFilterBar({ filter, onChange, sources = [], hasUnsourced 
 
   function setStrengthType(strengthType: StrengthType | "all") {
     onChange({ ...filter, strengthType });
+  }
+
+  function setCrossTrainType(crossTrainType: CrossTrainType | "all") {
+    onChange({ ...filter, crossTrainType });
   }
 
   function setSource(source: string | "all") {
@@ -136,6 +157,24 @@ export function WorkoutFilterBar({ filter, onChange, sources = [], hasUnsourced 
               onClick={() => setStrengthType(value)}
               className={`px-3 py-1 rounded-full text-xs transition-colors ${
                 filter.strengthType === value
+                  ? "bg-[var(--accent)] text-white"
+                  : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filter.type === "cross_train" && (
+        <div className="flex flex-wrap gap-1.5">
+          {CROSS_TRAIN_TYPE_PILLS.map(({ value, label }) => (
+            <button
+              key={value}
+              onClick={() => setCrossTrainType(value)}
+              className={`px-3 py-1 rounded-full text-xs transition-colors ${
+                filter.crossTrainType === value
                   ? "bg-[var(--accent)] text-white"
                   : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
               }`}

@@ -41,6 +41,7 @@ export interface WorkoutData {
   sort_order?: number;
   steps?: WorkoutStepData[];
   bike_location?: string | null;
+  cross_train_type?: string | null;
 }
 
 export interface ImportWorkoutRow {

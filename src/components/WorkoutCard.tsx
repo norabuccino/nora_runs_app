@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { PlanWorkout, WorkoutLog, RunningPace } from "@/types/database";
-import { getWorkoutEstimate, resolveWorkoutTypeDisplay, BIKE_LOCATION_LABELS } from "@/lib/paceUtils";
+import { getWorkoutEstimate, resolveWorkoutTypeDisplay, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE_LABELS } from "@/lib/paceUtils";
 import { displayDistance, convertDistance, type DistanceUnit } from "@/lib/unitUtils";
 import { useUnitPreference } from "@/hooks/useUnitPreference";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
@@ -174,6 +174,9 @@ export function WorkoutCard({
           <div className="flex items-center gap-3 mt-1 text-xs text-[var(--muted)]">
             {workout.bike_location && (
               <span>{BIKE_LOCATION_LABELS[workout.bike_location] ?? workout.bike_location}</span>
+            )}
+            {workout.cross_train_type && (
+              <span>{CROSS_TRAIN_TYPE_LABELS[workout.cross_train_type] ?? workout.cross_train_type}</span>
             )}
             {workout.distance_miles && (
               <span>{displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")}</span>

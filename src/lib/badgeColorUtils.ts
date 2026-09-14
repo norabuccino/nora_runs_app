@@ -15,8 +15,6 @@ export const BADGE_DEFAULTS: BadgeColorMap = {
   "workout-cross-train":  { lightBg: "#ccfbf1", lightText: "#115e59", darkBg: "#134e4a", darkText: "#99f6e4" },
   "workout-bike":         { lightBg: "#cffafe", lightText: "#155e75", darkBg: "#164e63", darkText: "#a5f3fc" },
   "workout-swim":         { lightBg: "#e0f2fe", lightText: "#075985", darkBg: "#0c4a6e", darkText: "#bae6fd" },
-  "workout-yoga":         { lightBg: "#ede9fe", lightText: "#5b21b6", darkBg: "#4c1d95", darkText: "#ddd6fe" },
-  "workout-elliptical":   { lightBg: "#ecfccb", lightText: "#3f6212", darkBg: "#365314", darkText: "#d9f99d" },
   "plan-marathon":        { lightBg: "#f3e8ff", lightText: "#6b21a8", darkBg: "#581c87", darkText: "#e9d5ff" },
   "plan-half-marathon":   { lightBg: "#dce4ff", lightText: "#1e3a8a", darkBg: "#1a2d70", darkText: "#b8caff" },
   "plan-5k-10k":          { lightBg: "#d0f4ea", lightText: "#005c44", darkBg: "#003d2d", darkText: "#80e8c8" },

@@ -227,8 +227,6 @@ export const WORKOUT_TYPE_LABELS: Record<string, string> = {
   cross_train: "Cross-Train",
   bike: "Bike",
   swim: "Swim",
-  yoga: "Yoga",
-  elliptical: "Elliptical",
 };
 
 export const WORKOUT_TYPE_COLORS: Record<string, string> = {
@@ -238,8 +236,16 @@ export const WORKOUT_TYPE_COLORS: Record<string, string> = {
   cross_train: "bg-[var(--badge-workout-cross-train-bg)] text-[var(--badge-workout-cross-train-text)]",
   bike: "bg-[var(--badge-workout-bike-bg)] text-[var(--badge-workout-bike-text)]",
   swim: "bg-[var(--badge-workout-swim-bg)] text-[var(--badge-workout-swim-text)]",
-  yoga: "bg-[var(--badge-workout-yoga-bg)] text-[var(--badge-workout-yoga-text)]",
-  elliptical: "bg-[var(--badge-workout-elliptical-bg)] text-[var(--badge-workout-elliptical-text)]",
+};
+
+// Cross-Train sub-type — Yoga and Elliptical were unused as standalone
+// workout types, so they (plus Walk/Mobility/Other) live here instead.
+export const CROSS_TRAIN_TYPE_LABELS: Record<string, string> = {
+  walk: "Walk",
+  elliptical: "Elliptical",
+  yoga: "Yoga",
+  mobility: "Mobility",
+  other: "Other",
 };
 
 // Text-only variant of WORKOUT_TYPE_COLORS — same per-type color, no badge

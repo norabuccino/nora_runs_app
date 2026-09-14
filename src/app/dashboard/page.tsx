@@ -258,6 +258,7 @@ export default function DashboardPage() {
       notes: formData.notes || null,
       steps,
       bike_location: formData.bike_location || null,
+      cross_train_type: formData.cross_train_type || null,
     });
     setAddMode(null);
     await load();

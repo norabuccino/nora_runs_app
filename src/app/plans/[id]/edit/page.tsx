@@ -400,6 +400,7 @@ export default function EditPlanPage() {
       sort_order: data.sort_order,
       steps,
       bike_location: data.bike_location || null,
+      cross_train_type: data.cross_train_type || null,
     };
 
     const existing = flow.step === "form" ? flow.existing : null;

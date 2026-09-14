@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { LibraryWorkoutWithSteps, PlanWorkout, RunningPace, WorkoutStep } from "@/types/database";
-import { STEP_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
+import { STEP_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE_LABELS, DAY_NAMES, formatPace, stepDurationSeconds } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
@@ -173,6 +173,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
       : null;
   const durationLabel = !isStrength && workout.duration_minutes ? `${workout.duration_minutes} min` : null;
   const locationLabel = workout.bike_location ? BIKE_LOCATION_LABELS[workout.bike_location] ?? workout.bike_location : null;
+  const crossTrainLabel = workout.cross_train_type ? CROSS_TRAIN_TYPE_LABELS[workout.cross_train_type] ?? workout.cross_train_type : null;
 
   const groupLabel = isStrength ? "Superset" : "Repeat";
 
@@ -218,12 +219,18 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           </div>
 
           {/* Distance / duration / location (non-strength only) */}
-          {(distanceLabel || durationLabel || locationLabel) && (
+          {(distanceLabel || durationLabel || locationLabel || crossTrainLabel) && (
             <div className="flex gap-4">
               {locationLabel && (
                 <div>
                   <p className="text-xs text-[var(--muted)]">Location</p>
                   <p className="text-sm font-medium">{locationLabel}</p>
+                </div>
+              )}
+              {crossTrainLabel && (
+                <div>
+                  <p className="text-xs text-[var(--muted)]">Type</p>
+                  <p className="text-sm font-medium">{crossTrainLabel}</p>
                 </div>
               )}
               {distanceLabel && (

@@ -14,8 +14,8 @@ import {
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import type { WorkoutType, RunType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
-import { STRENGTH_TYPE_LABELS, BIKE_LOCATION_LABELS } from "@/lib/paceUtils";
+import type { WorkoutType, RunType, CrossTrainType, LibraryWorkoutWithSteps, RunningPace } from "@/types/database";
+import { STRENGTH_TYPE_LABELS, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE_LABELS } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
 import {
@@ -51,6 +51,7 @@ export interface WorkoutLibraryFormData {
   source: string;
   steps: WorkoutStepFormRow[];
   bike_location: "indoor" | "outdoor" | "";
+  cross_train_type: CrossTrainType | "";
 }
 
 function blankStep(
@@ -169,6 +170,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         stroke_style: s.stroke_style ?? "",
       })) ?? [blankStep()],
     bike_location: (existing?.bike_location as "indoor" | "outdoor" | null) ?? "",
+    cross_train_type: (existing?.cross_train_type as CrossTrainType | null) ?? "",
   }));
 
   const isStrength = form.type === "strength";
@@ -176,7 +178,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
   const isBike = form.type === "bike";
   const isSwim = form.type === "swim";
   const isRest = form.type === "rest";
-  const hasSimpleDuration = form.type === "yoga" || form.type === "cross_train" || form.type === "elliptical";
+  const isCrossTrain = form.type === "cross_train";
   const showSteps = isRun || isStrength || isSwim;
 
   function updateStep(index: number, key: StringStepKey, value: string) {
@@ -494,6 +496,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
           ? (totalDurationMin > 0 ? String(totalDurationMin) : form.duration_minutes)
           : (isStrength || isSwim ? "" : form.duration_minutes),
         bike_location: isBike ? form.bike_location : "",
+        cross_train_type: isCrossTrain ? form.cross_train_type : "",
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
@@ -541,6 +544,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                     run_type: newType !== "run" ? "" : p.run_type,
                     strength_type: newType !== "strength" ? "" : p.strength_type,
                     bike_location: newType !== "bike" ? "" : p.bike_location,
+                    cross_train_type: newType !== "cross_train" ? "" : p.cross_train_type,
                   }));
                 }}
                 className={inputClass}
@@ -549,8 +553,6 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 <option value="strength">Strength</option>
                 <option value="bike">Bike</option>
                 <option value="swim">Swim</option>
-                <option value="yoga">Yoga</option>
-                <option value="elliptical">Elliptical</option>
                 <option value="cross_train">Cross-Train</option>
                 <option value="rest">Rest</option>
               </select>
@@ -687,7 +689,23 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               </div>
             )}
 
-            {hasSimpleDuration && (
+            {isCrossTrain && (
+              <div className="space-y-1">
+                <label className={labelClass}>Cross Training Type</label>
+                <select
+                  value={form.cross_train_type}
+                  onChange={(e) => setForm((p) => ({ ...p, cross_train_type: e.target.value as CrossTrainType | "" }))}
+                  className={inputClass}
+                >
+                  <option value="">— Select —</option>
+                  {Object.entries(CROSS_TRAIN_TYPE_LABELS).map(([val, lbl]) => (
+                    <option key={val} value={val}>{lbl}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {isCrossTrain && (
               <div className="space-y-1">
                 <label className={labelClass}>Duration (min)</label>
                 <input

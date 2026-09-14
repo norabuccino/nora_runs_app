@@ -25,7 +25,7 @@ import { byString, byStringDesc, byNumberAsc, byNumberDesc, thenBy } from "@/lib
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
 // Order shown on the category landing page — mirrors WorkoutFilterBar's type pills.
-const CATEGORY_TYPES: WorkoutType[] = ["run", "strength", "bike", "swim", "yoga", "elliptical", "cross_train", "rest"];
+const CATEGORY_TYPES: WorkoutType[] = ["run", "strength", "bike", "swim", "cross_train", "rest"];
 
 function applySearch(items: LibraryWorkoutWithSteps[], query: string): LibraryWorkoutWithSteps[] {
   if (!query.trim()) return items;
@@ -215,6 +215,7 @@ export default function WorkoutsPage() {
       notes: data.notes || null,
       source: data.source || null,
       bike_location: data.bike_location || null,
+      cross_train_type: data.cross_train_type || null,
       steps: data.steps.map((s) => {
         const rawDur = s.duration_minutes ? parseFloat(s.duration_minutes) : null;
         return {
@@ -604,8 +605,6 @@ export default function WorkoutsPage() {
             <option value="strength">Strength</option>
             <option value="bike">Bike</option>
             <option value="swim">Swim</option>
-            <option value="yoga">Yoga</option>
-            <option value="elliptical">Elliptical</option>
             <option value="cross_train">Cross-Train</option>
             <option value="rest">Rest</option>
           </select>

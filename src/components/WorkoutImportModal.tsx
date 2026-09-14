@@ -10,7 +10,7 @@ interface WorkoutImportModalProps {
 }
 
 const VALID_TYPES = new Set([
-  "run", "strength", "rest", "cross_train", "bike", "swim", "yoga", "elliptical",
+  "run", "strength", "rest", "cross_train", "bike", "swim",
 ]);
 const VALID_RUN_TYPES = new Set([
   "easy_run", "tempo_run", "interval_run", "threshold_run", "recovery_run", "boost_run", "race", "long_run", "mp_hmp_run",
@@ -29,8 +29,8 @@ const SAMPLE_CSV = [
   "strength,,lower_body,Lower body,Squat and hinge focus,,,,50,",
   "bike,,,Easy bike,Low effort recovery spin,12,mi,,45,",
   "swim,,,Swim workout,Endurance swim,1500,m,,45,",
-  "yoga,,,Yoga flow,Full body mobility and recovery,,,,60,Recovery focused",
-  "elliptical,,,Elliptical cardio,Steady-state cardio,,,,30,",
+  "cross_train,,,Yoga flow,Full body mobility and recovery,,,,60,Recovery focused",
+  "cross_train,,,Elliptical cardio,Steady-state cardio,,,,30,",
 ].join("\n");
 
 const SAMPLE_JSON = JSON.stringify(
@@ -332,7 +332,7 @@ export function WorkoutImportModal({ onClose, onImported }: WorkoutImportModalPr
             <div className="space-y-1">
               <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">CSV columns</p>
               <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs text-[var(--muted)]">
-                <span><code className="text-[var(--foreground)]">type</code> — run, strength, bike, swim, yoga, elliptical, cross_train, rest</span>
+                <span><code className="text-[var(--foreground)]">type</code> — run, strength, bike, swim, cross_train, rest</span>
                 <span><code className="text-[var(--foreground)]">title</code> — workout name</span>
                 <span><code className="text-[var(--foreground)]">run_type</code> — easy_run, long_run, interval_run, threshold_run, recovery_run, boost_run, race (runs only)</span>
                 <span><code className="text-[var(--foreground)]">strength_type</code> — upper_body, lower_body, full_body, core (strength only)</span>

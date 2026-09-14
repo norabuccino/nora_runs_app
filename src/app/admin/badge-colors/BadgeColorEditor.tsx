@@ -21,8 +21,6 @@ const COLUMNS = [
       { key: "workout-cross-train", label: "Cross-Train" },
       { key: "workout-bike", label: "Bike" },
       { key: "workout-swim", label: "Swim" },
-      { key: "workout-yoga", label: "Yoga" },
-      { key: "workout-elliptical", label: "Elliptical" },
     ],
   },
   {
