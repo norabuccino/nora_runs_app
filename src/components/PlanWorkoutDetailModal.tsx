@@ -90,8 +90,13 @@ interface PlanWorkoutDetailModalProps {
 }
 
 export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDate, source = "plan" }: PlanWorkoutDetailModalProps) {
+  // Only run/strength/swim workouts ever have steps — skip the fetch (and the
+  // "Steps" section entirely) for the rest, regardless of any stale step rows
+  // left over from before a workout was switched to a type that doesn't use them.
+  const showSteps = workout.type === "run" || workout.type === "strength" || workout.type === "swim";
+
   const [steps, setSteps] = useState<WorkoutStep[]>([]);
-  const [loadingSteps, setLoadingSteps] = useState(true);
+  const [loadingSteps, setLoadingSteps] = useState(showSteps);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [treadmillMode, setTreadmillMode] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
@@ -106,6 +111,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
   }, []);
 
   useEffect(() => {
+    if (!showSteps) return;
     async function fetchSteps() {
       const supabase = createClient();
       const column = source === "scheduled" ? "scheduled_workout_id" : "plan_workout_id";
@@ -118,7 +124,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
       setLoadingSteps(false);
     }
     fetchSteps();
-  }, [workout.id, source]);
+  }, [workout.id, source, showSteps]);
 
   const isStrength = workout.type === "strength";
   const hasDistanceSteps = steps.some((s) => s.distance_miles != null);
@@ -209,7 +215,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
           )}
 
           {/* Steps / Exercises */}
-          {loadingSteps ? (
+          {showSteps && (loadingSteps ? (
             <p className="text-xs text-[var(--muted)]">Loading…</p>
           ) : steps.length > 0 ? (
             <div className="space-y-1.5">
@@ -250,7 +256,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
                 })}
               </div>
             </div>
-          ) : null}
+          ) : null)}
 
           {/* Notes */}
           {workout.notes && (

@@ -1362,6 +1362,11 @@ export function WorkoutForm({
           : (isStrength || isSwim ? "" : form.duration_minutes),
         bike_location: isBike ? form.bike_location : "",
         cross_train_type: isCrossTrain ? form.cross_train_type : "",
+        // Types without a Steps builder (bike, cross_train, rest) never get a
+        // chance to clear the default blank step — drop it here instead of
+        // silently persisting it, and clear out any steps left over from
+        // before the workout was switched to one of these types.
+        steps: showSteps ? form.steps : [],
         saveToLibrary: showSaveToLibrary ? saveToLibrary : undefined,
       });
     } catch (err) {

@@ -165,6 +165,10 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
   }, [workout.id]);
 
   const isStrength = workout.type === "strength";
+  // Only run/strength/swim workouts ever have steps — hide the "Steps" section
+  // for the rest, regardless of any stale step rows left over from before a
+  // workout was switched to a type that doesn't use them.
+  const showSteps = workout.type === "run" || workout.type === "strength" || workout.type === "swim";
   const hasDistanceSteps = workout.workout_steps.some((s) => s.distance_miles != null);
 
   const distanceLabel =
@@ -265,7 +269,7 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           )}
 
           {/* Steps / Exercises */}
-          {workout.workout_steps.length > 0 && (
+          {showSteps && workout.workout_steps.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
                 {isStrength ? "Exercises" : "Steps"}
