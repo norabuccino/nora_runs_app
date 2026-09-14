@@ -595,6 +595,43 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               </div>
             )}
 
+            <div className="space-y-1">
+              <label className={labelClass}>Title</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder={
+                  isStrength ? "e.g. Upper body push day"
+                  : isRun ? "e.g. Easy 6 miles"
+                  : isRest ? "e.g. Rest day"
+                  : "e.g. Workout title"
+                }
+                className={inputClass}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                rows={isStrength ? 2 : 4}
+                className={`${inputClass} resize-y`}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Source <span className="text-[var(--muted)]">(optional — coach, book, etc.)</span></label>
+              <input
+                type="text"
+                value={form.source}
+                onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
+                placeholder="e.g. Jack Daniels, coach Sarah"
+                className={inputClass}
+              />
+            </div>
+
             {isBike && (
               <div className="space-y-1">
                 <label className={labelClass}>Location</label>
@@ -662,43 +699,6 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                 />
               </div>
             )}
-
-            <div className="space-y-1">
-              <label className={labelClass}>Title</label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={
-                  isStrength ? "e.g. Upper body push day"
-                  : isRun ? "e.g. Easy 6 miles"
-                  : isRest ? "e.g. Rest day"
-                  : "e.g. Workout title"
-                }
-                className={inputClass}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={isStrength ? 2 : 4}
-                className={`${inputClass} resize-y`}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Source <span className="text-[var(--muted)]">(optional — coach, book, etc.)</span></label>
-              <input
-                type="text"
-                value={form.source}
-                onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
-                placeholder="e.g. Jack Daniels, coach Sarah"
-                className={inputClass}
-              />
-            </div>
 
             {/* Steps / Exercises */}
             {showSteps && (

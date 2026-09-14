@@ -1512,6 +1512,34 @@ export function WorkoutForm({
               </div>
             )}
 
+            {/* Title */}
+            <div className="space-y-1">
+              <label className={labelClass}>Title</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder={
+                  isStrength ? "e.g. Upper body push day"
+                  : isRun ? "e.g. Easy run"
+                  : isRest ? "e.g. Rest day"
+                  : "e.g. Workout title"
+                }
+                className={inputClass}
+              />
+            </div>
+
+            {/* Description */}
+            <div className="space-y-1">
+              <label className={labelClass}>Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                rows={isStrength ? 2 : 4}
+                className={`${inputClass} resize-y`}
+              />
+            </div>
+
             {isBike && (
               <div className="space-y-1">
                 <label className={labelClass}>Location</label>
@@ -1579,34 +1607,6 @@ export function WorkoutForm({
                 />
               </div>
             )}
-
-            {/* Title */}
-            <div className="space-y-1">
-              <label className={labelClass}>Title</label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={
-                  isStrength ? "e.g. Upper body push day"
-                  : isRun ? "e.g. Easy run"
-                  : isRest ? "e.g. Rest day"
-                  : "e.g. Workout title"
-                }
-                className={inputClass}
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1">
-              <label className={labelClass}>Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={isStrength ? 2 : 4}
-                className={`${inputClass} resize-y`}
-              />
-            </div>
 
             {/* Steps */}
             {showSteps && (
