@@ -158,6 +158,19 @@ export function BadgeColorEditor({
     });
   }
 
+  function handleSwapColors(mode: "light" | "dark") {
+    setEditing((e) => {
+      if (!e) return e;
+      if (mode === "light") {
+        const colors = { ...e.colors, lightBg: e.colors.lightText, lightText: e.colors.lightBg };
+        if (e.linked) { colors.darkBg = colors.lightBg; colors.darkText = colors.lightText; }
+        return { ...e, colors };
+      }
+      const colors = { ...e.colors, darkBg: e.colors.darkText, darkText: e.colors.darkBg };
+      return { ...e, colors };
+    });
+  }
+
   function handleReset() {
     if (!editing) return;
     setEditing((e) => e ? { ...e, colors: BADGE_DEFAULTS[e.key] ?? NEUTRAL_COLOR } : e);
@@ -400,6 +413,13 @@ export function BadgeColorEditor({
                       <code className="text-xs text-[var(--muted)]">{editing.colors.lightBg}</code>
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleSwapColors("light")}
+                    title="Swap background and text colors"
+                    className="flex-shrink-0 self-end mb-1.5 w-7 h-7 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] flex items-center justify-center transition-colors"
+                  >
+                    ⇄
+                  </button>
                   <div className="space-y-1 flex-1">
                     <label className="text-xs text-[var(--muted)]">Text</label>
                     <div className="flex items-center gap-2">
@@ -452,6 +472,14 @@ export function BadgeColorEditor({
                       <code className="text-xs text-[var(--muted)]">{editing.colors.darkBg}</code>
                     </div>
                   </div>
+                  <button
+                    onClick={() => handleSwapColors("dark")}
+                    title="Swap background and text colors"
+                    disabled={editing.linked}
+                    className="flex-shrink-0 self-end mb-1.5 w-7 h-7 rounded-full border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)] flex items-center justify-center transition-colors disabled:cursor-not-allowed disabled:hover:text-[var(--muted)] disabled:hover:border-[var(--border)]"
+                  >
+                    ⇄
+                  </button>
                   <div className="space-y-1 flex-1">
                     <label className="text-xs text-[var(--muted)]">Text</label>
                     <div className="flex items-center gap-2">
