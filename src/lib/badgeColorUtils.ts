@@ -34,12 +34,12 @@ export const BADGE_DEFAULTS: BadgeColorMap = {
   "exercise-lift":       { lightBg: "#fadbe7", lightText: "#7b143b", darkBg: "#5c0f2c", darkText: "#f5b8d0" },
   "exercise-plyos":      { lightBg: "#fadbf8", lightText: "#7b1474", darkBg: "#5c0f57", darkText: "#f5b8f0" },
   "exercise-core":       { lightBg: "#faeddb", lightText: "#7b4e14", darkBg: "#5c3b0f", darkText: "#f5dcb8" },
-  "exercise-mobility":   { lightBg: "#fadbe1", lightText: "#7b1427", darkBg: "#5c0f1d", darkText: "#f5b8c5" },
+  "exercise-mobility":   { lightBg: "#dbfaf4", lightText: "#147b68", darkBg: "#0f5c4e", darkText: "#b8f5e9" },
   "strength-upper-body": { lightBg: "#faf2db", lightText: "#7b6114", darkBg: "#5c490f", darkText: "#f5e5b8" },
   "strength-lower-body": { lightBg: "#dbfaee", lightText: "#147b54", darkBg: "#0f5c3f", darkText: "#b8f5dc" },
   "strength-full-body":  { lightBg: "#e5dbfa", lightText: "#34147b", darkBg: "#270f5c", darkText: "#cab8f5" },
   "strength-core":       { lightBg: "#dbe9fa", lightText: "#14417b", darkBg: "#0f315c", darkText: "#b8d0f5" },
-  "strength-plyometrics": { lightBg: "#dbfaf4", lightText: "#147b68", darkBg: "#0f5c4e", darkText: "#b8f5e9" },
+  "strength-plyometrics": { lightBg: "#fadbe1", lightText: "#7b1427", darkBg: "#5c0f1d", darkText: "#f5b8c5" },
   "strength-mobility":    { lightBg: "#e2e8f0", lightText: "#334155", darkBg: "#1e293b", darkText: "#cbd5e1" },
 };
 

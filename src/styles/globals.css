@@ -99,8 +99,8 @@ body {
   --badge-exercise-plyos-text: #7b1474;
   --badge-exercise-core-bg: #faeddb;
   --badge-exercise-core-text: #7b4e14;
-  --badge-exercise-mobility-bg: #fadbe1;
-  --badge-exercise-mobility-text: #7b1427;
+  --badge-exercise-mobility-bg: #dbfaf4;
+  --badge-exercise-mobility-text: #147b68;
 
   /* Strength types */
   --badge-strength-upper-body-bg: #faf2db;
@@ -111,8 +111,8 @@ body {
   --badge-strength-full-body-text: #34147b;
   --badge-strength-core-bg: #dbe9fa;
   --badge-strength-core-text: #14417b;
-  --badge-strength-plyometrics-bg: #dbfaf4;
-  --badge-strength-plyometrics-text: #147b68;
+  --badge-strength-plyometrics-bg: #fadbe1;
+  --badge-strength-plyometrics-text: #7b1427;
   --badge-strength-mobility-bg: #e2e8f0;
   --badge-strength-mobility-text: #334155;
 }
@@ -175,8 +175,8 @@ body {
   --badge-exercise-plyos-text: #f5b8f0;
   --badge-exercise-core-bg: #5c3b0f;
   --badge-exercise-core-text: #f5dcb8;
-  --badge-exercise-mobility-bg: #5c0f1d;
-  --badge-exercise-mobility-text: #f5b8c5;
+  --badge-exercise-mobility-bg: #0f5c4e;
+  --badge-exercise-mobility-text: #b8f5e9;
 
   /* Strength types */
   --badge-strength-upper-body-bg: #5c490f;
@@ -187,8 +187,8 @@ body {
   --badge-strength-full-body-text: #cab8f5;
   --badge-strength-core-bg: #0f315c;
   --badge-strength-core-text: #b8d0f5;
-  --badge-strength-plyometrics-bg: #0f5c4e;
-  --badge-strength-plyometrics-text: #b8f5e9;
+  --badge-strength-plyometrics-bg: #5c0f1d;
+  --badge-strength-plyometrics-text: #f5b8c5;
   --badge-strength-mobility-bg: #1e293b;
   --badge-strength-mobility-text: #cbd5e1;
 }
