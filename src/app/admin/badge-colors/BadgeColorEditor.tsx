@@ -90,6 +90,7 @@ interface EditingState {
   label: string;
   colors: BadgeColorEntry;
   isCustom: boolean;
+  linked: boolean;
 }
 
 export function BadgeColorEditor({
@@ -125,14 +126,36 @@ export function BadgeColorEditor({
   }
 
   function openEditor(key: string, label: string, isCustom: boolean) {
-    setEditing({ key, label, colors: effectiveColor(key, overrides), isCustom });
+    setEditing({ key, label, colors: effectiveColor(key, overrides), isCustom, linked: false });
     setSaveError(null);
     setSaveSuccess(false);
   }
 
   function handleColorChange(field: keyof BadgeColorEntry, value: string) {
     if (!editing) return;
-    setEditing((e) => e ? { ...e, colors: { ...e.colors, [field]: value } } : e);
+    setEditing((e) => {
+      if (!e) return e;
+      const colors = { ...e.colors, [field]: value };
+      if (e.linked) {
+        if (field === "lightBg") colors.darkBg = value;
+        else if (field === "lightText") colors.darkText = value;
+        else if (field === "darkBg") colors.lightBg = value;
+        else if (field === "darkText") colors.lightText = value;
+      }
+      return { ...e, colors };
+    });
+  }
+
+  function handleLinkedToggle(linked: boolean) {
+    setEditing((e) => {
+      if (!e) return e;
+      if (!linked) return { ...e, linked };
+      return {
+        ...e,
+        linked,
+        colors: { ...e.colors, darkBg: e.colors.lightBg, darkText: e.colors.lightText },
+      };
+    });
   }
 
   function handleReset() {
@@ -400,9 +423,22 @@ export function BadgeColorEditor({
                 </div>
               </div>
 
+              <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                <input
+                  type="checkbox"
+                  checked={editing.linked}
+                  onChange={(e) => handleLinkedToggle(e.target.checked)}
+                  className="rounded border-[var(--border)]"
+                />
+                Apply to both light and dark mode
+              </label>
+
               <div className="space-y-2">
-                <p className="text-xs font-medium text-[var(--muted)]">Dark mode</p>
-                <div className="flex items-center gap-3">
+                <p className="text-xs font-medium text-[var(--muted)]">
+                  Dark mode
+                  {editing.linked && <span className="font-normal"> (matches light mode)</span>}
+                </p>
+                <div className={`flex items-center gap-3 ${editing.linked ? "opacity-50" : ""}`}>
                   <div className="space-y-1 flex-1">
                     <label className="text-xs text-[var(--muted)]">Background</label>
                     <div className="flex items-center gap-2">
@@ -410,7 +446,8 @@ export function BadgeColorEditor({
                         type="color"
                         value={editing.colors.darkBg}
                         onChange={(e) => handleColorChange("darkBg", e.target.value)}
-                        className="w-8 h-8 rounded cursor-pointer border border-[var(--border)]"
+                        disabled={editing.linked}
+                        className="w-8 h-8 rounded cursor-pointer border border-[var(--border)] disabled:cursor-not-allowed"
                       />
                       <code className="text-xs text-[var(--muted)]">{editing.colors.darkBg}</code>
                     </div>
@@ -422,7 +459,8 @@ export function BadgeColorEditor({
                         type="color"
                         value={editing.colors.darkText}
                         onChange={(e) => handleColorChange("darkText", e.target.value)}
-                        className="w-8 h-8 rounded cursor-pointer border border-[var(--border)]"
+                        disabled={editing.linked}
+                        className="w-8 h-8 rounded cursor-pointer border border-[var(--border)] disabled:cursor-not-allowed"
                       />
                       <code className="text-xs text-[var(--muted)]">{editing.colors.darkText}</code>
                     </div>
