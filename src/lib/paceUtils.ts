@@ -350,6 +350,15 @@ export const EXERCISE_TYPE_COLORS: Record<string, string> = {
   mobility: "bg-[var(--badge-exercise-mobility-bg)] text-[var(--badge-exercise-mobility-text)]",
 };
 
+// Text-only variant of EXERCISE_TYPE_COLORS — same per-type color, no badge
+// background — for places the type name is shown large rather than as a pill.
+export const EXERCISE_TYPE_TEXT_COLORS: Record<string, string> = Object.fromEntries(
+  Object.entries(EXERCISE_TYPE_COLORS).map(([type, classes]) => [
+    type,
+    classes.split(" ").filter((c) => c.startsWith("text-")).join(" "),
+  ])
+);
+
 // Strength progression — how an exercise loads the body, for organizing the
 // progression dashboard. Free-text-with-label-map, same convention as
 // EXERCISE_TYPE_LABELS above (not a DB enum, no admin-configurable colors).

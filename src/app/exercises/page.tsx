@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } from "@/app/actions/exercises";
-import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, EXERCISE_TYPE_TEXT_COLORS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { useCompactMode } from "@/hooks/useCompactMode";
@@ -44,6 +44,9 @@ const TYPE_FILTERS = [
   { value: "all", label: "All" },
   ...Object.entries(EXERCISE_TYPE_LABELS).map(([value, label]) => ({ value, label })),
 ];
+
+// Order shown on the category landing page.
+const CATEGORY_TYPES = Object.keys(EXERCISE_TYPE_LABELS);
 
 type SortKey = "az" | "za" | "newest" | "oldest" | "type";
 
@@ -250,6 +253,8 @@ export default function ExercisesPage() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
+  // null = on the category-picker landing page; set once a category (or "all") is chosen.
+  const [category, setCategory] = useState<string | "all" | null>(null);
   const [compact, setCompact] = useCompactMode();
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
@@ -376,6 +381,21 @@ export default function ExercisesPage() {
     });
   }
 
+  function enterCategory(type: string) {
+    setTypeFilter(type);
+    setSourceFilter("all");
+    setNoDescriptionOnly(false);
+    setCategory(type);
+  }
+
+  function backToCategories() {
+    setCategory(null);
+    setTypeFilter("all");
+    setSourceFilter("all");
+    setNoDescriptionOnly(false);
+    setSearch("");
+  }
+
   function toggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -479,8 +499,49 @@ export default function ExercisesPage() {
         </div>
       )}
 
-      {!loading && exercises.length > 0 && (
+      {/* Category landing page — most people want just their one category,
+          not the whole library, so land here first and filter down from a
+          click rather than defaulting straight into the full list. */}
+      {!loading && exercises.length > 0 && category === null && (
         <div className="space-y-4">
+          <p className="text-sm text-[var(--muted)]">Pick a category to browse, or view everything at once.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {CATEGORY_TYPES.map((type) => {
+              const count = exercises.filter((e) => e.exercise_type === type).length;
+              return (
+                <button
+                  key={type}
+                  onClick={() => enterCategory(type)}
+                  className={`group rounded-xl border border-[var(--border)] ${EXERCISE_TYPE_COLORS[type]} p-4 text-center space-y-1 hover:border-[var(--foreground)] transition-colors`}
+                >
+                  <p className={`text-lg font-semibold ${EXERCISE_TYPE_TEXT_COLORS[type]}`}>
+                    {EXERCISE_TYPE_LABELS[type]}
+                  </p>
+                  <p className="text-xs opacity-70">
+                    {count} exercise{count === 1 ? "" : "s"}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => enterCategory("all")}
+            className="text-sm text-[var(--accent)] hover:underline"
+          >
+            View all exercises →
+          </button>
+        </div>
+      )}
+
+      {!loading && exercises.length > 0 && category !== null && (
+        <div className="space-y-4">
+          <button
+            onClick={backToCategories}
+            className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            ← All categories
+          </button>
+
           {/* Search + sort */}
           <div className="flex gap-2 items-center">
             <input
@@ -507,19 +568,25 @@ export default function ExercisesPage() {
           <div className="space-y-2">
             {/* Type filter pills */}
             <div className="flex flex-wrap gap-1.5">
-              {TYPE_FILTERS.map(({ value, label }) => (
-                <button
-                  key={value}
-                  onClick={() => setTypeFilter(value)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    typeFilter === value
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              {TYPE_FILTERS.map(({ value, label }) => {
+                const isActive = typeFilter === value;
+                const colorClass = value !== "all" ? EXERCISE_TYPE_COLORS[value] : "";
+                return (
+                  <button
+                    key={value}
+                    onClick={() => enterCategory(value)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      isActive
+                        ? value === "all"
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : colorClass
+                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Source filter pills */}
