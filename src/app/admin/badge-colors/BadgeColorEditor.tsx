@@ -108,6 +108,7 @@ export function BadgeColorEditor({
   const [addError, setAddError] = useState("");
   const [colorSaving, startColorSave] = useTransition();
   const [layoutSaving, startLayoutSave] = useTransition();
+  const [resetAllSaving, startResetAllSave] = useTransition();
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -267,13 +268,38 @@ export function BadgeColorEditor({
 
   const isCustomized = (key: string) => !!overrides[key];
 
+  function handleResetAll() {
+    if (!confirm("Reset all badges to their default colors and remove any custom badges? This can't be undone.")) return;
+    setSaveError(null);
+    setSaveSuccess(false);
+    startResetAllSave(async () => {
+      try {
+        await Promise.all([saveBadgeColors({}), saveBadgeLayout(DEFAULT_BADGE_LAYOUT)]);
+        window.location.reload();
+      } catch (e) {
+        setSaveError(e instanceof Error ? e.message : "Failed to reset");
+      }
+    });
+  }
+
   return (
     <>
-      {saveSuccess && (
-        <p className="text-sm text-green-600 dark:text-green-400">
-          Saved — changes will apply on next page load for all users.
-        </p>
-      )}
+      <div className="flex items-center justify-between gap-3">
+        {saveSuccess ? (
+          <p className="text-sm text-green-600 dark:text-green-400">
+            Saved — changes will apply on next page load for all users.
+          </p>
+        ) : <div />}
+        <button
+          onClick={handleResetAll}
+          disabled={resetAllSaving}
+          className="text-xs text-[var(--muted)] hover:text-red-500 transition-colors disabled:opacity-50"
+        >
+          {resetAllSaving ? "Resetting…" : "Reset all to default"}
+        </button>
+      </div>
+
+      {saveError && <p className="text-sm text-red-500">{saveError}</p>}
 
       <div className="grid grid-cols-5 gap-4 min-w-0">
         {COLUMNS.map((col) => {
