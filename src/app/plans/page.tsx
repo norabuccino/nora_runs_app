@@ -130,12 +130,12 @@ export default function PlansPage() {
                 <button
                   key={type}
                   onClick={() => enterCategory(type)}
-                  className="group rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 text-center space-y-1 hover:border-[var(--foreground)] transition-colors"
+                  className={`group rounded-xl border border-[var(--border)] ${PLAN_TYPE_COLORS[type]} p-4 text-center space-y-1 hover:border-[var(--foreground)] transition-colors`}
                 >
                   <p className={`text-lg font-semibold ${PLAN_TYPE_TEXT_COLORS[type]}`}>
                     {PLAN_TYPE_LABELS[type]}
                   </p>
-                  <p className="text-xs text-[var(--muted)]">
+                  <p className="text-xs opacity-70">
                     {count} plan{count === 1 ? "" : "s"}
                   </p>
                 </button>
