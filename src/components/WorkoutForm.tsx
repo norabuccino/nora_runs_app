@@ -20,6 +20,7 @@ import type { WorkoutType, RunType, CrossTrainType, WorkoutWithSteps, RunningPac
 import { DAY_NAMES, STEP_TYPE_LABELS, STRENGTH_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE_LABELS, parsePace } from "@/lib/paceUtils";
 import { type DistanceUnit, convertDistance, getStoredUnit, formatPaceForUnit } from "@/lib/unitUtils";
 import { createPace } from "@/app/actions/paces";
+import { splitSetWeights, resizeSetWeights, joinSetWeights } from "@/lib/workoutSteps";
 import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -304,6 +305,12 @@ export function SortableStepCard({
     step.duration_minutes !== "" ? "time" : "reps"
   );
   const [showVideoInput, setShowVideoInput] = useState(() => step.video_url !== "");
+  // Suggested weight is stored as one string; a comma-separated list means "one value per set".
+  const [perSetWeights, setPerSetWeights] = useState(() => step.weight_suggestion.includes(","));
+  // Local copy of the per-set entries so trailing spaces survive while typing (the stored string is trimmed).
+  const [weightSlots, setWeightSlots] = useState<string[]>(() =>
+    step.weight_suggestion.includes(",") ? step.weight_suggestion.split(",").map((p) => p.trim()) : []
+  );
 
   function switchToCustom() {
     if (!/^\d+:\d{2}$/.test(step.pace_type)) onUpdate(actualIndex, "pace_type", "");
@@ -482,16 +489,83 @@ export function SortableStepCard({
                 </button>
               </div>
 
-              {/* Row 3: weight suggestion */}
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Suggested weight — one value, or one per set (e.g. BW, 20 lb, 20 lb)"
-                  value={step.weight_suggestion}
-                  onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
-                  className={`${ci} flex-1 min-w-0`}
-                />
-              </div>
+              {/* Row 3: weight suggestion — one value, or one per set */}
+              {(() => {
+                const setCount =
+                  step.repeat_group_id === null || showSets
+                    ? Math.max(parseInt(step.sets, 10) || 1, 1)
+                    : Math.max(step.repeat_count || 1, 1);
+                const canSplit = setCount > 1;
+                const bySet = perSetWeights && canSplit;
+                const slots = resizeSetWeights(weightSlots, setCount);
+
+                function toggleBySet() {
+                  if (bySet) {
+                    onUpdate(actualIndex, "weight_suggestion", slots[0]?.trim() ?? "");
+                    setPerSetWeights(false);
+                  } else {
+                    const next = splitSetWeights(step.weight_suggestion, setCount);
+                    setWeightSlots(next);
+                    onUpdate(actualIndex, "weight_suggestion", joinSetWeights(next));
+                    setPerSetWeights(true);
+                  }
+                }
+
+                function updateSlot(i: number, value: string) {
+                  const next = [...slots];
+                  next[i] = value;
+                  setWeightSlots(next);
+                  onUpdate(actualIndex, "weight_suggestion", joinSetWeights(next));
+                }
+
+                return (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      {bySet ? (
+                        <span className="flex-1 text-xs text-[var(--muted)]">Suggested weight per set</span>
+                      ) : (
+                        <input
+                          type="text"
+                          placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+                          value={step.weight_suggestion}
+                          onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
+                          className={`${ci} flex-1 min-w-0`}
+                        />
+                      )}
+                      {canSplit && (
+                        <button
+                          type="button"
+                          onClick={toggleBySet}
+                          aria-pressed={bySet}
+                          className={`shrink-0 px-2 py-1 rounded text-xs font-medium border transition-colors whitespace-nowrap ${
+                            bySet
+                              ? "bg-[var(--foreground)] text-[var(--background)] border-[var(--foreground)]"
+                              : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                          }`}
+                        >
+                          By set
+                        </button>
+                      )}
+                    </div>
+                    {bySet && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                        {slots.map((value, i) => (
+                          <label key={i} className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-xs text-[var(--muted)] shrink-0 w-9">Set {i + 1}</span>
+                            <input
+                              type="text"
+                              placeholder="e.g. BW"
+                              value={value}
+                              onChange={(e) => updateSlot(i, e.target.value)}
+                              className={`${ci} flex-1 min-w-0`}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Row 4: notes */}
               <input

@@ -49,6 +49,25 @@ export function suggestedWeightForSet(weightSuggestion: string | null, setNumber
   return parts[index] || null;
 }
 
+/** Splits a stored `weight_suggestion` into one entry per set, carrying the last value forward. */
+export function splitSetWeights(weightSuggestion: string, setCount: number): string[] {
+  const parts = weightSuggestion.split(",").map((p) => p.trim());
+  return resizeSetWeights(parts, setCount);
+}
+
+/** Pads (carrying the last value forward) or truncates a per-set list to `setCount` entries. */
+export function resizeSetWeights(slots: string[], setCount: number): string[] {
+  const count = Math.max(setCount, 1);
+  const last = slots[slots.length - 1] ?? "";
+  return Array.from({ length: count }, (_, i) => (i < slots.length ? slots[i] : last));
+}
+
+/** Joins per-set entries back into the stored comma-separated form ("" when every entry is blank). */
+export function joinSetWeights(slots: string[]): string {
+  const cleaned = slots.map((s) => s.replace(/,/g, " ").replace(/\s+/g, " ").trim());
+  return cleaned.every((s) => s === "") ? "" : cleaned.join(", ");
+}
+
 /**
  * A step is timer-driven (a hold/plank/etc.) rather than rep-driven when it
  * has a duration and no rep count — mirrors the display precedence used

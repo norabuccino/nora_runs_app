@@ -5,6 +5,9 @@ import {
   stepTimedSeconds,
   buildSessionBeats,
   suggestedWeightForSet,
+  splitSetWeights,
+  resizeSetWeights,
+  joinSetWeights,
 } from "@/lib/workoutSteps";
 import type { WorkoutStep } from "@/types/database";
 
@@ -179,5 +182,34 @@ describe("suggestedWeightForSet", () => {
 
   it("falls back to the whole text when the set number is unknown", () => {
     expect(suggestedWeightForSet("BW, 20 lb", null)).toBe("BW, 20 lb");
+  });
+});
+
+describe("per-set weight editing helpers", () => {
+  it("splits a stored list into one entry per set", () => {
+    expect(splitSetWeights("BW, 20 lb, 25 lb", 3)).toEqual(["BW", "20 lb", "25 lb"]);
+  });
+
+  it("fills every set with a single value when splitting a non-list", () => {
+    expect(splitSetWeights("135 lbs", 3)).toEqual(["135 lbs", "135 lbs", "135 lbs"]);
+    expect(splitSetWeights("", 2)).toEqual(["", ""]);
+  });
+
+  it("pads with the last value and truncates when the set count changes", () => {
+    expect(resizeSetWeights(["BW", "20 lb"], 4)).toEqual(["BW", "20 lb", "20 lb", "20 lb"]);
+    expect(resizeSetWeights(["BW", "20 lb", "25 lb"], 2)).toEqual(["BW", "20 lb"]);
+  });
+
+  it("joins entries with commas, trimming and stripping embedded commas", () => {
+    expect(joinSetWeights(["BW ", " 20 lb", "20, lb"])).toBe("BW, 20 lb, 20 lb");
+  });
+
+  it("joins to an empty string when every entry is blank", () => {
+    expect(joinSetWeights(["", " ", ""])).toBe("");
+  });
+
+  it("round-trips through suggestedWeightForSet", () => {
+    const stored = joinSetWeights(["BW", "20 lb", "20 lb"]);
+    expect([1, 2, 3].map((n) => suggestedWeightForSet(stored, n))).toEqual(["BW", "20 lb", "20 lb"]);
   });
 });
