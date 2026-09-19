@@ -486,7 +486,7 @@ export function SortableStepCard({
               <div className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Suggested weight (e.g. 135 lbs, bodyweight)"
+                  placeholder="Suggested weight — one value, or one per set (e.g. BW, 20 lb, 20 lb)"
                   value={step.weight_suggestion}
                   onChange={(e) => onUpdate(actualIndex, "weight_suggestion", e.target.value)}
                   className={`${ci} flex-1 min-w-0`}

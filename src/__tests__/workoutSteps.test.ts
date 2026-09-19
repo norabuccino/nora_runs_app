@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { groupSteps, formatStepDuration, stepTimedSeconds, buildSessionBeats } from "@/lib/workoutSteps";
+import {
+  groupSteps,
+  formatStepDuration,
+  stepTimedSeconds,
+  buildSessionBeats,
+  suggestedWeightForSet,
+} from "@/lib/workoutSteps";
 import type { WorkoutStep } from "@/types/database";
 
 function makeStep(overrides: Partial<WorkoutStep>): WorkoutStep {
@@ -146,5 +152,32 @@ describe("buildSessionBeats", () => {
     const cooldown = makeStep({ id: "cooldown", sets: 2 });
     const beats = buildSessionBeats([warmup, a, b, cooldown]);
     expect(beats.map((beat) => beat.step.id)).toEqual(["warmup", "a", "b", "a", "b", "cooldown", "cooldown"]);
+  });
+});
+
+describe("suggestedWeightForSet", () => {
+  it("returns null when there is no suggestion", () => {
+    expect(suggestedWeightForSet(null, 1)).toBeNull();
+    expect(suggestedWeightForSet("", 1)).toBeNull();
+  });
+
+  it("returns single-value text unchanged for every set", () => {
+    expect(suggestedWeightForSet("135 lbs", 1)).toBe("135 lbs");
+    expect(suggestedWeightForSet("135 lbs", 3)).toBe("135 lbs");
+  });
+
+  it("picks the value for each set from a comma-separated list", () => {
+    const text = "bodyweight, 20 lb, 25 lb";
+    expect(suggestedWeightForSet(text, 1)).toBe("bodyweight");
+    expect(suggestedWeightForSet(text, 2)).toBe("20 lb");
+    expect(suggestedWeightForSet(text, 3)).toBe("25 lb");
+  });
+
+  it("carries the last value forward when there are more sets than values", () => {
+    expect(suggestedWeightForSet("BW, 20 lb", 3)).toBe("20 lb");
+  });
+
+  it("falls back to the whole text when the set number is unknown", () => {
+    expect(suggestedWeightForSet("BW, 20 lb", null)).toBe("BW, 20 lb");
   });
 });

@@ -36,6 +36,20 @@ export function formatStepDuration(durationMinutes: number | null, durationUnit:
 }
 
 /**
+ * `weight_suggestion` is free text, but a comma-separated list is read as one
+ * value per set ("BW, 20 lb, 20 lb"). Returns the suggestion that applies to
+ * the given 1-based set/round; if the list is shorter than the number of sets
+ * the last value carries forward. Text with no comma is returned unchanged.
+ */
+export function suggestedWeightForSet(weightSuggestion: string | null, setNumber: number | null): string | null {
+  if (!weightSuggestion) return null;
+  const parts = weightSuggestion.split(",").map((p) => p.trim());
+  if (parts.length < 2 || setNumber == null) return weightSuggestion.trim() || null;
+  const index = Math.min(Math.max(setNumber, 1), parts.length) - 1;
+  return parts[index] || null;
+}
+
+/**
  * A step is timer-driven (a hold/plank/etc.) rather than rep-driven when it
  * has a duration and no rep count — mirrors the display precedence used
  * elsewhere (reps win over duration when both are somehow set).

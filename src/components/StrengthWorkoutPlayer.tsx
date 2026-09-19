@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlanWorkout, WorkoutStep, WorkoutSession, WorkoutSessionExerciseWithSets } from "@/types/database";
-import { buildSessionBeats, formatStepDuration, stepTimedSeconds, type SessionBeat } from "@/lib/workoutSteps";
+import {
+  buildSessionBeats,
+  formatStepDuration,
+  stepTimedSeconds,
+  suggestedWeightForSet,
+  type SessionBeat,
+} from "@/lib/workoutSteps";
 import {
   getOrCreateWorkoutSession,
   logSet,
@@ -73,61 +79,80 @@ function findResumeIndex(
   return hadLoggable ? Math.max(0, beats.length - 1) : 0;
 }
 
-function playBeep() {
+// One AudioContext for the whole player. Browsers (notably iOS Safari) keep a
+// context created outside a user gesture suspended, so it's created/resumed
+// from button clicks (see `primeAudio`) rather than when the timer fires.
+let audioCtx: AudioContext | null = null;
+
+function primeAudio(): AudioContext | null {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => ctx.close();
+    audioCtx ??= new AudioContext();
+    if (audioCtx.state === "suspended") void audioCtx.resume();
+    return audioCtx;
   } catch {
-    // Web Audio unavailable — silent fallback
+    return null; // Web Audio unavailable — silent fallback
   }
 }
 
-function ExerciseTimer({ seconds }: { seconds: number }) {
+/** A short two-note chime (~0.6s). */
+function playChime() {
+  const ctx = primeAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  [
+    { freq: 880, offset: 0 },
+    { freq: 1318.5, offset: 0.14 },
+  ].forEach(({ freq, offset }) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, t0 + offset);
+    gain.gain.exponentialRampToValueAtTime(0.25, t0 + offset + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t0 + offset);
+    osc.stop(t0 + offset + 0.5);
+  });
+}
+
+function ExerciseTimer({ seconds, soundEnabled }: { seconds: number; soundEnabled: boolean }) {
   const [remaining, setRemaining] = useState(seconds);
   const [running, setRunning] = useState(false);
   const [alerted, setAlerted] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const endAtRef = useRef(0);
 
+  // Counts down against an absolute end time so a throttled/backgrounded tab
+  // can't drift. The alert fires from the tick itself (once), not from render.
   useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
+    if (!running) return;
+    const id = setInterval(() => {
+      const left = Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000));
+      setRemaining(left);
+      if (left === 0) {
+        clearInterval(id);
+        setRunning(false);
+        setAlerted(true);
+        navigator.vibrate?.(200);
+        if (soundEnabled) playChime();
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [running, soundEnabled]);
 
   function start() {
-    if (running) return;
-    setRunning(true);
+    primeAudio(); // inside the click gesture, so the chime is allowed to play later
+    endAtRef.current = Date.now() + remaining * 1000;
     setAlerted(false);
-    intervalRef.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          if (intervalRef.current) clearInterval(intervalRef.current);
-          setRunning(false);
-          setAlerted(true);
-          navigator.vibrate?.(200);
-          playBeep();
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    setRunning(true);
   }
 
   function pause() {
-    if (intervalRef.current) clearInterval(intervalRef.current);
     setRunning(false);
   }
 
   function reset() {
-    if (intervalRef.current) clearInterval(intervalRef.current);
     setRunning(false);
     setAlerted(false);
     setRemaining(seconds);
@@ -211,6 +236,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const [finished, setFinished] = useState(false);
   const [weightInput, setWeightInput] = useState("");
   const [repsInput, setRepsInput] = useState("");
+  const [soundEnabled, setSoundEnabled] = useState(true); // chime on/off for this workout only
 
   // Load or create the persisted session once, on mount.
   useEffect(() => {
@@ -302,7 +328,6 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const timedSeconds = stepTimedSeconds(beat.step);
   const isTimed = !hasReps && timedSeconds != null;
   const isLoggable = sessionExercise != null;
-  const hasEditableInputs = isLoggable && (isWeighted || hasReps);
 
   const lastPerfForExercise = sessionExercise?.exercise_id ? lastPerf[sessionExercise.exercise_id] : undefined;
   const lastLoad = lastPerfForExercise ? deriveCurrentLoad(lastPerfForExercise.sets) : null;
@@ -347,12 +372,19 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     setBeatIndex((i) => Math.max(0, i - 1));
   }
 
+  function toggleSound() {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    if (next) playChime(); // preview, and unlocks audio inside this click
+  }
+
   function handleExit() {
     if (!confirm("End this workout session? Your progress will be lost.")) return;
     if (!tracked) clearSavedSession(workout.id);
     onExit();
   }
 
+  const suggestedWeight = suggestedWeightForSet(beat.step.weight_suggestion, beatSetNumber(beat));
   const repsLabel = beat.step.reps
     ? `${beat.step.reps} reps${beat.step.both_sides ? " (each side)" : ""}`
     : null;
@@ -371,7 +403,8 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const nextDurationLabel = nextBeat && !nextRepsLabel
     ? formatStepDuration(nextBeat.step.duration_minutes, nextBeat.step.duration_unit)
     : null;
-  const nextDetail = nextRepsLabel || nextDurationLabel;
+  const nextWeight = nextBeat ? suggestedWeightForSet(nextBeat.step.weight_suggestion, beatSetNumber(nextBeat)) : null;
+  const nextDetail = [nextRepsLabel || nextDurationLabel, nextWeight].filter(Boolean).join(" · ");
 
   return (
     <div className="fixed inset-0 z-[60] bg-[var(--background)] flex flex-col">
@@ -389,22 +422,32 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
             />
           </div>
         </div>
-        <button
-          onClick={handleExit}
-          className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none shrink-0"
-        >
-          ×
-        </button>
+        <div className="flex items-center gap-4 shrink-0">
+          <button
+            onClick={toggleSound}
+            aria-label={soundEnabled ? "Mute timer chime" : "Unmute timer chime"}
+            aria-pressed={soundEnabled}
+            title={soundEnabled ? "Timer chime on" : "Timer chime off"}
+            className="text-[var(--muted)] hover:text-[var(--foreground)] text-lg leading-none"
+          >
+            {soundEnabled ? "🔔" : "🔕"}
+          </button>
+          <button
+            onClick={handleExit}
+            className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+          >
+            ×
+          </button>
+        </div>
       </div>
 
-      {/* Exercise area — tap-anywhere-to-advance only when there's no input to accidentally overwrite.
-          Keyed by beatIndex so the enter animation replays on every advance, making the step change unmistakable. */}
+      {/* Exercise area — tap anywhere to advance. The weight/reps inputs and timer controls stop propagation,
+          so editing them never advances. Keyed by beatIndex so the enter animation replays on every advance,
+          making the step change unmistakable. */}
       <div
         key={beatIndex}
-        onClick={hasEditableInputs ? undefined : advance}
-        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] ${
-          hasEditableInputs ? "" : "cursor-pointer select-none"
-        }`}
+        onClick={advance}
+        className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] cursor-pointer select-none"
       >
         {beat.groupName && (
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -416,7 +459,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         <div className="flex flex-wrap items-center justify-center gap-3 text-base text-[var(--muted)]">
           {repsLabel && <span>{repsLabel}</span>}
           {durationLabel && <span>{durationLabel}</span>}
-          {beat.step.weight_suggestion && <span>{beat.step.weight_suggestion}</span>}
+          {suggestedWeight && <span>{suggestedWeight}</span>}
         </div>
         {beat.step.notes && <p className="text-sm text-[var(--muted)] max-w-sm">{beat.step.notes}</p>}
         {beat.step.video_url && (
@@ -476,7 +519,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
         {isTimed && (
           <div onClick={(e) => e.stopPropagation()}>
-            <ExerciseTimer seconds={timedSeconds!} key={beatIndex} />
+            <ExerciseTimer seconds={timedSeconds!} soundEnabled={soundEnabled} key={beatIndex} />
           </div>
         )}
 
@@ -492,7 +535,9 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           <p className="mt-2 text-xs text-[var(--muted)] italic">Last exercise — finish strong!</p>
         )}
 
-        {!hasEditableInputs && <span className="mt-4 text-sm font-medium text-[var(--accent)]">Tap anywhere to mark done →</span>}
+        <span className="mt-4 text-sm font-medium text-[var(--accent)]">
+          {isLast ? "Tap anywhere to finish →" : "Tap anywhere for next →"}
+        </span>
       </div>
 
       {/* Footer nav */}
@@ -511,7 +556,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           onClick={advance}
           className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          {isLast ? "Finish" : "Done ✓"}
+          {isLast ? "Finish" : "Next →"}
         </button>
       </div>
     </div>
