@@ -4,6 +4,8 @@ import {
   deriveCurrentLoad,
   computeTrend,
   computeRecommendation,
+  sortSetLogs,
+  formatActualSets,
 } from "@/lib/strengthProgression";
 import type { WorkoutSetLog } from "@/types/database";
 
@@ -12,6 +14,7 @@ function makeSet(overrides: Partial<WorkoutSetLog>): WorkoutSetLog {
     id: overrides.id ?? "set-id",
     session_exercise_id: "session-exercise-id",
     set_number: 1,
+    side: null,
     weight: null,
     reps_completed: null,
     duration_seconds: null,
@@ -203,5 +206,44 @@ describe("computeRecommendation", () => {
       defaultIncrement: 2.5,
     });
     expect(result.status).toBe("none");
+  });
+});
+
+describe("sortSetLogs", () => {
+  it("orders by set number, left side before right", () => {
+    const sets = [
+      makeSet({ id: "2r", set_number: 2, side: "right" }),
+      makeSet({ id: "1r", set_number: 1, side: "right" }),
+      makeSet({ id: "2l", set_number: 2, side: "left" }),
+      makeSet({ id: "1l", set_number: 1, side: "left" }),
+    ];
+    expect(sortSetLogs(sets).map((s) => s.id)).toEqual(["1l", "1r", "2l", "2r"]);
+  });
+});
+
+describe("formatActualSets", () => {
+  it("joins single-sided sets", () => {
+    expect(
+      formatActualSets([
+        makeSet({ set_number: 2, reps_completed: 8 }),
+        makeSet({ set_number: 1, reps_completed: 10 }),
+        makeSet({ set_number: 3, duration_seconds: 30 }),
+      ])
+    ).toBe("10 / 8 / 30s");
+  });
+
+  it("pairs both-sides sets with L/R markers", () => {
+    expect(
+      formatActualSets([
+        makeSet({ set_number: 1, side: "right", reps_completed: 10 }),
+        makeSet({ set_number: 1, side: "left", reps_completed: 10 }),
+        makeSet({ set_number: 2, side: "left", reps_completed: 10 }),
+        makeSet({ set_number: 2, side: "right", reps_completed: 9 }),
+      ])
+    ).toBe("10L 10R / 10L 9R");
+  });
+
+  it("returns null when nothing was recorded", () => {
+    expect(formatActualSets([makeSet({})])).toBeNull();
   });
 });

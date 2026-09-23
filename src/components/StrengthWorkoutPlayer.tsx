@@ -16,7 +16,7 @@ import {
   getLastPerformances,
   type ExerciseHistoryEntry,
 } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, formatActualSets } from "@/lib/strengthProgression";
 
 const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
 
@@ -58,9 +58,16 @@ function beatSetNumber(beat: SessionBeat): number {
   return beat.isSuperset ? beat.roundNumber! : beat.setNumber!;
 }
 
+const SIDE_LABELS = { left: "Left side", right: "Right side" } as const;
+
+/** Whether a set log belongs to this beat's set/round and side. */
+function logMatchesBeat(log: { set_number: number; side: string | null }, beat: SessionBeat): boolean {
+  return log.set_number === beatSetNumber(beat) && log.side === beat.side;
+}
+
 /**
  * DB-driven resume position: the first beat whose exercise is tracked but
- * doesn't yet have a logged set for its slot. Falls back to the start if
+ * doesn't yet have a logged set for its slot (and side). Falls back to the start if
  * nothing in the workout is trackable, or the end if everything already is.
  */
 function findResumeIndex(
@@ -72,8 +79,7 @@ function findResumeIndex(
     const se = sessionExerciseByStepId.get(beats[i].step.id);
     if (!se) continue;
     hadLoggable = true;
-    const setNum = beatSetNumber(beats[i]);
-    const logged = se.workout_set_logs.some((l) => l.set_number === setNum && l.completed);
+    const logged = se.workout_set_logs.some((l) => logMatchesBeat(l, beats[i]) && l.completed);
     if (!logged) return i;
   }
   return hadLoggable ? Math.max(0, beats.length - 1) : 0;
@@ -279,9 +285,12 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     if (!beat) return;
     const se = sessionExerciseByStepId.get(beat.step.id);
     const setNum = beatSetNumber(beat);
-    const existing = se?.workout_set_logs.find((l) => l.set_number === setNum);
+    const existing = se?.workout_set_logs.find((l) => logMatchesBeat(l, beat));
     const last = se?.exercise_id ? lastPerf[se.exercise_id] : undefined;
-    const lastSet = last?.sets.find((s) => s.set_number === setNum) ?? last?.sets[last.sets.length - 1];
+    const lastSet =
+      last?.sets.find((s) => logMatchesBeat(s, beat)) ??
+      last?.sets.find((s) => s.set_number === setNum) ??
+      last?.sets[last.sets.length - 1];
     setWeightInput(existing?.weight != null ? String(existing.weight) : lastSet?.weight != null ? String(lastSet.weight) : "");
     setRepsInput(
       existing?.reps_completed != null ? String(existing.reps_completed) : beat.step.reps != null ? String(beat.step.reps) : ""
@@ -332,12 +341,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const lastPerfForExercise = sessionExercise?.exercise_id ? lastPerf[sessionExercise.exercise_id] : undefined;
   const lastLoad = lastPerfForExercise ? deriveCurrentLoad(lastPerfForExercise.sets) : null;
   const lastLoadLabel = lastLoad != null ? formatLoad(lastLoad, lastPerfForExercise!.loadFormat) : null;
-  const lastActual = lastPerfForExercise
-    ? lastPerfForExercise.sets
-        .map((s) => (s.reps_completed != null ? String(s.reps_completed) : s.duration_seconds != null ? `${s.duration_seconds}s` : null))
-        .filter((v): v is string => v != null)
-        .join(" / ")
-    : null;
+  const lastActual = lastPerfForExercise ? formatActualSets(lastPerfForExercise.sets) : null;
 
   function logCurrentBeat() {
     if (!sessionExercise) return;
@@ -345,7 +349,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     const parsedWeight = isWeighted && weightInput.trim() !== "" ? parseFloat(weightInput) : null;
     const parsedReps = hasReps && repsInput.trim() !== "" ? parseInt(repsInput, 10) : null;
     const durationSeconds = isTimed ? timedSeconds : null;
-    void logSet(sessionExercise.id, setNum, {
+    void logSet(sessionExercise.id, setNum, beat.side, {
       weight: parsedWeight,
       reps_completed: parsedReps,
       duration_seconds: durationSeconds,
@@ -385,9 +389,8 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   }
 
   const suggestedWeight = suggestedWeightForSet(beat.step.weight_suggestion, beatSetNumber(beat));
-  const repsLabel = beat.step.reps
-    ? `${beat.step.reps} reps${beat.step.both_sides ? " (each side)" : ""}`
-    : null;
+  // A side beat already says which side it is, so its reps are just the per-side count.
+  const repsLabel = beat.step.reps ? `${beat.step.reps} reps` : null;
   const durationLabel = !repsLabel ? formatStepDuration(beat.step.duration_minutes, beat.step.duration_unit) : null;
   const progressLabel = beat.isSuperset
     ? `Round ${beat.roundNumber} of ${beat.totalRounds}`
@@ -397,8 +400,9 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
   const nextBeat = !isLast ? beats[beatIndex + 1] : null;
   const nextIsSameExercise = nextBeat != null && nextBeat.step.id === beat.step.id;
+  const nextIsOtherSide = nextIsSameExercise && nextBeat.side != null && beatSetNumber(nextBeat) === beatSetNumber(beat);
   const nextRepsLabel = nextBeat?.step.reps
-    ? `${nextBeat.step.reps} reps${nextBeat.step.both_sides ? " (each side)" : ""}`
+    ? `${nextBeat.step.reps} reps${nextBeat.side ? ` · ${nextBeat.side} side` : ""}`
     : null;
   const nextDurationLabel = nextBeat && !nextRepsLabel
     ? formatStepDuration(nextBeat.step.duration_minutes, nextBeat.step.duration_unit)
@@ -456,6 +460,11 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         )}
         {progressLabel && <span className="text-sm text-[var(--muted)]">{progressLabel}</span>}
         <h2 className="text-3xl font-bold leading-tight">{beat.step.label || "Exercise"}</h2>
+        {beat.side && (
+          <span className="px-3 py-1 rounded-full bg-[var(--accent)] text-white text-sm font-semibold uppercase tracking-wide">
+            {SIDE_LABELS[beat.side]}
+          </span>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-3 text-base text-[var(--muted)]">
           {repsLabel && <span>{repsLabel}</span>}
           {durationLabel && <span>{durationLabel}</span>}
@@ -527,7 +536,11 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           <div className="mt-2 px-4 py-2 rounded-lg bg-[var(--card)] border border-[var(--border)] max-w-sm">
             <span className="text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">Up next</span>
             <p className="text-sm font-medium">
-              {nextIsSameExercise ? `${nextBeat.step.label || "Exercise"} — next set` : nextBeat.step.label || "Exercise"}
+              {nextIsOtherSide
+                ? `${nextBeat.step.label || "Exercise"} — ${nextBeat.side} side`
+                : nextIsSameExercise
+                ? `${nextBeat.step.label || "Exercise"} — next set`
+                : nextBeat.step.label || "Exercise"}
             </p>
             {nextDetail && <p className="text-xs text-[var(--muted)]">{nextDetail}</p>}
           </div>

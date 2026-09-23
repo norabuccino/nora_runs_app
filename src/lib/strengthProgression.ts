@@ -30,6 +30,32 @@ export function formatLoad(weight: number | null, loadFormat: string | null): st
   }
 }
 
+/** Set order, with a both-sides set's left log before its right log. */
+export function sortSetLogs<T extends Pick<WorkoutSetLog, "set_number" | "side">>(sets: T[]): T[] {
+  const sideRank = (side: T["side"]) => (side === "right" ? 1 : 0);
+  return [...sets].sort((a, b) => a.set_number - b.set_number || sideRank(a.side) - sideRank(b.side));
+}
+
+/**
+ * Compact text for what was actually done, one entry per set: "10 / 10 / 8",
+ * or "10L 10R / 10L 9R" when the exercise was logged per side.
+ */
+export function formatActualSets(
+  sets: Pick<WorkoutSetLog, "set_number" | "side" | "reps_completed" | "duration_seconds">[]
+): string | null {
+  const bySet = new Map<number, string[]>();
+  for (const s of sortSetLogs(sets)) {
+    const value = s.reps_completed != null ? String(s.reps_completed) : s.duration_seconds != null ? `${s.duration_seconds}s` : null;
+    if (value == null) continue;
+    const suffix = s.side === "left" ? "L" : s.side === "right" ? "R" : "";
+    const parts = bySet.get(s.set_number) ?? [];
+    parts.push(value + suffix);
+    bySet.set(s.set_number, parts);
+  }
+  const text = Array.from(bySet.values(), (parts) => parts.join(" ")).join(" / ");
+  return text || null;
+}
+
 /**
  * "Current load" for an exercise = the weight of the last logged set in the
  * most recent completed session for that exercise. Deliberately simple —
@@ -37,7 +63,7 @@ export function formatLoad(weight: number | null, loadFormat: string | null): st
  */
 export function deriveCurrentLoad(sets: WorkoutSetLog[] | null | undefined): number | null {
   if (!sets || sets.length === 0) return null;
-  const completed = [...sets].filter((s) => s.completed).sort((a, b) => a.set_number - b.set_number);
+  const completed = sortSetLogs(sets.filter((s) => s.completed));
   if (completed.length === 0) return null;
   return completed[completed.length - 1].weight;
 }

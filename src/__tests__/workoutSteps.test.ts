@@ -156,6 +156,49 @@ describe("buildSessionBeats", () => {
     const beats = buildSessionBeats([warmup, a, b, cooldown]);
     expect(beats.map((beat) => beat.step.id)).toEqual(["warmup", "a", "b", "a", "b", "cooldown", "cooldown"]);
   });
+
+  it("splits every set of a both-sides exercise into a left beat then a right beat", () => {
+    const step = makeStep({ id: "lunge", sets: 3, reps: 10, both_sides: true });
+    const beats = buildSessionBeats([step]);
+    expect(beats.map((beat) => [beat.setNumber, beat.side])).toEqual([
+      [1, "left"],
+      [1, "right"],
+      [2, "left"],
+      [2, "right"],
+      [3, "left"],
+      [3, "right"],
+    ]);
+  });
+
+  it("leaves single-sided exercises with no side", () => {
+    const beats = buildSessionBeats([makeStep({ id: "squat", sets: 2 })]);
+    expect(beats.every((beat) => beat.side === null)).toBe(true);
+  });
+
+  it("does both sides of a superset exercise within each round", () => {
+    const a = makeStep({ id: "a", repeat_group_id: 1, repeat_count: 2, both_sides: true });
+    const b = makeStep({ id: "b", repeat_group_id: 1, repeat_count: 2 });
+    const beats = buildSessionBeats([a, b]);
+    expect(beats.map((beat) => [beat.step.id, beat.roundNumber, beat.side])).toEqual([
+      ["a", 1, "left"],
+      ["a", 1, "right"],
+      ["b", 1, null],
+      ["a", 2, "left"],
+      ["a", 2, "right"],
+      ["b", 2, null],
+    ]);
+  });
+
+  it("splits both-sides exercises in a named group", () => {
+    const a = makeStep({ id: "a", repeat_group_id: 1, sets: 2, both_sides: true, group_name: "Warm Up" });
+    const beats = buildSessionBeats([a]);
+    expect(beats.map((beat) => [beat.setNumber, beat.side])).toEqual([
+      [1, "left"],
+      [1, "right"],
+      [2, "left"],
+      [2, "right"],
+    ]);
+  });
 });
 
 describe("suggestedWeightForSet", () => {

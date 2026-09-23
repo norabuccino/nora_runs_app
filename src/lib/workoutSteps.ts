@@ -86,7 +86,13 @@ export function stepTimedSeconds(step: WorkoutStep): number | null {
  * exercise once per round (superset), or each exercise's own sets in full
  * before moving to the next (named group) — same shape as a standalone step,
  * just carrying the shared `groupName`.
+ *
+ * A `both_sides` exercise splits every set/round into a left beat followed by
+ * a right beat, so "3 x 10 each side" is six beats and each side is logged on
+ * its own.
  */
+export type StepSide = "left" | "right";
+
 export interface SessionBeat {
   step: WorkoutStep;
   setNumber: number | null;
@@ -95,16 +101,24 @@ export interface SessionBeat {
   totalRounds: number | null;
   groupName: string | null;
   isSuperset: boolean;
+  side: StepSide | null;
 }
 
 export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
   const beats: SessionBeat[] = [];
+  const push = (beat: Omit<SessionBeat, "side">) => {
+    if (beat.step.both_sides) {
+      beats.push({ ...beat, side: "left" }, { ...beat, side: "right" });
+    } else {
+      beats.push({ ...beat, side: null });
+    }
+  };
 
   for (const segment of groupSteps(steps)) {
     if (segment.type === "step") {
       const totalSets = segment.step.sets && segment.step.sets > 0 ? segment.step.sets : 1;
       for (let setNumber = 1; setNumber <= totalSets; setNumber++) {
-        beats.push({
+        push({
           step: segment.step,
           setNumber,
           totalSets,
@@ -127,7 +141,7 @@ export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
         for (const step of segment.steps) {
           const totalSets = step.sets && step.sets > 0 ? step.sets : 1;
           for (let setNumber = 1; setNumber <= totalSets; setNumber++) {
-            beats.push({
+            push({
               step,
               setNumber,
               totalSets,
@@ -142,7 +156,7 @@ export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
         const totalRounds = segment.repeatCount && segment.repeatCount > 0 ? segment.repeatCount : 1;
         for (let roundNumber = 1; roundNumber <= totalRounds; roundNumber++) {
           for (const step of segment.steps) {
-            beats.push({
+            push({
               step,
               setNumber: null,
               totalSets: null,

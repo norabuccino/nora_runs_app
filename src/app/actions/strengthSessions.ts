@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { sortSetLogs } from "@/lib/strengthProgression";
 import type {
   WorkoutStep,
   WorkoutSession,
@@ -121,13 +122,14 @@ export async function getOrCreateWorkoutSession(parent: SessionParent): Promise<
 }
 
 /**
- * Upserts one actual set. Called immediately when a set is marked done in
+ * Upserts one actual set (one side of a set, for `both_sides` exercises). Called immediately when a set is marked done in
  * the session player — not batched at the end — so progress is durable and
  * derivable from completed data as soon as it happens.
  */
 export async function logSet(
   sessionExerciseId: string,
   setNumber: number,
+  side: "left" | "right" | null,
   data: {
     weight?: number | null;
     reps_completed?: number | null;
@@ -143,12 +145,13 @@ export async function logSet(
     {
       session_exercise_id: sessionExerciseId,
       set_number: setNumber,
+      side,
       weight: data.weight ?? null,
       reps_completed: data.reps_completed ?? null,
       duration_seconds: data.duration_seconds ?? null,
       completed: data.completed ?? true,
     },
-    { onConflict: "session_exercise_id,set_number" }
+    { onConflict: "session_exercise_id,set_number,side" }
   );
   if (error) throw new Error(error.message);
 }
@@ -199,7 +202,7 @@ function toHistoryEntry(row: SessionExerciseJoinRow): ExerciseHistoryEntry {
     loadFormat: row.load_format,
     plannedReps: row.planned_reps,
     plannedDurationSeconds: row.planned_duration_minutes != null ? Math.round(row.planned_duration_minutes * 60) : null,
-    sets: [...row.workout_set_logs].sort((a, b) => a.set_number - b.set_number),
+    sets: sortSetLogs(row.workout_set_logs),
   };
 }
 

@@ -403,6 +403,7 @@ export interface Database {
           id: string;
           session_exercise_id: string;
           set_number: number;
+          side: "left" | "right" | null;
           weight: number | null;
           reps_completed: number | null;
           duration_seconds: number | null;
@@ -414,6 +415,7 @@ export interface Database {
           id?: string;
           session_exercise_id: string;
           set_number: number;
+          side?: "left" | "right" | null;
           weight?: number | null;
           reps_completed?: number | null;
           duration_seconds?: number | null;
@@ -425,6 +427,7 @@ export interface Database {
           id?: string;
           session_exercise_id?: string;
           set_number?: number;
+          side?: "left" | "right" | null;
           weight?: number | null;
           reps_completed?: number | null;
           duration_seconds?: number | null;

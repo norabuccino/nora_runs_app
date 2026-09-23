@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/strengthSessions";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
-import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets } from "@/lib/strengthProgression";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import type { Exercise } from "@/types/database";
 
@@ -23,13 +23,6 @@ const TREND_COLORS: Record<string, string> = {
 
 const selectClass =
   "rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
-
-function actualLabel(sets: { reps_completed: number | null; duration_seconds: number | null }[]): string | null {
-  const parts = sets
-    .map((s) => (s.reps_completed != null ? String(s.reps_completed) : s.duration_seconds != null ? `${s.duration_seconds}s` : null))
-    .filter((v): v is string => v != null);
-  return parts.length > 0 ? parts.join(" / ") : null;
-}
 
 export default function ProgressionPage() {
   const [rows, setRows] = useState<ProgressionRow[]>([]);
@@ -122,7 +115,7 @@ export default function ProgressionPage() {
                   const trend = computeTrend(currentLoad, previousLoad);
                   const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, row.latest?.loadFormat ?? null) : null;
                   const previousLoadLabel = previousLoad != null ? formatLoad(previousLoad, row.previous?.loadFormat ?? null) : null;
-                  const actual = row.latest ? actualLabel(row.latest.sets) : null;
+                  const actual = row.latest ? formatActualSets(row.latest.sets) : null;
                   const rec = row.latest
                     ? computeRecommendation({
                         plannedReps: row.latest.plannedReps,

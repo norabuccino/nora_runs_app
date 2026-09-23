@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { getExerciseHistory, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, formatActualSets } from "@/lib/strengthProgression";
 
 interface LibraryUsage {
   workout_id: string;
@@ -198,10 +198,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
                   {history.map((entry) => {
                     const load = deriveCurrentLoad(entry.sets);
                     const loadLabel = load != null ? formatLoad(load, entry.loadFormat) : null;
-                    const actual = entry.sets
-                      .map((s) => s.reps_completed ?? (s.duration_seconds ? `${s.duration_seconds}s` : null))
-                      .filter((v) => v != null)
-                      .join(" / ");
+                    const actual = formatActualSets(entry.sets);
                     return (
                       <div key={entry.sessionId} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
                         <div className="min-w-0">
