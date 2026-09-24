@@ -20,6 +20,7 @@ export interface LibraryWorkoutData {
   steps?: WorkoutStepData[];
   bike_location?: string | null;
   cross_train_type?: string | null;
+  continuous_timers?: boolean;
 }
 
 export async function createLibraryWorkout(data: LibraryWorkoutData) {
@@ -88,6 +89,7 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
         notes: workoutRow.notes ?? null,
         bike_location: workoutRow.bike_location ?? null,
         cross_train_type: workoutRow.cross_train_type ?? null,
+        continuous_timers: workoutRow.continuous_timers ?? false,
       })
       .eq("library_workout_id", id);
 
@@ -338,6 +340,7 @@ export async function addLibraryWorkoutToPlan(
       library_workout_id: workout.id,
       bike_location: workout.bike_location ?? null,
       cross_train_type: workout.cross_train_type ?? null,
+      continuous_timers: workout.continuous_timers ?? false,
     })
     .select()
     .single();

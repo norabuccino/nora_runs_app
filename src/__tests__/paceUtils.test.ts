@@ -334,6 +334,7 @@ describe("weekMileageRange", () => {
       library_workout_id: null,
       bike_location: null,
       cross_train_type: null,
+      continuous_timers: false,
       ...overrides,
     };
   }
@@ -411,6 +412,7 @@ describe("weekActualMileage", () => {
       library_workout_id: null,
       bike_location: null,
       cross_train_type: null,
+      continuous_timers: false,
       ...overrides,
     };
   }

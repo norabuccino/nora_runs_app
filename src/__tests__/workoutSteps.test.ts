@@ -3,6 +3,7 @@ import {
   groupSteps,
   formatStepDuration,
   stepTimedSeconds,
+  isRestStep,
   buildSessionBeats,
   suggestedWeightForSet,
   splitSetWeights,
@@ -93,6 +94,24 @@ describe("stepTimedSeconds", () => {
 
   it("converts a 30-second hold stored as 0.5 minutes to 30 seconds", () => {
     expect(stepTimedSeconds(makeStep({ duration_minutes: 0.5, duration_unit: "sec" }))).toBe(30);
+  });
+});
+
+describe("isRestStep", () => {
+  it("treats a step labelled Rest as a rest interval", () => {
+    expect(isRestStep(makeStep({ label: "Rest" }))).toBe(true);
+    expect(isRestStep(makeStep({ label: "rest between rounds" }))).toBe(true);
+    expect(isRestStep(makeStep({ label: "  REST" }))).toBe(true);
+  });
+
+  it("does not match exercises that merely contain the word", () => {
+    expect(isRestStep(makeStep({ label: "Restorative stretch" }))).toBe(false);
+    expect(isRestStep(makeStep({ label: "Plank (rest on knees if needed)" }))).toBe(false);
+    expect(isRestStep(makeStep({ label: null }))).toBe(false);
+  });
+
+  it("never treats a step linked to a library exercise as rest", () => {
+    expect(isRestStep(makeStep({ label: "Rest", exercise_id: "ex-1" }))).toBe(false);
   });
 });
 

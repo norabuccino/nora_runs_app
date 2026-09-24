@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useWakeLock } from "@/hooks/useWakeLock";
 import type { PlanWorkout, WorkoutStep, WorkoutSession, WorkoutSessionExerciseWithSets } from "@/types/database";
 import {
   buildSessionBeats,
   formatStepDuration,
+  isRestStep,
   stepTimedSeconds,
   suggestedWeightForSet,
   type SessionBeat,
@@ -123,33 +125,76 @@ function playChime() {
   });
 }
 
-function ExerciseTimer({ seconds, soundEnabled }: { seconds: number; soundEnabled: boolean }) {
+/** A single short blip for the 3-2-1 countdown at the end of a continuous timer. */
+function playTick() {
+  const ctx = primeAudio();
+  if (!ctx) return;
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = "sine";
+  osc.frequency.value = 660;
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(0.18, t0 + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t0 + 0.15);
+}
+
+const COUNTDOWN_SECONDS = 3;
+
+interface ExerciseTimerProps {
+  seconds: number;
+  soundEnabled: boolean;
+  /** Start counting as soon as the timer mounts (continuous mode, after the previous timer). */
+  autoStart?: boolean;
+  /** Continuous mode: 3-2-1 countdown ticks, and hand off to `onComplete` instead of waiting on the user. */
+  continuous?: boolean;
+  onComplete?: () => void;
+}
+
+function ExerciseTimer({ seconds, soundEnabled, autoStart = false, continuous = false, onComplete }: ExerciseTimerProps) {
   const [remaining, setRemaining] = useState(seconds);
-  const [running, setRunning] = useState(false);
+  const [running, setRunning] = useState(autoStart);
   const [alerted, setAlerted] = useState(false);
-  const endAtRef = useRef(0);
+  const endAtRef = useRef(0); // 0 = not yet anchored (an auto-started timer anchors on its first effect run)
+  const lastTickRef = useRef<number | null>(null);
+  // The interval outlives renders, so read the latest callback through a ref.
+  const onCompleteRef = useRef(onComplete);
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  });
 
   // Counts down against an absolute end time so a throttled/backgrounded tab
   // can't drift. The alert fires from the tick itself (once), not from render.
   useEffect(() => {
     if (!running) return;
+    if (endAtRef.current === 0) endAtRef.current = Date.now() + seconds * 1000;
     const id = setInterval(() => {
       const left = Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000));
       setRemaining(left);
+      if (continuous && soundEnabled && left > 0 && left <= COUNTDOWN_SECONDS && lastTickRef.current !== left) {
+        lastTickRef.current = left;
+        playTick();
+      }
       if (left === 0) {
         clearInterval(id);
         setRunning(false);
         setAlerted(true);
-        navigator.vibrate?.(200);
+        navigator.vibrate?.(continuous ? [120, 80, 120] : 200);
         if (soundEnabled) playChime();
+        onCompleteRef.current?.();
       }
     }, 250);
     return () => clearInterval(id);
-  }, [running, soundEnabled]);
+  }, [running, soundEnabled, continuous, seconds]);
 
   function start() {
     primeAudio(); // inside the click gesture, so the chime is allowed to play later
     endAtRef.current = Date.now() + remaining * 1000;
+    lastTickRef.current = null;
     setAlerted(false);
     setRunning(true);
   }
@@ -167,14 +212,25 @@ function ExerciseTimer({ seconds, soundEnabled }: { seconds: number; soundEnable
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
   const label = remaining === 0 ? "Reset" : remaining === seconds ? "Start timer" : "Resume";
+  const inCountdown = continuous && running && remaining > 0 && remaining <= COUNTDOWN_SECONDS;
 
   return (
     <div className="flex flex-col items-center gap-2">
       <span
-        className={`text-4xl font-mono font-bold tabular-nums ${alerted ? "text-[var(--accent)] animate-pulse" : ""}`}
+        className={`${continuous ? "text-6xl" : "text-4xl"} font-mono font-bold tabular-nums ${
+          alerted || inCountdown ? "text-[var(--accent)] animate-pulse" : ""
+        }`}
       >
         {mins > 0 ? `${mins}:${String(secs).padStart(2, "0")}` : `${secs}s`}
       </span>
+      {continuous && (
+        <div className="h-1.5 w-48 rounded-full bg-[var(--border)] overflow-hidden">
+          <div
+            className="h-full bg-[var(--accent)] transition-[width] duration-300 ease-linear"
+            style={{ width: `${((seconds - remaining) / seconds) * 100}%` }}
+          />
+        </div>
+      )}
       <div className="flex gap-2">
         {running ? (
           <button
@@ -233,6 +289,7 @@ interface StrengthWorkoutPlayerProps {
 export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, onFinish }: StrengthWorkoutPlayerProps) {
   const beats = useMemo(() => buildSessionBeats(steps), [steps]);
   const tracked = !!sessionSource;
+  const continuous = !!workout.continuous_timers;
 
   const [loadingSession, setLoadingSession] = useState(tracked);
   const [session, setSession] = useState<WorkoutSession | null>(null);
@@ -243,6 +300,14 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const [weightInput, setWeightInput] = useState("");
   const [repsInput, setRepsInput] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true); // chime on/off for this workout only
+  // Continuous mode: the beat whose timer should start on its own when it's
+  // reached (set on every forward move, cleared by Back), and a counter that
+  // replays the full-screen "now on to…" flash after each timer-driven advance.
+  const [autoStartBeat, setAutoStartBeat] = useState<number | null>(null);
+  const [flashKey, setFlashKey] = useState(0);
+
+  // Keep the screen awake for the whole session, on mobile and desktop.
+  useWakeLock(!finished);
 
   // Load or create the persisted session once, on mount.
   useEffect(() => {
@@ -368,11 +433,20 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
       if (!tracked) clearSavedSession(workout.id);
       setFinished(true);
     } else {
-      setBeatIndex((i) => i + 1);
+      if (continuous) setAutoStartBeat(beatIndex + 1);
+      setBeatIndex(beatIndex + 1);
     }
   }
 
+  /** Continuous mode: the current timer ran out — move straight on, and announce it. */
+  function handleTimerComplete() {
+    if (!continuous) return;
+    if (!isLast) setFlashKey((k) => k + 1);
+    advance();
+  }
+
   function goBack() {
+    setAutoStartBeat(null);
     setBeatIndex((i) => Math.max(0, i - 1));
   }
 
@@ -410,12 +484,46 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const nextWeight = nextBeat ? suggestedWeightForSet(nextBeat.step.weight_suggestion, beatSetNumber(nextBeat)) : null;
   const nextDetail = [nextRepsLabel || nextDurationLabel, nextWeight].filter(Boolean).join(" · ");
 
+  const isRest = isRestStep(beat.step);
+  // In continuous mode a timed beat moves on by itself, so a stray tap on the
+  // screen shouldn't skip it — the Next button still works.
+  const tapToAdvance = !(continuous && isTimed);
+  const flashLabel = isRest
+    ? "Rest"
+    : `${beat.step.label || "Exercise"}${beat.side ? ` — ${beat.side} side` : ""}`;
+
   return (
     <div className="fixed inset-0 z-[60] bg-[var(--background)] flex flex-col">
+      {/* Continuous-mode transition flash: fills the screen with the new step's name for
+          ~1.5s after a timer auto-advances, so the change reads from across the room. Keyed
+          by flashKey so it replays on each advance; pointer-events-none so it never blocks. */}
+      {continuous && flashKey > 0 && (
+        <div
+          key={flashKey}
+          aria-live="assertive"
+          className={`pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 px-6 text-center text-white animate-[transition-flash_1.6s_ease-out_forwards] ${
+            isRest ? "bg-emerald-600" : "bg-[var(--accent)]"
+          }`}
+        >
+          <span className="text-sm font-semibold uppercase tracking-widest opacity-80">
+            {isRest ? "Nice work — now" : "Go!"}
+          </span>
+          <span className="text-5xl font-bold leading-tight">{flashLabel}</span>
+          {isTimed && durationLabel && <span className="text-lg font-medium opacity-90">{durationLabel}</span>}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
         <div className="min-w-0">
-          <p className="text-xs text-[var(--muted)] truncate">{workout.title}</p>
+          <p className="text-xs text-[var(--muted)] truncate">
+            {workout.title}
+            {continuous && (
+              <span className="ml-2 px-1.5 py-0.5 rounded bg-[var(--accent)]/15 text-[var(--accent)] font-semibold">
+                Continuous
+              </span>
+            )}
+          </p>
           <p key={beatIndex} className="text-sm font-semibold animate-[beat-enter_0.25s_ease-out]">
             Step {beatIndex + 1} of {beats.length}
           </p>
@@ -450,8 +558,10 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           making the step change unmistakable. */}
       <div
         key={beatIndex}
-        onClick={advance}
-        className="flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] cursor-pointer select-none"
+        onClick={tapToAdvance ? advance : undefined}
+        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] select-none ${
+          tapToAdvance ? "cursor-pointer" : ""
+        } ${isRest ? "bg-emerald-500/10" : ""}`}
       >
         {beat.groupName && (
           <span className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
@@ -459,7 +569,9 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           </span>
         )}
         {progressLabel && <span className="text-sm text-[var(--muted)]">{progressLabel}</span>}
-        <h2 className="text-3xl font-bold leading-tight">{beat.step.label || "Exercise"}</h2>
+        <h2 className={`text-3xl font-bold leading-tight ${isRest ? "text-emerald-600 dark:text-emerald-400" : ""}`}>
+          {beat.step.label || "Exercise"}
+        </h2>
         {beat.side && (
           <span className="px-3 py-1 rounded-full bg-[var(--accent)] text-white text-sm font-semibold uppercase tracking-wide">
             {SIDE_LABELS[beat.side]}
@@ -528,7 +640,14 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
         {isTimed && (
           <div onClick={(e) => e.stopPropagation()}>
-            <ExerciseTimer seconds={timedSeconds!} soundEnabled={soundEnabled} key={beatIndex} />
+            <ExerciseTimer
+              key={beatIndex}
+              seconds={timedSeconds!}
+              soundEnabled={soundEnabled}
+              continuous={continuous}
+              autoStart={continuous && autoStartBeat === beatIndex}
+              onComplete={handleTimerComplete}
+            />
           </div>
         )}
 
@@ -549,7 +668,13 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         )}
 
         <span className="mt-4 text-sm font-medium text-[var(--accent)]">
-          {isLast ? "Tap anywhere to finish →" : "Tap anywhere for next →"}
+          {!tapToAdvance
+            ? isLast
+              ? "Finishes when the timer ends"
+              : "Moves on automatically when the timer ends"
+            : isLast
+            ? "Tap anywhere to finish →"
+            : "Tap anywhere for next →"}
         </span>
       </div>
 

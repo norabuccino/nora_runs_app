@@ -401,6 +401,7 @@ export default function EditPlanPage() {
       steps,
       bike_location: data.bike_location || null,
       cross_train_type: data.cross_train_type || null,
+      continuous_timers: data.continuous_timers,
     };
 
     const existing = flow.step === "form" ? flow.existing : null;
@@ -426,6 +427,9 @@ export default function EditPlanPage() {
         duration_minutes: data.duration_minutes ? parseInt(data.duration_minutes, 10) : null,
         notes: data.notes || null,
         steps,
+        bike_location: data.bike_location || null,
+        cross_train_type: data.cross_train_type || null,
+        continuous_timers: data.continuous_timers,
       });
     }
 

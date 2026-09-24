@@ -52,6 +52,7 @@ export interface WorkoutLibraryFormData {
   steps: WorkoutStepFormRow[];
   bike_location: "indoor" | "outdoor" | "";
   cross_train_type: CrossTrainType | "";
+  continuous_timers: boolean;
 }
 
 function blankStep(
@@ -171,6 +172,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
       })) ?? [blankStep()],
     bike_location: (existing?.bike_location as "indoor" | "outdoor" | null) ?? "",
     cross_train_type: (existing?.cross_train_type as CrossTrainType | null) ?? "",
+    continuous_timers: existing?.continuous_timers ?? false,
   }));
 
   const isStrength = form.type === "strength";
@@ -497,6 +499,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
           : (isStrength || isSwim ? "" : form.duration_minutes),
         bike_location: isBike ? form.bike_location : "",
         cross_train_type: isCrossTrain ? form.cross_train_type : "",
+        continuous_timers: isStrength && form.continuous_timers,
         // Types without a Steps builder (bike, cross_train, rest) never get a
         // chance to clear the default blank step — drop it here instead of
         // silently persisting it, and clear out any steps left over from
@@ -826,6 +829,24 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Continuous timers (strength only) */}
+            {isStrength && (
+              <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.continuous_timers}
+                  onChange={(e) => setForm((p) => ({ ...p, continuous_timers: e.target.checked }))}
+                  className="mt-0.5 rounded border-[var(--border)] accent-[var(--accent)]"
+                />
+                <span>
+                  Continuous timers
+                  <span className="block text-xs text-[var(--muted)]">
+                    When a timed exercise or rest ends, automatically move on and start the next timer — no tapping between them.
+                  </span>
+                </span>
+              </label>
             )}
 
             {/* Totals (run workouts only) */}

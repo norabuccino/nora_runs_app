@@ -40,6 +40,7 @@ export interface ScheduledWorkoutData {
   steps?: ScheduledWorkoutStepData[];
   bike_location?: string | null;
   cross_train_type?: string | null;
+  continuous_timers?: boolean;
 }
 
 export async function createScheduledWorkout(data: ScheduledWorkoutData): Promise<ScheduledWorkout> {
@@ -101,6 +102,7 @@ export async function createScheduledWorkoutFromLibrary(
       library_workout_id: libraryWorkoutId,
       bike_location: source.bike_location,
       cross_train_type: source.cross_train_type,
+      continuous_timers: source.continuous_timers ?? false,
     })
     .select()
     .single();

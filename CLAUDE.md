@@ -213,6 +213,7 @@ Tracks actual per-set performance (weight/reps/duration) against the canonical `
 - `strength_type` — free text, shown when type = strength
 - `title`, `description`, `distance_miles`, `pace_type`, `duration_minutes`, `notes`
 - `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes, sets, reps, weight_suggestion, video_url, exercise_id, both_sides)
+- `continuous_timers` — boolean, strength only (column on `plan_workouts`/`workouts`/`scheduled_workouts`); when true, `StrengthWorkoutPlayer` auto-advances when a timed exercise/rest ends and auto-starts the next timer, with a full-screen flash announcing the new step
 - `saveToLibrary?` — optional boolean; only present when `WorkoutForm` is opened with `showSaveToLibrary={true}` (plan editor create-new flow)
 
 `WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.
@@ -259,7 +260,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 | `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
 | `WorkoutTypeBadges` | Renders the type/run_type/strength_type badge pills for a workout, using admin-configurable colors; `compact` mode shows only the sub-type badge |
 | `WorkoutDetailModal` / `PlanWorkoutDetailModal` | Read-only detail view opened by clicking a workout tile; includes treadmill-mode toggle for run workouts and, for strength workouts with steps, a "Start Workout" button that opens `StrengthWorkoutPlayer` |
-| `StrengthWorkoutPlayer` | Full-screen session player — steps through sets/exercises/supersets, shows "Last time" performance and weight/reps inputs per set when given a `sessionSource` (see Strength progression above), includes a preset countdown timer for timed holds |
+| `StrengthWorkoutPlayer` | Full-screen session player — steps through sets/exercises/supersets, shows "Last time" performance and weight/reps inputs per set when given a `sessionSource` (see Strength progression above), includes a preset countdown timer for timed holds; supports continuous (auto-advancing) timers via `continuous_timers`; holds a screen wake lock (`useWakeLock`) for the whole session |
 | `WorkoutImportModal` | File upload modal for bulk-importing workouts from CSV or JSON |
 | `AddToPlanModal` | Modal to copy a library workout into a chosen plan + week + day |
 | `LibraryPickerModal` | Modal used in the plan editor to pick an existing library workout and copy it into a specific week + day; includes `WorkoutFilterBar` |

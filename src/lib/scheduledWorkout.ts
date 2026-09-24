@@ -61,5 +61,6 @@ export function adaptScheduledWorkout(sw: ScheduledWorkout): PlanWorkout {
     library_workout_id: sw.library_workout_id,
     bike_location: sw.bike_location,
     cross_train_type: sw.cross_train_type,
+    continuous_timers: sw.continuous_timers ?? false,
   };
 }

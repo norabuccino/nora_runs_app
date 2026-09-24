@@ -71,6 +71,7 @@ export interface Database {
           library_workout_id: string | null;
           bike_location: "indoor" | "outdoor" | null;
           cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers: boolean;
         };
         Insert: {
           id?: string;
@@ -92,6 +93,7 @@ export interface Database {
           library_workout_id?: string | null;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
         Update: {
           id?: string;
@@ -113,6 +115,7 @@ export interface Database {
           library_workout_id?: string | null;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
       };
       workout_steps: {
@@ -213,6 +216,7 @@ export interface Database {
           created_at: string;
           bike_location: "indoor" | "outdoor" | null;
           cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers: boolean;
         };
         Insert: {
           id?: string;
@@ -234,6 +238,7 @@ export interface Database {
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
         Update: {
           id?: string;
@@ -255,6 +260,7 @@ export interface Database {
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
       };
       exercises: {
@@ -454,6 +460,7 @@ export interface Database {
           created_at: string;
           bike_location: "indoor" | "outdoor" | null;
           cross_train_type: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers: boolean;
         };
         Insert: {
           id?: string;
@@ -472,6 +479,7 @@ export interface Database {
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
         Update: {
           id?: string;
@@ -490,6 +498,7 @@ export interface Database {
           created_at?: string;
           bike_location?: "indoor" | "outdoor" | null;
           cross_train_type?: "walk" | "elliptical" | "yoga" | "mobility" | "other" | null;
+          continuous_timers?: boolean;
         };
       };
       user_plans: {

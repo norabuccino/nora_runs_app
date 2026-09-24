@@ -39,6 +39,26 @@ body {
   }
 }
 
+/* Continuous-timer auto-advance — a full-screen color flash announcing the
+   new step, which fades out on its own so the player underneath takes over. */
+@keyframes transition-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
 /* Badge color palette - add new entries here for any new label type */
 
 :root {

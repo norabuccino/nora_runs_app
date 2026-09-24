@@ -79,6 +79,15 @@ export function stepTimedSeconds(step: WorkoutStep): number | null {
 }
 
 /**
+ * A rest interval written as its own step (e.g. "Rest" between timed core
+ * exercises) rather than an exercise. Detected by label, and never when the
+ * step is linked to a library exercise.
+ */
+export function isRestStep(step: Pick<WorkoutStep, "label" | "exercise_id">): boolean {
+  return !step.exercise_id && /^\s*rest\b/i.test(step.label ?? "");
+}
+
+/**
  * One atomic beat in a strength workout session: a single set of a single
  * exercise. Standalone exercises expand into one beat per set. A grouped
  * segment expands one of two ways depending on whether it's a true superset
