@@ -91,7 +91,7 @@ Three files work together — use the right one for the context:
 
 ### Auth flow
 
-Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/plans`, `/my-plan`, `/paces`, `/workouts`, `/exercises`, and `/admin`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
+Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/history`, `/plans`, `/my-plan`, `/paces`, `/workouts`, `/exercises`, and `/admin`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
 
 The middleware wraps all Supabase calls in a try/catch — auth failures are logged but never crash the site. Same for `layout.tsx`.
 
@@ -189,6 +189,10 @@ When a user clicks "Add to plan" on a library workout, `addLibraryWorkoutToPlan(
 
 `scheduled_workouts` holds one-off workouts attached directly to a calendar date rather than to a plan's week/day slot — used for workouts logged on the dashboard that don't belong to an active plan. Server actions live in `src/app/actions/scheduledWorkouts.ts` (`createScheduledWorkout`, `createScheduledWorkoutFromLibrary`, `deleteScheduledWorkout`, `markScheduledWorkoutComplete`/`unmarkScheduledWorkoutComplete`). `src/lib/scheduledWorkout.ts` exports `adaptScheduledWorkout()`, which adapts a `ScheduledWorkout` into the `PlanWorkout` shape so it can render through the same `WorkoutCard`/`WeekGrid`/`StrengthWorkoutPlayer` components as real plan workouts; the dashboard (`src/app/dashboard/page.tsx`) and the library's `WorkoutDetailModal` both use it.
 
+### Workout history
+
+`/history` (Nav: "History") is a Monday-first month calendar of every workout occurrence — plan workouts placed on dates via their `user_plans.start_date`, plus ad-hoc `scheduled_workouts` — with completed ones filled and missed ones dashed; selecting a day lists its workouts below (still markable done/undone after the fact). The dashboard's `RecentDays` feed shows the days before today (yesterday first, "Show earlier days" extends it a week at a time). Pure merge/calendar logic is in `src/lib/workoutHistory.ts` (`buildHistoryEntries`, `planWeekRange`, `monthGridDates`, `summarizeHistory`); `src/lib/workoutHistoryQuery.ts` (`fetchWorkoutHistory`) does the browser-client fetching. Active plans contribute every workout; paused/completed plans contribute only completed ones. `HistoryDayWorkouts` renders a day's entries for both views.
+
 ### Exercise library
 
 `exercises` is a user-owned library of named exercises (with `video_url`, `exercise_type`, `source`, `is_private`) managed at `/exercises`. `workout_steps.exercise_id` links a strength step to a library exercise. Server actions in `src/app/actions/exercises.ts`; renaming an exercise (`updateExercise`) propagates the new name to `workout_steps.label` for every step referencing it. `is_private` exercises are only visible to their creator (RLS-enforced) — shared/public exercises are visible to all users.
@@ -239,6 +243,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 - `src/lib/workoutSteps.ts` — groups a flat step list into standalone steps + repeat/superset groups (`groupSteps`), flattens that into per-set "beats" for the session player (`buildSessionBeats`), plus step duration formatting helpers
 - `src/lib/scheduledWorkout.ts` — `adaptScheduledWorkout()` (see Scheduled workouts above)
 - `src/lib/strengthProgression.ts` — strength progression display/aggregation logic (see Strength progression above)
+- `src/lib/workoutHistory.ts` / `src/lib/workoutHistoryQuery.ts` — workout history merging + fetching (see Workout history above)
 - `src/app/actions/workouts.ts` — CRUD for `plan_workouts` + `workout_steps`; also `importWorkouts` for bulk CSV/JSON import
 - `src/app/actions/workoutLibrary.ts` — CRUD for `workouts` library + `addLibraryWorkoutToPlan`
 - `src/app/actions/scheduledWorkouts.ts` — CRUD for ad-hoc `scheduled_workouts` (see above)
@@ -254,13 +259,14 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 
 | Component | Purpose |
 |---|---|
-| `Nav` | Top nav with links: Today, My Plan, Plans, Workouts, Exercises, Progression, Paces; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
+| `Nav` | Top nav with links: Today, History, My Plan, Plans, Workouts, Exercises, Progression, Paces; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
 | `WorkoutForm` | Modal form for creating/editing plan/scheduled workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
 | `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
 | `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
 | `WorkoutTypeBadges` | Renders the type/run_type/strength_type badge pills for a workout, using admin-configurable colors; `compact` mode shows only the sub-type badge |
 | `WorkoutDetailModal` / `PlanWorkoutDetailModal` | Read-only detail view opened by clicking a workout tile; includes treadmill-mode toggle for run workouts and, for strength workouts with steps, a "Start Workout" button that opens `StrengthWorkoutPlayer` |
 | `StrengthWorkoutPlayer` | Full-screen session player — steps through sets/exercises/supersets, shows "Last time" performance and weight/reps inputs per set when given a `sessionSource` (see Strength progression above), includes a preset countdown timer for timed holds; supports continuous (auto-advancing) timers via `continuous_timers`; holds a screen wake lock (`useWakeLock`) for the whole session |
+| `HistoryDayWorkouts` / `RecentDays` | One day's workouts from the workout history (complete/undo + detail modal); the dashboard's scroll-back feed of previous days (see Workout history above) |
 | `WorkoutImportModal` | File upload modal for bulk-importing workouts from CSV or JSON |
 | `AddToPlanModal` | Modal to copy a library workout into a chosen plan + week + day |
 | `LibraryPickerModal` | Modal used in the plan editor to pick an existing library workout and copy it into a specific week + day; includes `WorkoutFilterBar` |

@@ -9,7 +9,7 @@ import { WeekGrid } from "@/components/WeekGrid";
 import { ScheduledWeekGrid } from "@/components/ScheduledWeekGrid";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
-import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, mondayOfWeek } from "@/lib/paceUtils";
+import { getTodayPosition, scheduledDate, DAY_NAMES, parseDateLocal, mondayOfWeek, formatDateLocal } from "@/lib/paceUtils";
 import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
 import {
   createScheduledWorkout,
@@ -22,6 +22,7 @@ import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workou
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
 import { adaptScheduledWorkout as adaptScheduled, buildScheduledWeekDays } from "@/lib/scheduledWorkout";
+import { RecentDays } from "@/components/RecentDays";
 
 interface PlanContext {
   userPlan: UserPlan;
@@ -40,7 +41,7 @@ function formatDayLabel(dateStr: string): string {
 }
 
 export default function DashboardPage() {
-  const todayISO = new Date().toISOString().split("T")[0];
+  const todayISO = formatDateLocal(new Date());
   // The calendar week (Monday–Sunday) containing today — used to plan ahead
   // and look back at ad-hoc scheduled workouts when not following a plan.
   const weekStartISO = mondayOfWeek(new Date());
@@ -57,6 +58,8 @@ export default function DashboardPage() {
   const [detailSource, setDetailSource] = useState<"plan" | "scheduled">("plan");
   const [detailScheduledDate, setDetailScheduledDate] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
+  // Bumped on every load() so the Recent days feed refetches alongside.
+  const [refreshKey, setRefreshKey] = useState(0);
 
   async function load() {
     const supabase = createClient();
@@ -74,6 +77,7 @@ export default function DashboardPage() {
     ]);
 
     setPaces(pacesData ?? []);
+    setRefreshKey((k) => k + 1);
     setScheduledWorkouts((scheduledData ?? []) as ScheduledWorkoutWithSteps[]);
 
     if (!userPlans?.length) {
@@ -351,6 +355,11 @@ export default function DashboardPage() {
     </div>
   );
 
+  // Previous days, newest first — shown in every state
+  const recentDaysSection = (
+    <RecentDays todayISO={todayISO} paces={paces} refreshKey={refreshKey} onChanged={load} />
+  );
+
   // "Log a workout" button — shown in every state
   const addWorkoutButton = (
     <button
@@ -488,6 +497,8 @@ export default function DashboardPage() {
 
         {scheduledWeekSection}
 
+        {recentDaysSection}
+
         {addModeModals}
         {detailModal}
       </div>
@@ -581,6 +592,8 @@ export default function DashboardPage() {
           {addWorkoutButton}
 
           {scheduledWeekSection}
+
+          {recentDaysSection}
         </div>
       ) : (
         <>
@@ -647,6 +660,8 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
+
+          {recentDaysSection}
         </>
       )}
 

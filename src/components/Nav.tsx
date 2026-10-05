@@ -14,6 +14,7 @@ interface NavProps {
 
 const navLinks = [
   { href: "/dashboard", label: "Today" },
+  { href: "/history", label: "History" },
   { href: "/my-plan", label: "My Plan" },
   { href: "/plans", label: "Plans" },
   { href: "/workouts", label: "Workouts" },
