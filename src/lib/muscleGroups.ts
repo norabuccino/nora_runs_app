@@ -60,6 +60,15 @@ export function parseMuscleGroups(input: unknown): { groups: string[]; unknown: 
   return { groups: sortMuscleGroups(groups), unknown };
 }
 
+// Bulk edit: adds then removes groups, keeping the result valid and ordered.
+export function applyMuscleGroupChange(
+  groups: string[] | null | undefined,
+  change: { add?: string[]; remove?: string[] }
+): string[] {
+  const remove = new Set(change.remove ?? []);
+  return sortMuscleGroups([...(groups ?? []), ...(change.add ?? [])]).filter((g) => !remove.has(g));
+}
+
 export function formatMuscleGroups(groups: string[] | null | undefined): string {
   return sortMuscleGroups(groups).map((g) => MUSCLE_GROUP_LABELS[g]).join("; ");
 }

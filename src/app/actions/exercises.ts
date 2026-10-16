@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
 import { addSources, normalizeSources } from "@/lib/exerciseSources";
-import { sortMuscleGroups } from "@/lib/muscleGroups";
+import { applyMuscleGroupChange, sortMuscleGroups } from "@/lib/muscleGroups";
 import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
@@ -174,7 +174,12 @@ export async function deleteExercise(
 
 export async function bulkUpdateExercises(
   ids: string[],
-  data: { exercise_type?: string | null; addSources?: string[] }
+  data: {
+    exercise_type?: string | null;
+    addSources?: string[];
+    addMuscleGroups?: string[];
+    removeMuscleGroups?: string[];
+  }
 ): Promise<void> {
   if (!ids.length) return;
   const supabase = await createClient();
@@ -191,11 +196,14 @@ export async function bulkUpdateExercises(
   }
 
   // Sources are added to each exercise's existing list, never replace it.
+  // Muscle groups are added/removed per exercise, keeping its other groups.
   const added = normalizeSources(data.addSources ?? []);
-  if (added.length) {
+  const muscleChange = { add: data.addMuscleGroups ?? [], remove: data.removeMuscleGroups ?? [] };
+  const hasMuscleChange = muscleChange.add.length > 0 || muscleChange.remove.length > 0;
+  if (added.length || hasMuscleChange) {
     const { data: rows, error } = await supabase
       .from("exercises")
-      .select("id, sources")
+      .select("id, sources, muscle_groups")
       .in("id", ids)
       .eq("user_id", user.id);
     if (error) throw new Error(error.message);
@@ -203,7 +211,10 @@ export async function bulkUpdateExercises(
       (rows ?? []).map((row) =>
         supabase
           .from("exercises")
-          .update({ sources: addSources(row.sources ?? [], added) })
+          .update({
+            ...(added.length ? { sources: addSources(row.sources ?? [], added) } : {}),
+            ...(hasMuscleChange ? { muscle_groups: applyMuscleGroupChange(row.muscle_groups, muscleChange) } : {}),
+          })
           .eq("id", row.id)
           .eq("user_id", user.id)
       )

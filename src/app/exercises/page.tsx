@@ -299,6 +299,8 @@ export default function ExercisesPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkType, setBulkType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
+  // "add:<group>" or "remove:<group>"; "" = no change.
+  const [bulkMuscle, setBulkMuscle] = useState("");
   const [showImport, setShowImport] = useState(false);
 
   async function load() {
@@ -459,13 +461,19 @@ export default function ExercisesPage() {
     setSelectedIds(new Set());
     setBulkType("");
     setBulkSource("");
+    setBulkMuscle("");
   }
 
   function handleBulkApply() {
     if (selectedIds.size === 0) return;
-    const updates: { exercise_type?: string | null; addSources?: string[] } = {};
+    const updates: Parameters<typeof bulkUpdateExercises>[1] = {};
     if (bulkType !== "") updates.exercise_type = bulkType || null;
     if (bulkSource.trim() !== "") updates.addSources = normalizeSources([bulkSource]);
+    if (bulkMuscle) {
+      const [action, group] = bulkMuscle.split(":");
+      if (action === "add") updates.addMuscleGroups = [group];
+      else updates.removeMuscleGroups = [group];
+    }
     if (!Object.keys(updates).length) return;
     startTransition(async () => {
       await bulkUpdateExercises(Array.from(selectedIds), updates);
@@ -851,9 +859,26 @@ export default function ExercisesPage() {
             placeholder="Add source…"
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none w-36"
           />
+          <select
+            value={bulkMuscle}
+            onChange={(e) => setBulkMuscle(e.target.value)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+          >
+            <option value="">Muscle group: no change</option>
+            <optgroup label="Add">
+              {MUSCLE_GROUPS.map((g) => (
+                <option key={g} value={`add:${g}`}>+ {MUSCLE_GROUP_LABELS[g]}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Remove">
+              {MUSCLE_GROUPS.map((g) => (
+                <option key={g} value={`remove:${g}`}>− {MUSCLE_GROUP_LABELS[g]}</option>
+              ))}
+            </optgroup>
+          </select>
           <button
             onClick={handleBulkApply}
-            disabled={isPending || (bulkType === "" && !bulkSource.trim())}
+            disabled={isPending || (bulkType === "" && !bulkSource.trim() && !bulkMuscle)}
             className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
           >
             Apply

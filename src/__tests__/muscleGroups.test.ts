@@ -6,6 +6,7 @@ import {
   toggleMuscleGroup,
   parseMuscleGroups,
   formatMuscleGroups,
+  applyMuscleGroupChange,
 } from "@/lib/muscleGroups";
 
 describe("MUSCLE_GROUP_LABELS", () => {
@@ -68,5 +69,27 @@ describe("formatMuscleGroups", () => {
     const text = formatMuscleGroups(["thighs", "hips_glutes"]);
     expect(text).toBe("Hips & Glutes; Thighs");
     expect(parseMuscleGroups(text).groups).toEqual(["hips_glutes", "thighs"]);
+  });
+});
+
+describe("applyMuscleGroupChange", () => {
+  it("adds a group while keeping existing ones, in canonical order", () => {
+    expect(applyMuscleGroupChange(["thighs"], { add: ["hips_glutes"] })).toEqual(["hips_glutes", "thighs"]);
+  });
+
+  it("does not duplicate a group that is already present", () => {
+    expect(applyMuscleGroupChange(["thighs"], { add: ["thighs"] })).toEqual(["thighs"]);
+  });
+
+  it("removes a group and leaves the others", () => {
+    expect(applyMuscleGroupChange(["chest", "arms"], { remove: ["chest"] })).toEqual(["arms"]);
+  });
+
+  it("removing a group the exercise doesn't have is a no-op", () => {
+    expect(applyMuscleGroupChange(["arms"], { remove: ["feet"] })).toEqual(["arms"]);
+  });
+
+  it("handles null and ignores unknown groups", () => {
+    expect(applyMuscleGroupChange(null, { add: ["feet", "neck"] })).toEqual(["feet"]);
   });
 });
