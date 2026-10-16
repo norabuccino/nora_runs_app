@@ -3,10 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
-import { createExercise, updateExercise, deleteExercise, bulkUpdateExercises } from "@/app/actions/exercises";
+import { createExercise, updateExercise, deleteExercise, getExerciseUsage, bulkUpdateExercises } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, EXERCISE_TYPE_TEXT_COLORS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
+import { DeleteExerciseModal } from "@/components/DeleteExerciseModal";
+import type { ExerciseUsageEntry } from "@/lib/exerciseUsage";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
 import { byString, byStringDesc, thenBy } from "@/lib/sortUtils";
@@ -259,6 +261,7 @@ export default function ExercisesPage() {
   const [detail, setDetail] = useState<Exercise | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Exercise | null>(null);
+  const [deleting, setDeleting] = useState<{ exercise: Exercise; usage: ExerciseUsageEntry[]; historyCount: number } | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -374,11 +377,24 @@ export default function ExercisesPage() {
   }
 
   function handleDelete(exercise: Exercise) {
-    if (!confirm(`Delete "${exercise.name}"?`)) return;
     startTransition(async () => {
+      // If any workout uses this exercise, offer to swap in a replacement first.
+      const { workouts, historyCount } = await getExerciseUsage(exercise.id);
+      if (workouts.length > 0) {
+        setDeleting({ exercise, usage: workouts, historyCount });
+        return;
+      }
+      if (!confirm(`Delete "${exercise.name}"?`)) return;
       await deleteExercise(exercise.id);
       await load();
     });
+  }
+
+  async function handleConfirmDelete(replacement?: { exerciseId: string; moveHistory: boolean }) {
+    if (!deleting) return;
+    await deleteExercise(deleting.exercise.id, replacement);
+    setDeleting(null);
+    await load();
   }
 
   function enterCategory(type: string) {
@@ -736,6 +752,17 @@ export default function ExercisesPage() {
           onCancel={() => { setEditing(null); setSaveError(null); }}
           saving={saving}
           error={saveError}
+        />
+      )}
+
+      {deleting && (
+        <DeleteExerciseModal
+          exercise={deleting.exercise}
+          usage={deleting.usage}
+          historyCount={deleting.historyCount}
+          candidates={exercises}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleting(null)}
         />
       )}
 

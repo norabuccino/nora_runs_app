@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
+import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
   name: string;
@@ -80,10 +81,76 @@ export async function updateExercise(
   revalidatePath("/exercises");
 }
 
-export async function deleteExercise(id: string): Promise<void> {
+export async function getExerciseUsage(id: string): Promise<{
+  workouts: ExerciseUsageEntry[];
+  historyCount: number;
+}> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
+
+  const [{ data: steps, error }, { count }] = await Promise.all([
+    supabase
+      .from("workout_steps")
+      .select(
+        "plan_workout_id, workout_id, scheduled_workout_id, plan_workouts(title, training_plans(name)), workouts(title), scheduled_workouts(title, scheduled_date)"
+      )
+      .eq("exercise_id", id),
+    supabase
+      .from("workout_session_exercises")
+      .select("id", { count: "exact", head: true })
+      .eq("exercise_id", id),
+  ]);
+  if (error) throw new Error(error.message);
+
+  return {
+    workouts: summarizeExerciseUsage((steps ?? []) as unknown as ExerciseUsageStepRow[]),
+    historyCount: count ?? 0,
+  };
+}
+
+// Deletes an exercise. When `replacement` is given, every workout step using the
+// exercise is first repointed at the replacement (and, optionally, its logged
+// strength history moved over too) so workouts don't lose the link.
+export async function deleteExercise(
+  id: string,
+  replacement?: { exerciseId: string; moveHistory: boolean }
+): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  if (replacement) {
+    if (replacement.exerciseId === id) throw new Error("Pick a different exercise as the replacement");
+    const [{ data: oldEx }, { data: newEx, error: newErr }] = await Promise.all([
+      supabase.from("exercises").select("video_url").eq("id", id).single(),
+      supabase.from("exercises").select("id, name, video_url").eq("id", replacement.exerciseId).single(),
+    ]);
+    if (newErr || !newEx) throw new Error("Replacement exercise not found");
+
+    const { error: stepErr } = await supabase
+      .from("workout_steps")
+      .update({ exercise_id: newEx.id, label: newEx.name })
+      .eq("exercise_id", id);
+    if (stepErr) throw new Error(stepErr.message);
+
+    // Steps that carried the old exercise's video get the replacement's video.
+    if (oldEx?.video_url) {
+      await supabase
+        .from("workout_steps")
+        .update({ video_url: newEx.video_url })
+        .eq("exercise_id", newEx.id)
+        .eq("video_url", oldEx.video_url);
+    }
+
+    if (replacement.moveHistory) {
+      const { error: histErr } = await supabase
+        .from("workout_session_exercises")
+        .update({ exercise_id: newEx.id })
+        .eq("exercise_id", id);
+      if (histErr) throw new Error(histErr.message);
+    }
+  }
 
   const { error } = await supabase
     .from("exercises")
@@ -93,6 +160,11 @@ export async function deleteExercise(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   revalidatePath("/exercises");
+  if (replacement) {
+    revalidatePath("/plans", "layout");
+    revalidatePath("/workouts");
+    revalidatePath("/progression");
+  }
 }
 
 export async function bulkUpdateExercises(
