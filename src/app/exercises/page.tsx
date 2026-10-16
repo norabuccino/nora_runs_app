@@ -11,6 +11,7 @@ import { DeleteExerciseModal } from "@/components/DeleteExerciseModal";
 import { SourcesInput } from "@/components/SourcesInput";
 import { collectSources, formatSources, hasSource, normalizeSources } from "@/lib/exerciseSources";
 import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, formatMuscleGroups, sortMuscleGroups, toggleMuscleGroup } from "@/lib/muscleGroups";
+import { EQUIPMENT, EQUIPMENT_LABELS, formatEquipment, sortEquipment, toggleEquipment } from "@/lib/equipment";
 import type { ExerciseUsageEntry } from "@/lib/exerciseUsage";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
@@ -23,6 +24,7 @@ interface ExerciseFormData {
   exercise_type: string;
   sources: string[];
   muscle_groups: string[];
+  equipment: string[];
   is_private: boolean;
   loading_category: string;
   track_load: boolean;
@@ -37,6 +39,7 @@ const EMPTY_FORM: ExerciseFormData = {
   exercise_type: "",
   sources: [],
   muscle_groups: [],
+  equipment: [],
   is_private: false,
   loading_category: "",
   track_load: false,
@@ -173,6 +176,29 @@ function ExerciseModal({
             </div>
 
             <div className="space-y-1">
+              <label className={labelClass}>Equipment <span className="text-[var(--muted)]">(optional — pick any that apply)</span></label>
+              <div className="flex flex-wrap gap-1.5">
+                {EQUIPMENT.map((g) => {
+                  const on = form.equipment.includes(g);
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, equipment: toggleEquipment(p.equipment, g) }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        on
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                      }`}
+                    >
+                      {EQUIPMENT_LABELS[g]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1">
               <label className={labelClass}>Sources <span className="text-[var(--muted)]">(optional — press Enter to add each)</span></label>
               <SourcesInput
                 value={form.sources}
@@ -294,6 +320,7 @@ export default function ExercisesPage() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [muscleFilter, setMuscleFilter] = useState("all");
+  const [equipmentFilter, setEquipmentFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
   const [sort, setSort] = useState<SortKey>("az");
@@ -313,6 +340,7 @@ export default function ExercisesPage() {
   const [bulkSource, setBulkSource] = useState("");
   // "add:<group>" or "remove:<group>"; "" = no change.
   const [bulkMuscle, setBulkMuscle] = useState("");
+  const [bulkEquipment, setBulkEquipment] = useState("");
   const [bulkTrack, setBulkTrack] = useState<"" | "on" | "off">("");
   const [bulkLoadFormat, setBulkLoadFormat] = useState("");
   const [showImport, setShowImport] = useState(false);
@@ -327,7 +355,7 @@ export default function ExercisesPage() {
   useEffect(() => { load(); }, []);
 
   function handleExport() {
-    const headers = "name,exercise_type,description,video_url,source,muscle_groups,loading_category,track_load,load_format,default_increment";
+    const headers = "name,exercise_type,description,video_url,source,muscle_groups,equipment,loading_category,track_load,load_format,default_increment";
     const rows = exercises.map((e) =>
       [
         csvEscape(e.name),
@@ -336,6 +364,7 @@ export default function ExercisesPage() {
         csvEscape(e.video_url),
         csvEscape(formatSources(e.sources)),
         csvEscape(formatMuscleGroups(e.muscle_groups)),
+        csvEscape(formatEquipment(e.equipment)),
         e.loading_category ?? "",
         e.track_load ? "true" : "false",
         e.load_format ?? "",
@@ -359,6 +388,8 @@ export default function ExercisesPage() {
       if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
       if (sourceFilter !== "all" && !hasSource(e.sources, sourceFilter)) return false;
       if (muscleFilter !== "all" && !e.muscle_groups?.includes(muscleFilter)) return false;
+      if (equipmentFilter === "__none__" && sortEquipment(e.equipment).length) return false;
+      if (equipmentFilter !== "all" && equipmentFilter !== "__none__" && !e.equipment?.includes(equipmentFilter)) return false;
       if (noDescriptionOnly && e.description?.trim()) return false;
       if (trackingFilter === "tracked" && !e.track_load) return false;
       if (trackingFilter === "untracked" && e.track_load) return false;
@@ -384,6 +415,7 @@ export default function ExercisesPage() {
         exercise_type: data.exercise_type || null,
         sources: normalizeSources(data.sources),
         muscle_groups: sortMuscleGroups(data.muscle_groups),
+        equipment: sortEquipment(data.equipment),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -411,6 +443,7 @@ export default function ExercisesPage() {
         exercise_type: data.exercise_type || null,
         sources: normalizeSources(data.sources),
         muscle_groups: sortMuscleGroups(data.muscle_groups),
+        equipment: sortEquipment(data.equipment),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -451,6 +484,7 @@ export default function ExercisesPage() {
     setTypeFilter(type);
     setSourceFilter("all");
     setMuscleFilter("all");
+    setEquipmentFilter("all");
     setNoDescriptionOnly(false);
     setTrackingFilter("all");
     setCategory(type);
@@ -461,6 +495,7 @@ export default function ExercisesPage() {
     setTypeFilter("all");
     setSourceFilter("all");
     setMuscleFilter("all");
+    setEquipmentFilter("all");
     setNoDescriptionOnly(false);
     setTrackingFilter("all");
     setSearch("");
@@ -480,6 +515,7 @@ export default function ExercisesPage() {
     setBulkType("");
     setBulkSource("");
     setBulkMuscle("");
+    setBulkEquipment("");
     setBulkTrack("");
     setBulkLoadFormat("");
   }
@@ -494,6 +530,11 @@ export default function ExercisesPage() {
       if (bulkLoadFormat) updates.load_format = bulkLoadFormat;
     } else if (bulkTrack === "off") {
       updates.track_load = false;
+    }
+    if (bulkEquipment) {
+      const [action, item] = bulkEquipment.split(":");
+      if (action === "add") updates.addEquipment = [item];
+      else updates.removeEquipment = [item];
     }
     if (bulkMuscle) {
       const [action, group] = bulkMuscle.split(":");
@@ -702,6 +743,24 @@ export default function ExercisesPage() {
               </div>
             )}
 
+            {/* Equipment filter */}
+            <div>
+              <select
+                value={equipmentFilter}
+                onChange={(e) => setEquipmentFilter(e.target.value)}
+                aria-label="Filter by equipment"
+                className={`rounded-full px-3 py-1 text-xs font-medium focus:outline-none ${
+                  equipmentFilter === "all"
+                    ? "border border-[var(--border)] bg-[var(--background)] text-[var(--muted)]"
+                    : "bg-[var(--foreground)] text-[var(--background)]"
+                }`}
+              >
+                <option value="all">All equipment</option>
+                <option value="__none__">No equipment</option>
+                {EQUIPMENT.map((k) => <option key={k} value={k}>{EQUIPMENT_LABELS[k]}</option>)}
+              </select>
+            </div>
+
             {/* Muscle group filter pills */}
             <div className="flex flex-wrap gap-1.5">
               {["all", ...MUSCLE_GROUPS].map((g) => (
@@ -847,6 +906,7 @@ export default function ExercisesPage() {
             exercise_type: editing.exercise_type ?? "",
             sources: editing.sources ?? [],
             muscle_groups: editing.muscle_groups ?? [],
+            equipment: editing.equipment ?? [],
             is_private: editing.is_private,
             loading_category: editing.loading_category ?? "",
             track_load: editing.track_load,
@@ -921,6 +981,23 @@ export default function ExercisesPage() {
             </optgroup>
           </select>
           <select
+            value={bulkEquipment}
+            onChange={(e) => setBulkEquipment(e.target.value)}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+          >
+            <option value="">Equipment: no change</option>
+            <optgroup label="Add">
+              {EQUIPMENT.map((k) => (
+                <option key={k} value={`add:${k}`}>+ {EQUIPMENT_LABELS[k]}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Remove">
+              {EQUIPMENT.map((k) => (
+                <option key={k} value={`remove:${k}`}>− {EQUIPMENT_LABELS[k]}</option>
+              ))}
+            </optgroup>
+          </select>
+          <select
             value={bulkTrack}
             onChange={(e) => setBulkTrack(e.target.value as "" | "on" | "off")}
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
@@ -943,7 +1020,7 @@ export default function ExercisesPage() {
           )}
           <button
             onClick={handleBulkApply}
-            disabled={isPending || (bulkType === "" && !bulkSource.trim() && !bulkMuscle && !bulkTrack)}
+            disabled={isPending || (bulkType === "" && !bulkSource.trim() && !bulkMuscle && !bulkEquipment && !bulkTrack)}
             className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
           >
             Apply
@@ -1067,6 +1144,12 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
             </span>
           ))}
         </div>
+      )}
+
+      {sortEquipment(exercise.equipment).length > 0 && (
+        <p className="text-xs text-[var(--muted)]">
+          <span className="font-medium">Equipment:</span> {sortEquipment(exercise.equipment).map((k) => EQUIPMENT_LABELS[k]).join(", ")}
+        </p>
       )}
 
       {exercise.sources?.length > 0 && (

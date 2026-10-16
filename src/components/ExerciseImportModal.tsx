@@ -6,6 +6,7 @@ import { EXERCISE_TYPE_LABELS } from "@/lib/paceUtils";
 import { splitCSVLine } from "@/lib/csvUtils";
 import { parseSources } from "@/lib/exerciseSources";
 import { MUSCLE_GROUP_LABELS, parseMuscleGroups } from "@/lib/muscleGroups";
+import { EQUIPMENT_LABELS, parseEquipment } from "@/lib/equipment";
 
 function muscleGroupsOrThrow(input: unknown, where: string): string[] {
   const { groups, unknown } = parseMuscleGroups(input);
@@ -15,15 +16,23 @@ function muscleGroupsOrThrow(input: unknown, where: string): string[] {
   return groups;
 }
 
+function equipmentOrThrow(input: unknown, where: string): string[] {
+  const { tags, unknown } = parseEquipment(input);
+  if (unknown.length) {
+    throw new Error(`${where}: unknown equipment "${unknown[0]}" — use one of ${Object.values(EQUIPMENT_LABELS).join(", ")}`);
+  }
+  return tags;
+}
+
 const VALID_TYPES = new Set(Object.keys(EXERCISE_TYPE_LABELS));
 
 const SAMPLE_CSV = [
-  "name,exercise_type,description,video_url,source,muscle_groups",
-  "Barbell Squat,lower_body,\"3 sets of 8 — drive through heels, brace core\",,Coach; YouTube,Thighs; Hips & Glutes",
-  "Hip Flexor Stretch,stretch,30s each side — lunge position,,,Hips & Glutes",
-  "Box Jump,plyos,Jump onto box and land softly with bent knees,,,Thighs; Lower Legs",
-  "Leg Swing,warm_up,10 reps each direction,,,Hips & Glutes",
-  "Foam Roll Quads,mobility,60s per side — pause on tight spots,,YouTube,Thighs",
+  "name,exercise_type,description,video_url,source,muscle_groups,equipment",
+  "Barbell Squat,lower_body,\"3 sets of 8 — drive through heels, brace core\",,Coach; YouTube,Thighs; Hips & Glutes,Barbell",
+  "Hip Flexor Stretch,stretch,30s each side — lunge position,,,Hips & Glutes,",
+  "Box Jump,plyos,Jump onto box and land softly with bent knees,,,Thighs; Lower Legs,Box / step",
+  "Leg Swing,warm_up,10 reps each direction,,,Hips & Glutes,Wall",
+  "Foam Roll Quads,mobility,60s per side — pause on tight spots,,YouTube,Thighs,Foam roller",
 ].join("\n");
 
 function downloadSampleCSV() {
@@ -59,6 +68,7 @@ function parseCSV(text: string): ExerciseImportRow[] {
       video_url: raw.video_url?.trim() || null,
       sources: parseSources(raw.source ?? raw.sources),
       muscle_groups: muscleGroupsOrThrow(raw.muscle_groups, `Row ${i + 1}`),
+      equipment: equipmentOrThrow(raw.equipment, `Row ${i + 1}`),
     });
   }
   return rows;
@@ -78,6 +88,7 @@ function parseJSON(text: string): ExerciseImportRow[] {
       video_url: item.video_url ?? null,
       sources: parseSources(item.sources ?? item.source),
       muscle_groups: muscleGroupsOrThrow(item.muscle_groups, `Item ${i + 1}`),
+      equipment: equipmentOrThrow(item.equipment, `Item ${i + 1}`),
     };
   });
 }
@@ -150,6 +161,7 @@ export function ExerciseImportModal({
                 <span><code className="text-[var(--foreground)]">video_url</code> — link to video (optional)</span>
                 <span><code className="text-[var(--foreground)]">source</code> — coach, book, etc.; separate several with <code className="text-[var(--foreground)]">;</code> (optional)</span>
                 <span className="col-span-2"><code className="text-[var(--foreground)]">muscle_groups</code> — any of {Object.values(MUSCLE_GROUP_LABELS).join(", ")}; separate several with <code className="text-[var(--foreground)]">;</code> (optional)</span>
+                <span className="col-span-2"><code className="text-[var(--foreground)]">equipment</code> — e.g. Dumbbells, Mini band, TRX, Box / step; separate several with <code className="text-[var(--foreground)]">;</code> (optional)</span>
               </div>
             </div>
             <p className="text-xs text-[var(--muted)]">
@@ -197,6 +209,7 @@ export function ExerciseImportModal({
                       <th className="px-3 py-2 text-left font-medium">Description</th>
                       <th className="px-3 py-2 text-left font-medium">Source</th>
                       <th className="px-3 py-2 text-left font-medium">Muscle groups</th>
+                      <th className="px-3 py-2 text-left font-medium">Equipment</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -216,6 +229,9 @@ export function ExerciseImportModal({
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">
                           {row.muscle_groups?.length ? row.muscle_groups.map((g) => MUSCLE_GROUP_LABELS[g]).join(", ") : "—"}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">
+                          {row.equipment?.length ? row.equipment.map((k) => EQUIPMENT_LABELS[k]).join(", ") : "—"}
                         </td>
                       </tr>
                     ))}

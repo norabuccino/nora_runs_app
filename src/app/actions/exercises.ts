@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
 import { addSources, normalizeSources } from "@/lib/exerciseSources";
 import { applyMuscleGroupChange, sortMuscleGroups } from "@/lib/muscleGroups";
+import { applyEquipmentChange, sortEquipment } from "@/lib/equipment";
 import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
@@ -14,6 +15,7 @@ export type ExerciseImportRow = {
   video_url: string | null;
   sources: string[];
   muscle_groups?: string[];
+  equipment?: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -28,6 +30,7 @@ export async function createExercise(data: {
   exercise_type?: string | null;
   sources?: string[];
   muscle_groups?: string[];
+  equipment?: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -58,6 +61,7 @@ export async function updateExercise(
     exercise_type?: string | null;
     sources?: string[];
     muscle_groups?: string[];
+    equipment?: string[];
     is_private?: boolean;
     loading_category?: string | null;
     track_load?: boolean;
@@ -183,6 +187,8 @@ export async function bulkUpdateExercises(
     addSources?: string[];
     addMuscleGroups?: string[];
     removeMuscleGroups?: string[];
+    addEquipment?: string[];
+    removeEquipment?: string[];
   }
 ): Promise<void> {
   if (!ids.length) return;
@@ -217,10 +223,12 @@ export async function bulkUpdateExercises(
   const added = normalizeSources(data.addSources ?? []);
   const muscleChange = { add: data.addMuscleGroups ?? [], remove: data.removeMuscleGroups ?? [] };
   const hasMuscleChange = muscleChange.add.length > 0 || muscleChange.remove.length > 0;
-  if (added.length || hasMuscleChange) {
+  const equipmentChange = { add: data.addEquipment ?? [], remove: data.removeEquipment ?? [] };
+  const hasEquipmentChange = equipmentChange.add.length > 0 || equipmentChange.remove.length > 0;
+  if (added.length || hasMuscleChange || hasEquipmentChange) {
     const { data: rows, error } = await supabase
       .from("exercises")
-      .select("id, sources, muscle_groups")
+      .select("id, sources, muscle_groups, equipment")
       .in("id", ids)
       .eq("user_id", user.id);
     if (error) throw new Error(error.message);
@@ -231,6 +239,7 @@ export async function bulkUpdateExercises(
           .update({
             ...(added.length ? { sources: addSources(row.sources ?? [], added) } : {}),
             ...(hasMuscleChange ? { muscle_groups: applyMuscleGroupChange(row.muscle_groups, muscleChange) } : {}),
+            ...(hasEquipmentChange ? { equipment: applyEquipmentChange(row.equipment, equipmentChange) } : {}),
           })
           .eq("id", row.id)
           .eq("user_id", user.id)
@@ -258,6 +267,7 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
     video_url: row.video_url,
     sources: normalizeSources(row.sources),
     muscle_groups: sortMuscleGroups(row.muscle_groups),
+    equipment: sortEquipment(row.equipment),
     is_private: row.is_private ?? false,
     loading_category: row.loading_category ?? null,
     track_load: row.track_load ?? false,

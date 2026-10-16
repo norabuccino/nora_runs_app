@@ -273,6 +273,7 @@ export interface Database {
           exercise_type: string | null;
           sources: string[];
           muscle_groups: string[];
+          equipment: string[];
           is_private: boolean;
           loading_category: string | null;
           track_load: boolean;
@@ -289,6 +290,7 @@ export interface Database {
           exercise_type?: string | null;
           sources?: string[];
           muscle_groups?: string[];
+          equipment?: string[];
           is_private?: boolean;
           loading_category?: string | null;
           track_load?: boolean;
@@ -305,6 +307,7 @@ export interface Database {
           exercise_type?: string | null;
           sources?: string[];
           muscle_groups?: string[];
+          equipment?: string[];
           is_private?: boolean;
           loading_category?: string | null;
           track_load?: boolean;

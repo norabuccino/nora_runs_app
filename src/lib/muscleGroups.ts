@@ -1,6 +1,8 @@
 // Fixed list of muscle groups an exercise can be tagged with (multi-select).
 // Keys match the CHECK constraint on exercises.muscle_groups.
 
+import { createTagList } from "@/lib/tagList";
+
 export const MUSCLE_GROUP_LABELS: Record<string, string> = {
   chest: "Chest",
   shoulders: "Shoulders",
@@ -13,62 +15,19 @@ export const MUSCLE_GROUP_LABELS: Record<string, string> = {
   feet: "Feet",
 };
 
-export const MUSCLE_GROUPS = Object.keys(MUSCLE_GROUP_LABELS);
+const muscleGroups = createTagList(MUSCLE_GROUP_LABELS);
 
-const ORDER = new Map(MUSCLE_GROUPS.map((g, i) => [g, i]));
+export const MUSCLE_GROUPS = muscleGroups.keys;
 
 // Keeps only valid keys, de-duplicated, in the canonical head-to-toe order.
-export function sortMuscleGroups(groups: string[] | null | undefined): string[] {
-  return Array.from(new Set((groups ?? []).filter((g) => ORDER.has(g)))).sort(
-    (a, b) => ORDER.get(a)! - ORDER.get(b)!
-  );
-}
-
-export function toggleMuscleGroup(groups: string[], group: string): string[] {
-  return groups.includes(group)
-    ? groups.filter((g) => g !== group)
-    : sortMuscleGroups([...groups, group]);
-}
-
-function normalizeToken(s: string): string {
-  return s.trim().toLowerCase().replace(/&|\band\b/g, " ").replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
-}
-
-const LOOKUP = new Map<string, string>(
-  MUSCLE_GROUPS.flatMap((key) => [
-    [normalizeToken(key), key],
-    [normalizeToken(MUSCLE_GROUP_LABELS[key]), key],
-  ])
-);
+export const sortMuscleGroups = muscleGroups.sort;
+export const toggleMuscleGroup = muscleGroups.toggle;
+export const applyMuscleGroupChange = muscleGroups.applyChange;
+export const formatMuscleGroups = muscleGroups.format;
 
 // Parses import input — "Chest; Arms", "hips_glutes", or a JSON array — accepting
 // either keys or labels (case-insensitive). Unknown names are returned separately.
 export function parseMuscleGroups(input: unknown): { groups: string[]; unknown: string[] } {
-  const tokens = Array.isArray(input)
-    ? input.filter((v): v is string => typeof v === "string")
-    : typeof input === "string"
-      ? input.split(/[;|]/)
-      : [];
-  const groups: string[] = [];
-  const unknown: string[] = [];
-  for (const raw of tokens) {
-    if (!raw.trim()) continue;
-    const key = LOOKUP.get(normalizeToken(raw));
-    if (key) groups.push(key);
-    else unknown.push(raw.trim());
-  }
-  return { groups: sortMuscleGroups(groups), unknown };
-}
-
-// Bulk edit: adds then removes groups, keeping the result valid and ordered.
-export function applyMuscleGroupChange(
-  groups: string[] | null | undefined,
-  change: { add?: string[]; remove?: string[] }
-): string[] {
-  const remove = new Set(change.remove ?? []);
-  return sortMuscleGroups([...(groups ?? []), ...(change.add ?? [])]).filter((g) => !remove.has(g));
-}
-
-export function formatMuscleGroups(groups: string[] | null | undefined): string {
-  return sortMuscleGroups(groups).map((g) => MUSCLE_GROUP_LABELS[g]).join("; ");
+  const { tags, unknown } = muscleGroups.parse(input);
+  return { groups: tags, unknown };
 }

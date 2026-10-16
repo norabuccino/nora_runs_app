@@ -1,6 +1,7 @@
 "use client";
 
 import { MUSCLE_GROUP_LABELS, sortMuscleGroups } from "@/lib/muscleGroups";
+import { EQUIPMENT_LABELS, sortEquipment } from "@/lib/equipment";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
@@ -169,6 +170,13 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
                 </span>
               ))}
             </div>
+          )}
+
+          {/* Equipment */}
+          {sortEquipment(exercise.equipment).length > 0 && (
+            <p className="text-xs text-[var(--muted)]">
+              <span className="font-medium">Equipment:</span> {sortEquipment(exercise.equipment).map((k) => EQUIPMENT_LABELS[k]).join(", ")}
+            </p>
           )}
 
           {/* Source */}
