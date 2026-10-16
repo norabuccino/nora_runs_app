@@ -22,6 +22,7 @@ export const EQUIPMENT_LABELS: Record<string, string> = {
   yoga_block: "Yoga block",
   wall: "Wall",
   pull_up_bar: "Pull-up bar",
+  squat_rack: "Squat rack",
   tib_bar: "Tib bar",
   leg_press: "Leg press",
   sled: "Sled",
@@ -44,6 +45,8 @@ const equipment = createTagList(EQUIPMENT_LABELS, {
   chair: "box_step",
   slider: "sliders",
   block: "yoga_block",
+  rack: "squat_rack",
+  power_rack: "squat_rack",
   tennis_ball: "small_ball",
   lacrosse_ball: "small_ball",
 });

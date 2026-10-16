@@ -36,6 +36,10 @@ describe("equipment tag list", () => {
     });
   });
 
+  it("includes the squat rack (overcoming isometrics under the pins)", () => {
+    expect(parseEquipment("Squat rack; rack").tags).toEqual(["squat_rack"]);
+  });
+
   it("reports unknown equipment separately", () => {
     expect(parseEquipment("Kettlebell; Rowing machine")).toEqual({ tags: ["kettlebell"], unknown: ["Rowing machine"] });
   });
