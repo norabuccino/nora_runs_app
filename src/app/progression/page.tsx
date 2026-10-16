@@ -71,7 +71,8 @@ export default function ProgressionPage() {
         <div className="text-center py-16 space-y-3">
           <p className="text-[var(--muted)]">No tracked strength history yet.</p>
           <p className="text-sm text-[var(--muted)]">
-            Turn on &quot;Track load&quot; for an exercise in your Exercise Library, then log a workout session to see it here.
+            Exercises appear here once you&apos;ve logged them in a workout session. Turn on weight tracking for an exercise in
+            your Exercise Library, then use Start Workout to log it.
           </p>
         </div>
       )}

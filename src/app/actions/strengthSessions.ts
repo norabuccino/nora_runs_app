@@ -283,7 +283,7 @@ export interface ProgressionRow {
   previous: ExerciseHistoryEntry | null;
 }
 
-/** Derived Strength Progression dashboard data — latest + previous completed performance per tracked exercise. */
+/** Derived Strength Progression dashboard data — latest + previous completed performance per tracked exercise that has been done at least once. */
 export async function getProgressionDashboard(): Promise<ProgressionRow[]> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -314,16 +314,20 @@ export async function getProgressionDashboard(): Promise<ProgressionRow[]> {
     byExercise.set(row.exercise_id, list);
   }
 
-  return exercises.map((exercise) => {
-    const rows = (byExercise.get(exercise.id) ?? []).sort((a, b) =>
-      b.workout_sessions!.session_date.localeCompare(a.workout_sessions!.session_date)
-    );
-    return {
-      exercise,
-      latest: rows[0] ? toHistoryEntry(rows[0]) : null,
-      previous: rows[1] ? toHistoryEntry(rows[1]) : null,
-    };
-  });
+  // Only exercises that have been done at least once — tracked-but-never-logged
+  // exercises would just be rows of dashes.
+  return exercises
+    .filter((exercise) => byExercise.has(exercise.id))
+    .map((exercise) => {
+      const rows = byExercise.get(exercise.id)!.sort((a, b) =>
+        b.workout_sessions!.session_date.localeCompare(a.workout_sessions!.session_date)
+      );
+      return {
+        exercise,
+        latest: toHistoryEntry(rows[0]),
+        previous: rows[1] ? toHistoryEntry(rows[1]) : null,
+      };
+    });
 }
 
 export interface MuscleGroupBreakdownData {
