@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { PlanCard } from "@/components/PlanCard";
+import { ActiveFilterChips, FilterPanel, FilterSelect, FiltersButton, Pill, PillRow, activeFilterList } from "@/components/FilterControls";
 import type { TrainingPlan, PlanType } from "@/types/database";
-import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, PLAN_TYPE_TEXT_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
+import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, PLAN_TYPE_TEXT_COLORS, DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
 
 const FILTER_TABS: { value: PlanType | "all"; label: string }[] = [
@@ -27,6 +28,7 @@ export default function PlansPage() {
   const [activeFilter, setActiveFilter] = useState<PlanType | "all">("all");
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyType | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
   const [category, setCategory] = useState<PlanType | "all" | null>(null);
@@ -80,6 +82,19 @@ export default function PlansPage() {
   const difficultiesInUse = new Set(plans.map((p) => p.difficulty).filter(Boolean)) as Set<DifficultyType>;
   const sourcesInUse = Array.from(new Set(plans.map((p) => p.source).filter(Boolean))) as string[];
   const hasUnsourced = plans.some((p) => !p.source);
+  const hasMoreFilters = difficultiesInUse.size > 0 || sourcesInUse.length > 0 || hasUnsourced;
+  const activeFilters = activeFilterList([
+    difficultyFilter !== "all" && {
+      key: "difficulty",
+      label: DIFFICULTY_LABELS[difficultyFilter],
+      clear: () => setDifficultyFilter("all"),
+    },
+    sourceFilter !== "all" && {
+      key: "source",
+      label: sourceFilter === "__none__" ? "No source" : sourceFilter,
+      clear: () => setSourceFilter("all"),
+    },
+  ]);
 
   return (
     <div className="space-y-6">
@@ -160,87 +175,63 @@ export default function PlansPage() {
             ← All categories
           </button>
 
-          {/* Plan type filter */}
+          {/* Plan type — one swipeable row */}
           {visibleTabs.length > 2 && (
-            <div className="flex flex-wrap gap-1.5">
-              {visibleTabs.map(({ value, label }) => {
-                const isActive = activeFilter === value;
-                const colorClass = value !== "all" ? PLAN_TYPE_COLORS[value] : "";
-                return (
-                  <button
-                    key={value}
-                    onClick={() => enterCategory(value)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      isActive
-                        ? value === "all"
-                          ? "bg-[var(--foreground)] text-[var(--background)]"
-                          : colorClass
-                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
+            <PillRow>
+              {visibleTabs.map(({ value, label }) => (
+                <Pill
+                  key={value}
+                  active={activeFilter === value}
+                  activeClass={value === "all" ? undefined : PLAN_TYPE_COLORS[value]}
+                  onClick={() => enterCategory(value)}
+                >
+                  {label}
+                </Pill>
+              ))}
+            </PillRow>
           )}
 
-          {/* Difficulty filter */}
-          {difficultiesInUse.size > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setDifficultyFilter("all")}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  difficultyFilter === "all"
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
-              >
-                All difficulties
-              </button>
-              {(["beginner", "intermediate", "advanced"] as DifficultyType[]).filter((d) => difficultiesInUse.has(d)).map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDifficultyFilter(d)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    difficultyFilter === d
-                      ? DIFFICULTY_COLORS[d]
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
-                >
-                  {DIFFICULTY_LABELS[d]}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Filters toggle + result count + active filter chips */}
+          <ActiveFilterChips
+            count={filtered.length}
+            noun={["plan", "plans"]}
+            filters={activeFilters}
+            leading={
+              hasMoreFilters && (
+                <span className="mr-1.5">
+                  <FiltersButton
+                    open={filtersOpen}
+                    onToggle={() => setFiltersOpen((o) => !o)}
+                    count={activeFilters.length}
+                    controls="plan-filters"
+                  />
+                </span>
+              )
+            }
+          />
 
-          {/* Source filter */}
-          {(sourcesInUse.length > 0 || hasUnsourced) && (
-            <div className="flex flex-wrap gap-1.5">
-              <button
-                onClick={() => setSourceFilter("all")}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  sourceFilter === "all"
-                    ? "bg-[var(--foreground)] text-[var(--background)]"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
-              >
-                All sources
-              </button>
-              {sourcesInUse.map((src) => (
-                <button
-                  key={src}
-                  onClick={() => setSourceFilter(src)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    sourceFilter === src
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
+          {filtersOpen && hasMoreFilters && (
+            <FilterPanel id="plan-filters">
+              {difficultiesInUse.size > 0 && (
+                <FilterSelect
+                  label="Difficulty"
+                  value={difficultyFilter}
+                  onChange={(v) => setDifficultyFilter(v as DifficultyType | "all")}
                 >
-                  {src}
-                </button>
-              ))}
-            </div>
+                  <option value="all">Any</option>
+                  {(["beginner", "intermediate", "advanced"] as DifficultyType[])
+                    .filter((d) => difficultiesInUse.has(d))
+                    .map((d) => <option key={d} value={d}>{DIFFICULTY_LABELS[d]}</option>)}
+                </FilterSelect>
+              )}
+              {(sourcesInUse.length > 0 || hasUnsourced) && (
+                <FilterSelect label="Source" value={sourceFilter} onChange={setSourceFilter}>
+                  <option value="all">Any</option>
+                  {sourcesInUse.map((src) => <option key={src} value={src}>{src}</option>)}
+                  {hasUnsourced && <option value="__none__">No source</option>}
+                </FilterSelect>
+              )}
+            </FilterPanel>
           )}
 
           {filtered.length === 0 ? (

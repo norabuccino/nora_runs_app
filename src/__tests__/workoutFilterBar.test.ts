@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyWorkoutFilter, DEFAULT_FILTER, NO_SOURCE_SENTINEL, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { applyWorkoutFilter, workoutActiveFilters, DEFAULT_FILTER, NO_SOURCE_SENTINEL, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 
 interface FakeWorkout {
   id: string;
@@ -76,5 +76,31 @@ describe("applyWorkoutFilter", () => {
     const items = [w({ id: "1", source: "Jack Daniels" }), w({ id: "2", source: null })];
     const result = applyWorkoutFilter(items, filter({ source: NO_SOURCE_SENTINEL }));
     expect(result.map((x) => x.id)).toEqual(["2"]);
+  });
+});
+
+describe("workoutActiveFilters", () => {
+  it("is empty for the default filter and doesn't count the type pill", () => {
+    expect(workoutActiveFilters(DEFAULT_FILTER, () => {})).toEqual([]);
+    expect(workoutActiveFilters(filter({ type: "run" }), () => {})).toEqual([]);
+  });
+
+  it("lists the sub-type for the selected type and the source", () => {
+    const f = filter({ type: "run", runType: "long_run", source: NO_SOURCE_SENTINEL });
+    expect(workoutActiveFilters(f, () => {}).map((a) => a.label)).toEqual(["Long Run", "No source"]);
+  });
+
+  it("ignores a sub-type left over from a different type", () => {
+    expect(workoutActiveFilters(filter({ type: "swim", runType: "long_run" }), () => {})).toEqual([]);
+  });
+
+  it("clearing a chip resets only that field", () => {
+    let next: WorkoutFilter | null = null;
+    const f = filter({ type: "strength", strengthType: "core", source: "Coach" });
+    const [strength, source] = workoutActiveFilters(f, (n) => { next = n; });
+    strength.clear();
+    expect(next).toEqual({ ...f, strengthType: "all" });
+    source.clear();
+    expect(next).toEqual({ ...f, source: "all" });
   });
 });

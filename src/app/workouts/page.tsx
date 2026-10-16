@@ -15,7 +15,8 @@ import {
   bulkUpdateLibraryWorkouts,
 } from "@/app/actions/workoutLibrary";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
-import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { WorkoutFilterBar, applyWorkoutFilter, workoutActiveFilters, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { FiltersButton } from "@/components/FilterControls";
 import { WORKOUT_TYPE_LABELS, WORKOUT_TYPE_COLORS, WORKOUT_TYPE_TEXT_COLORS } from "@/lib/paceUtils";
 import { displayDistance } from "@/lib/unitUtils";
 import { useCompactMode } from "@/hooks/useCompactMode";
@@ -72,6 +73,7 @@ export default function WorkoutsPage() {
   const [showImport, setShowImport] = useState(false);
   const [detail, setDetail] = useState<LibraryWorkoutWithSteps | null>(null);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
   const [category, setCategory] = useState<WorkoutType | "all" | null>(null);
   const [search, setSearch] = useState("");
@@ -455,15 +457,23 @@ export default function WorkoutsPage() {
           <div className="flex gap-2 items-center">
             <input
               type="search"
-              placeholder="Search workouts…"
+              placeholder="Search…"
+              aria-label="Search workouts"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="flex-1 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+            />
+            <FiltersButton
+              open={filtersOpen}
+              onToggle={() => setFiltersOpen((o) => !o)}
+              count={workoutActiveFilters(filter, setFilter).length}
+              controls="workout-filters"
             />
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              aria-label="Sort workouts"
+              className="shrink-0 w-24 sm:w-auto rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
               <option value="az">A → Z</option>
               <option value="za">Z → A</option>
@@ -481,6 +491,9 @@ export default function WorkoutsPage() {
             onChange={setFilter}
             sources={Array.from(new Set(workouts.map((w) => w.source).filter(Boolean))) as string[]}
             hasUnsourced={workouts.some((w) => !w.source)}
+            panelOpen={filtersOpen}
+            panelId="workout-filters"
+            resultCount={displayed.length}
           />
 
           {selectMode && displayed.length > 0 && (

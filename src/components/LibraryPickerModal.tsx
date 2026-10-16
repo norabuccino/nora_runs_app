@@ -6,7 +6,8 @@ import type { LibraryWorkoutWithSteps } from "@/types/database";
 import { addLibraryWorkoutToPlan } from "@/app/actions/workoutLibrary";
 import { createScheduledWorkoutFromLibrary } from "@/app/actions/scheduledWorkouts";
 import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
-import { WorkoutFilterBar, applyWorkoutFilter, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { WorkoutFilterBar, applyWorkoutFilter, workoutActiveFilters, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
+import { FiltersButton } from "@/components/FilterControls";
 import { displayDistance } from "@/lib/unitUtils";
 
 interface LibraryPickerModalProps {
@@ -31,6 +32,7 @@ export function LibraryPickerModal({
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<WorkoutFilter>(DEFAULT_FILTER);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -101,19 +103,32 @@ export function LibraryPickerModal({
         </div>
 
         <div className="p-3 sm:p-4 border-b border-[var(--border)] space-y-3">
-          <input
-            type="search"
-            placeholder="Search workouts…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
-            autoFocus
-          />
+          <div className="flex gap-2 items-center">
+            <input
+              type="search"
+              placeholder="Search…"
+              aria-label="Search workouts"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="flex-1 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              autoFocus
+            />
+            <FiltersButton
+              open={filtersOpen}
+              onToggle={() => setFiltersOpen((o) => !o)}
+              count={workoutActiveFilters(filter, setFilter).length}
+              controls="library-picker-filters"
+            />
+          </div>
           <WorkoutFilterBar
             filter={filter}
             onChange={setFilter}
             sources={[...new Set(workouts.map((w) => w.source).filter((s): s is string => !!s))]}
             hasUnsourced={workouts.some((w) => !w.source)}
+            panelOpen={filtersOpen}
+            panelId="library-picker-filters"
+            resultCount={displayed.length}
+            bleed={false}
           />
         </div>
 
