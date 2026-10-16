@@ -49,6 +49,7 @@ const EMPTY_FORM: ExerciseFormData = {
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
+const filterSelectClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 
 const TYPE_FILTERS = [
   { value: "all", label: "All" },
@@ -323,6 +324,7 @@ export default function ExercisesPage() {
   const [equipmentFilter, setEquipmentFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
   const [category, setCategory] = useState<string | "all" | null>(null);
@@ -383,6 +385,31 @@ export default function ExercisesPage() {
   }
 
   const availableSources = collectSources(exercises);
+
+  // Filters beyond type/search, shown as removable chips under the toolbar.
+  const activeFilters: { key: string; label: string; clear: () => void }[] = [
+    muscleFilter !== "all" && { key: "muscle", label: MUSCLE_GROUP_LABELS[muscleFilter] ?? muscleFilter, clear: () => setMuscleFilter("all") },
+    equipmentFilter !== "all" && {
+      key: "equipment",
+      label: equipmentFilter === "__none__" ? "No equipment" : EQUIPMENT_LABELS[equipmentFilter] ?? equipmentFilter,
+      clear: () => setEquipmentFilter("all"),
+    },
+    sourceFilter !== "all" && { key: "source", label: sourceFilter, clear: () => setSourceFilter("all") },
+    trackingFilter !== "all" && {
+      key: "tracking",
+      label: trackingFilter === "tracked" ? "Tracked" : "Not tracked",
+      clear: () => setTrackingFilter("all"),
+    },
+    noDescriptionOnly && { key: "nodesc", label: "Missing description", clear: () => setNoDescriptionOnly(false) },
+  ].filter((f): f is { key: string; label: string; clear: () => void } => !!f);
+
+  function clearFilters() {
+    setMuscleFilter("all");
+    setEquipmentFilter("all");
+    setSourceFilter("all");
+    setTrackingFilter("all");
+    setNoDescriptionOnly(false);
+  }
 
   const displayed = applySort(
     exercises.filter((e) => {
@@ -668,19 +695,42 @@ export default function ExercisesPage() {
             ← All categories
           </button>
 
-          {/* Search + sort */}
+          {/* Search + filters toggle + sort */}
           <div className="flex gap-2 items-center">
             <input
               type="search"
-              placeholder="Search exercises…"
+              placeholder="Search…"
+              aria-label="Search exercises"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              className="flex-1 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             />
+            <button
+              type="button"
+              onClick={() => setFiltersOpen((o) => !o)}
+              aria-expanded={filtersOpen}
+              aria-controls="exercise-filters"
+              className={`shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                filtersOpen || activeFilters.length
+                  ? "border-[var(--foreground)] text-[var(--foreground)]"
+                  : "border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+                <line x1="4" y1="6" x2="20" y2="6" /><line x1="7" y1="12" x2="17" y2="12" /><line x1="10" y1="18" x2="14" y2="18" />
+              </svg>
+              Filters
+              {activeFilters.length > 0 && (
+                <span className="rounded-full bg-[var(--foreground)] text-[var(--background)] text-[10px] font-semibold leading-none px-1.5 py-0.5 tabular-nums">
+                  {activeFilters.length}
+                </span>
+              )}
+            </button>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
-              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              aria-label="Sort exercises"
+              className="shrink-0 w-24 sm:w-auto rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 sm:px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
             >
               <option value="az">A → Z</option>
               <option value="za">Z → A</option>
@@ -690,10 +740,9 @@ export default function ExercisesPage() {
             </select>
           </div>
 
-          {/* Filters */}
-          <div className="space-y-2">
-            {/* Type filter pills */}
-            <div className="flex flex-wrap gap-1.5">
+          {/* Type pills — one swipeable row instead of wrapping onto several lines */}
+          <div className="-mx-3 px-3 sm:mx-0 sm:px-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex gap-1.5 w-max sm:w-auto sm:flex-wrap">
               {TYPE_FILTERS.map(({ value, label }) => {
                 const isActive = typeFilter === value;
                 const colorClass = value !== "all" ? EXERCISE_TYPE_COLORS[value] : "";
@@ -701,7 +750,7 @@ export default function ExercisesPage() {
                   <button
                     key={value}
                     onClick={() => enterCategory(value)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    className={`shrink-0 whitespace-nowrap px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                       isActive
                         ? value === "all"
                           ? "bg-[var(--foreground)] text-[var(--background)]"
@@ -714,102 +763,84 @@ export default function ExercisesPage() {
                 );
               })}
             </div>
+          </div>
 
-            {/* Source filter pills */}
-            {availableSources.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                <button
-                  onClick={() => setSourceFilter("all")}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    sourceFilter === "all"
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
+          {/* Collapsible filter panel */}
+          {filtersOpen && (
+            <div
+              id="exercise-filters"
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-x-3 gap-y-2 rounded-xl border border-[var(--border)] bg-[var(--card)] p-3"
+            >
+              <label className="space-y-1 min-w-0">
+                <span className="text-[11px] font-medium text-[var(--muted)]">Muscle group</span>
+                <select value={muscleFilter} onChange={(e) => setMuscleFilter(e.target.value)} className={filterSelectClass}>
+                  <option value="all">Any</option>
+                  {MUSCLE_GROUPS.map((g) => <option key={g} value={g}>{MUSCLE_GROUP_LABELS[g]}</option>)}
+                </select>
+              </label>
+              <label className="space-y-1 min-w-0">
+                <span className="text-[11px] font-medium text-[var(--muted)]">Equipment</span>
+                <select value={equipmentFilter} onChange={(e) => setEquipmentFilter(e.target.value)} className={filterSelectClass}>
+                  <option value="all">Any</option>
+                  <option value="__none__">No equipment</option>
+                  {EQUIPMENT.map((k) => <option key={k} value={k}>{EQUIPMENT_LABELS[k]}</option>)}
+                </select>
+              </label>
+              {availableSources.length > 0 && (
+                <label className="space-y-1 min-w-0">
+                  <span className="text-[11px] font-medium text-[var(--muted)]">Source</span>
+                  <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className={filterSelectClass}>
+                    <option value="all">Any</option>
+                    {availableSources.map((src) => <option key={src} value={src}>{src}</option>)}
+                  </select>
+                </label>
+              )}
+              <label className="space-y-1 min-w-0">
+                <span className="text-[11px] font-medium text-[var(--muted)]">Weight tracking</span>
+                <select
+                  value={trackingFilter}
+                  onChange={(e) => setTrackingFilter(e.target.value as "all" | "tracked" | "untracked")}
+                  className={filterSelectClass}
                 >
-                  All sources
-                </button>
-                {availableSources.map((src) => (
-                  <button
-                    key={src}
-                    onClick={() => setSourceFilter(src)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                      sourceFilter === src
-                        ? "bg-[var(--foreground)] text-[var(--background)]"
-                        : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                    }`}
-                  >
-                    {src}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Equipment filter */}
-            <div>
-              <select
-                value={equipmentFilter}
-                onChange={(e) => setEquipmentFilter(e.target.value)}
-                aria-label="Filter by equipment"
-                className={`rounded-full px-3 py-1 text-xs font-medium focus:outline-none ${
-                  equipmentFilter === "all"
-                    ? "border border-[var(--border)] bg-[var(--background)] text-[var(--muted)]"
-                    : "bg-[var(--foreground)] text-[var(--background)]"
-                }`}
-              >
-                <option value="all">All equipment</option>
-                <option value="__none__">No equipment</option>
-                {EQUIPMENT.map((k) => <option key={k} value={k}>{EQUIPMENT_LABELS[k]}</option>)}
-              </select>
+                  <option value="all">Any</option>
+                  <option value="tracked">Tracked</option>
+                  <option value="untracked">Not tracked</option>
+                </select>
+              </label>
+              <label className="flex items-center gap-2 min-w-0 self-end pb-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noDescriptionOnly}
+                  onChange={(e) => setNoDescriptionOnly(e.target.checked)}
+                  className="accent-[var(--accent)] w-4 h-4"
+                />
+                Missing description
+              </label>
             </div>
+          )}
 
-            {/* Muscle group filter pills */}
-            <div className="flex flex-wrap gap-1.5">
-              {["all", ...MUSCLE_GROUPS].map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setMuscleFilter(g)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    muscleFilter === g
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
-                >
-                  {g === "all" ? "All muscle groups" : MUSCLE_GROUP_LABELS[g]}
-                </button>
-              ))}
-            </div>
-
-            {/* No-description filter */}
-            <div className="flex flex-wrap gap-1.5">
+          {/* Active filters as removable chips + result count */}
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[var(--muted)] tabular-nums mr-1">
+              {displayed.length} exercise{displayed.length === 1 ? "" : "s"}
+            </span>
+            {activeFilters.map((f) => (
               <button
-                onClick={() => setNoDescriptionOnly((v) => !v)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                  noDescriptionOnly
-                    ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"
-                    : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                }`}
+                key={f.key}
+                type="button"
+                onClick={f.clear}
+                aria-label={`Remove filter: ${f.label}`}
+                className="inline-flex items-center gap-1 rounded-full bg-[var(--card)] border border-[var(--border)] pl-2.5 pr-2 py-0.5 hover:border-[var(--foreground)] transition-colors"
               >
-                No description
+                {f.label}
+                <span aria-hidden className="text-[var(--muted)]">×</span>
               </button>
-              <span className="w-px self-stretch bg-[var(--border)] mx-1" aria-hidden />
-              {([
-                ["all", "Tracked & untracked"],
-                ["tracked", "Tracked weights"],
-                ["untracked", "Not tracked"],
-              ] as const).map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => setTrackingFilter(value)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                    trackingFilter === value
-                      ? "bg-[var(--foreground)] text-[var(--background)]"
-                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+            ))}
+            {activeFilters.length > 1 && (
+              <button type="button" onClick={clearFilters} className="text-[var(--accent)] hover:underline ml-1">
+                Clear all
+              </button>
+            )}
           </div>
 
           {/* Select all / deselect row */}
