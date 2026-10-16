@@ -6,6 +6,7 @@ import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/stre
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets } from "@/lib/strengthProgression";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
+import { MuscleGroupBalance } from "@/components/MuscleGroupBalance";
 import type { Exercise } from "@/types/database";
 
 const RECOMMENDATION_LABELS: Record<string, string> = {
@@ -61,6 +62,8 @@ export default function ProgressionPage() {
           Derived from your completed workouts — what you&apos;re using now, and how it&apos;s trending.
         </p>
       </div>
+
+      <MuscleGroupBalance />
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
 

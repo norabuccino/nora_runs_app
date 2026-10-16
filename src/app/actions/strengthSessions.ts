@@ -3,6 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sortSetLogs } from "@/lib/strengthProgression";
+import {
+  loggedSetCount,
+  mergeCompletedWork,
+  plannedSetsByExercise,
+  type CompletedWorkout,
+  type Performance,
+} from "@/lib/muscleGroupBreakdown";
 import type {
   WorkoutStep,
   WorkoutSession,
@@ -317,4 +324,122 @@ export async function getProgressionDashboard(): Promise<ProgressionRow[]> {
       previous: rows[1] ? toHistoryEntry(rows[1]) : null,
     };
   });
+}
+
+export interface MuscleGroupBreakdownData {
+  performances: Performance[];
+  muscleGroupsByExercise: Record<string, string[]>;
+}
+
+/**
+ * Every completed exercise performance (logged sessions + workouts marked
+ * complete without logging) and each exercise's muscle groups — powers the
+ * muscle group balance on /progression. Date-range filtering happens client-side.
+ */
+export async function getMuscleGroupBreakdown(): Promise<MuscleGroupBreakdownData> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const [sessionsRes, logsRes, scheduledRes] = await Promise.all([
+    supabase
+      .from("workout_sessions")
+      .select("session_date, plan_workout_id, scheduled_workout_id, workout_session_exercises(exercise_id, planned_sets, repeat_count, workout_set_logs(set_number))")
+      .eq("user_id", user.id)
+      .not("completed_at", "is", null),
+    supabase
+      .from("workout_logs")
+      .select("plan_workout_id, scheduled_date")
+      .eq("user_id", user.id)
+      .not("completed_at", "is", null)
+      .not("plan_workout_id", "is", null),
+    supabase
+      .from("scheduled_workouts")
+      .select("id, scheduled_date")
+      .eq("user_id", user.id)
+      .not("completed_at", "is", null),
+  ]);
+  for (const r of [sessionsRes, logsRes, scheduledRes]) if (r.error) throw new Error(r.error.message);
+
+  type SessionRow = {
+    session_date: string;
+    plan_workout_id: string | null;
+    scheduled_workout_id: string | null;
+    workout_session_exercises: {
+      exercise_id: string | null;
+      planned_sets: number | null;
+      repeat_count: number | null;
+      workout_set_logs: { set_number: number }[];
+    }[];
+  };
+  const sessions: CompletedWorkout[] = ((sessionsRes.data ?? []) as unknown as SessionRow[]).map((s) => ({
+    date: s.session_date,
+    planWorkoutId: s.plan_workout_id,
+    scheduledWorkoutId: s.scheduled_workout_id,
+    exercises: s.workout_session_exercises
+      .filter((e): e is typeof e & { exercise_id: string } => !!e.exercise_id)
+      .map((e) => ({
+        exerciseId: e.exercise_id,
+        sets: loggedSetCount(e.workout_set_logs.map((l) => l.set_number), {
+          plannedSets: e.planned_sets,
+          repeatCount: e.repeat_count,
+        }),
+      })),
+  }));
+
+  const logs = (logsRes.data ?? []).filter((l): l is { plan_workout_id: string; scheduled_date: string } => !!l.plan_workout_id && !!l.scheduled_date);
+  const scheduled = scheduledRes.data ?? [];
+  const planIds = Array.from(new Set(logs.map((l) => l.plan_workout_id)));
+  const scheduledIds = scheduled.map((s) => s.id);
+
+  const [planStepsRes, scheduledStepsRes] = await Promise.all([
+    planIds.length
+      ? supabase.from("workout_steps").select("*").in("plan_workout_id", planIds).order("step_order")
+      : Promise.resolve({ data: [] as WorkoutStep[], error: null }),
+    scheduledIds.length
+      ? supabase.from("workout_steps").select("*").in("scheduled_workout_id", scheduledIds).order("step_order")
+      : Promise.resolve({ data: [] as WorkoutStep[], error: null }),
+  ]);
+  for (const r of [planStepsRes, scheduledStepsRes]) if (r.error) throw new Error(r.error.message);
+
+  const stepsBy = (rows: WorkoutStep[], key: "plan_workout_id" | "scheduled_workout_id") => {
+    const map = new Map<string, WorkoutStep[]>();
+    for (const step of rows) {
+      const id = step[key];
+      if (!id) continue;
+      map.set(id, [...(map.get(id) ?? []), step]);
+    }
+    return map;
+  };
+  const planSteps = stepsBy(planStepsRes.data ?? [], "plan_workout_id");
+  const scheduledSteps = stepsBy(scheduledStepsRes.data ?? [], "scheduled_workout_id");
+
+  const markedComplete: CompletedWorkout[] = [
+    ...logs.map((l) => ({
+      date: l.scheduled_date,
+      planWorkoutId: l.plan_workout_id,
+      scheduledWorkoutId: null,
+      exercises: plannedSetsByExercise(planSteps.get(l.plan_workout_id) ?? []),
+    })),
+    ...scheduled.map((s) => ({
+      date: s.scheduled_date,
+      planWorkoutId: null,
+      scheduledWorkoutId: s.id,
+      exercises: plannedSetsByExercise(scheduledSteps.get(s.id) ?? []),
+    })),
+  ];
+
+  const performances = mergeCompletedWork(sessions, markedComplete);
+  const exerciseIds = Array.from(new Set(performances.map((p) => p.exerciseId)));
+  const muscleGroupsByExercise: Record<string, string[]> = {};
+  if (exerciseIds.length) {
+    const { data: exercises, error } = await supabase
+      .from("exercises")
+      .select("id, muscle_groups")
+      .in("id", exerciseIds);
+    if (error) throw new Error(error.message);
+    for (const e of exercises ?? []) muscleGroupsByExercise[e.id] = e.muscle_groups ?? [];
+  }
+
+  return { performances, muscleGroupsByExercise };
 }
