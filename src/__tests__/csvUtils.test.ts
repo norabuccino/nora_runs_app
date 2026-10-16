@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { csvEscape, splitCSVLine } from "@/lib/csvUtils";
+import { csvEscape, splitCSVLine, splitCSVRecords } from "@/lib/csvUtils";
 
 describe("csvEscape", () => {
   it("returns an empty string for null, undefined, or empty input", () => {
@@ -54,5 +54,23 @@ describe("splitCSVLine", () => {
 
   it("handles an empty trailing field", () => {
     expect(splitCSVLine("run,easy_run,")).toEqual(["run", "easy_run", ""]);
+  });
+});
+
+describe("splitCSVRecords", () => {
+  it("splits on \\n and \\r\\n and drops blank lines", () => {
+    expect(splitCSVRecords("a,b\r\n1,2\n\n3,4\n")).toEqual(["a,b", "1,2", "3,4"]);
+  });
+
+  it("keeps line breaks inside quoted fields", () => {
+    expect(splitCSVRecords('id,description\n1,"line one\nline two"\n2,x')).toEqual([
+      "id,description",
+      '1,"line one\nline two"',
+      "2,x",
+    ]);
+  });
+
+  it("keeps escaped quotes intact", () => {
+    expect(splitCSVRecords('a\n"say ""hi""",b')).toEqual(["a", '"say ""hi""",b']);
   });
 });

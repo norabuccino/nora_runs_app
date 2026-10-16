@@ -6,6 +6,7 @@ import type { Exercise } from "@/types/database";
 import { addSources, normalizeSources } from "@/lib/exerciseSources";
 import { applyMuscleGroupChange, sortMuscleGroups } from "@/lib/muscleGroups";
 import { applyEquipmentChange, sortEquipment } from "@/lib/equipment";
+import { matchExerciseUpdates, type ExerciseUpdateRow } from "@/lib/exerciseUpdateImport";
 import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
@@ -280,4 +281,39 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
 
   revalidatePath("/exercises");
   return { count: rows.length };
+}
+
+/**
+ * "Update existing" import: applies each row's fields to the matching exercise
+ * (by id, else unambiguous name). Only the user's own exercises are updated.
+ */
+export async function updateExercisesFromImport(
+  rows: ExerciseUpdateRow[]
+): Promise<{ updated: number; unmatched: string[] }> {
+  if (!rows.length) return { updated: 0, unmatched: [] };
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: existing, error } = await supabase
+    .from("exercises")
+    .select("id, name")
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+
+  const { matched, unmatched } = matchExerciseUpdates(rows, existing ?? []);
+  const toWrite = matched.filter((m) => Object.keys(m.fields).length > 0);
+  for (let i = 0; i < toWrite.length; i += 25) {
+    const results = await Promise.all(
+      toWrite.slice(i, i + 25).map((m) =>
+        supabase.from("exercises").update(m.fields).eq("id", m.id).eq("user_id", user.id)
+      )
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw new Error(failed.error.message);
+  }
+
+  revalidatePath("/exercises");
+  revalidatePath("/progression");
+  return { updated: toWrite.length, unmatched };
 }

@@ -1,9 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { importExercises, type ExerciseImportRow } from "@/app/actions/exercises";
+import { importExercises, updateExercisesFromImport, type ExerciseImportRow } from "@/app/actions/exercises";
+import { isUpdateImport, parseExerciseUpdateRecords, type ExerciseUpdateRow } from "@/lib/exerciseUpdateImport";
+import { LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { EXERCISE_TYPE_LABELS } from "@/lib/paceUtils";
-import { splitCSVLine } from "@/lib/csvUtils";
+import { splitCSVLine, splitCSVRecords } from "@/lib/csvUtils";
 import { parseSources } from "@/lib/exerciseSources";
 import { MUSCLE_GROUP_LABELS, parseMuscleGroups } from "@/lib/muscleGroups";
 import { EQUIPMENT_LABELS, parseEquipment } from "@/lib/equipment";
@@ -45,17 +47,25 @@ function downloadSampleCSV() {
   URL.revokeObjectURL(url);
 }
 
-function parseCSV(text: string): ExerciseImportRow[] {
-  const lines = text.trim().split("\n").filter(Boolean);
+function readCSV(text: string): { headers: string[]; records: Record<string, string>[] } {
+  const lines = splitCSVRecords(text.replace(/^\uFEFF/, ""));
   if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row");
-
   const headers = splitCSVLine(lines[0]).map((h) => h.toLowerCase());
-  const rows: ExerciseImportRow[] = [];
-
-  for (let i = 1; i < lines.length; i++) {
-    const cols = splitCSVLine(lines[i]);
+  const records = lines.slice(1).map((line) => {
+    const cols = splitCSVLine(line);
     const raw: Record<string, string> = {};
     headers.forEach((h, idx) => { raw[h] = cols[idx] ?? ""; });
+    return raw;
+  });
+  return { headers, records };
+}
+
+function parseCSV(text: string): ExerciseImportRow[] {
+  const { records } = readCSV(text);
+  const rows: ExerciseImportRow[] = [];
+
+  for (let i = 1; i <= records.length; i++) {
+    const raw = records[i - 1];
 
     const name = raw.name?.trim();
     if (!name) throw new Error(`Row ${i + 1}: name is required`);
@@ -102,6 +112,9 @@ export function ExerciseImportModal({
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [rows, setRows] = useState<ExerciseImportRow[] | null>(null);
+  // Set instead of `rows` when the CSV has an `id` column (update existing exercises).
+  const [updateRows, setUpdateRows] = useState<ExerciseUpdateRow[] | null>(null);
+  const [unmatched, setUnmatched] = useState<string[] | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
@@ -111,8 +124,19 @@ export function ExerciseImportModal({
     if (!file) return;
     setParseError(null);
     setRows(null);
+    setUpdateRows(null);
+    setUnmatched(null);
     const text = await file.text();
     try {
+      if (!file.name.endsWith(".json")) {
+        const { headers, records } = readCSV(text);
+        if (isUpdateImport(headers)) {
+          const parsedUpdates = parseExerciseUpdateRecords(records);
+          if (parsedUpdates.length === 0) throw new Error("No exercises found in file");
+          setUpdateRows(parsedUpdates);
+          return;
+        }
+      }
       const parsed = file.name.endsWith(".json") ? parseJSON(text) : parseCSV(text);
       if (parsed.length === 0) throw new Error("No exercises found in file");
       setRows(parsed);
@@ -122,6 +146,23 @@ export function ExerciseImportModal({
   }
 
   async function handleImport() {
+    if (updateRows) {
+      setImporting(true);
+      setImportError(null);
+      try {
+        const result = await updateExercisesFromImport(updateRows);
+        if (result.unmatched.length) {
+          setUnmatched(result.unmatched);
+          setImporting(false);
+        } else {
+          onImported();
+        }
+      } catch (err) {
+        setImportError(err instanceof Error ? err.message : "Update failed");
+        setImporting(false);
+      }
+      return;
+    }
     if (!rows) return;
     setImporting(true);
     setImportError(null);
@@ -151,6 +192,14 @@ export function ExerciseImportModal({
           <div className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 text-sm">
             <p className="text-[var(--muted)]">
               Upload a <strong>.csv</strong> or <strong>.json</strong> file to bulk-add exercises to your library.
+            </p>
+            <p className="text-xs text-[var(--muted)]">
+              <strong className="text-[var(--foreground)]">To update existing exercises</strong> instead, include an{" "}
+              <code className="text-[var(--foreground)]">id</code> column (Export includes it). Rows match by id, or by exact
+              name when id is blank. Only the columns in the file change, blank cells leave a value as it is, and the name is
+              never changed. Updatable columns also include <code className="text-[var(--foreground)]">loading_category</code>,{" "}
+              <code className="text-[var(--foreground)]">track_load</code>, <code className="text-[var(--foreground)]">load_format</code> and{" "}
+              <code className="text-[var(--foreground)]">default_increment</code>.
             </p>
             <div className="space-y-1">
               <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Columns (CSV)</p>
@@ -193,6 +242,60 @@ export function ExerciseImportModal({
 
           {parseError && (
             <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>
+          )}
+
+          {updateRows && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium">
+                Update preview — {updateRows.length} existing exercise{updateRows.length !== 1 ? "s" : ""} (nothing new is created)
+              </p>
+              <div className="overflow-x-auto rounded-lg border border-[var(--border)] max-h-72 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-[var(--card)] text-[var(--muted)]">
+                      <th className="px-3 py-2 text-left font-medium">Exercise</th>
+                      <th className="px-3 py-2 text-left font-medium">Changes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {updateRows.map((row, i) => {
+                      const f = row.fields;
+                      const parts = [
+                        f.exercise_type && `Type: ${EXERCISE_TYPE_LABELS[f.exercise_type] ?? f.exercise_type}`,
+                        f.equipment && `Equipment: ${f.equipment.map((k) => EQUIPMENT_LABELS[k]).join(", ") || "none"}`,
+                        f.loading_category && `Loading: ${LOADING_CATEGORY_LABELS[f.loading_category]}`,
+                        f.muscle_groups && `Muscles: ${f.muscle_groups.map((g) => MUSCLE_GROUP_LABELS[g]).join(", ")}`,
+                        f.sources && `Sources: ${f.sources.join(", ")}`,
+                        f.track_load !== undefined && `Track weights: ${f.track_load ? "on" : "off"}`,
+                        f.load_format && `Load format: ${f.load_format}`,
+                        f.default_increment !== undefined && `Increment: ${f.default_increment}`,
+                        f.description && "Description",
+                        f.video_url && "Video",
+                      ].filter(Boolean);
+                      return (
+                        <tr key={i} className="border-t border-[var(--border)] align-top">
+                          <td className="px-3 py-2 font-medium whitespace-nowrap">{row.name ?? row.id}</td>
+                          <td className="px-3 py-2 text-[var(--muted)]">{parts.length ? parts.join(" · ") : "No changes"}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {unmatched && (
+            <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950 dark:border-amber-800 p-3 text-sm space-y-2">
+              <p>
+                Updated the matching exercises. {unmatched.length} row{unmatched.length !== 1 ? "s" : ""} didn&apos;t match an
+                exercise of yours and {unmatched.length !== 1 ? "were" : "was"} skipped:
+              </p>
+              <p className="text-xs text-[var(--muted)]">{unmatched.join(", ")}</p>
+              <button type="button" onClick={onImported} className="text-sm font-medium text-[var(--accent)] hover:underline">
+                Done
+              </button>
+            </div>
           )}
 
           {rows && rows.length > 0 && (
@@ -249,11 +352,13 @@ export function ExerciseImportModal({
             <button
               type="button"
               onClick={handleImport}
-              disabled={!rows || importing}
+              disabled={(!rows && !updateRows) || importing || !!unmatched}
               className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-40 transition-opacity"
             >
               {importing
                 ? "Importing…"
+                : updateRows
+                ? `Update ${updateRows.length} exercise${updateRows.length !== 1 ? "s" : ""}`
                 : rows
                 ? `Import ${rows.length} exercise${rows.length !== 1 ? "s" : ""}`
                 : "Choose a file first"}

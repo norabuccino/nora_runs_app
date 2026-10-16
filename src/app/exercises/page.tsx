@@ -355,9 +355,10 @@ export default function ExercisesPage() {
   useEffect(() => { load(); }, []);
 
   function handleExport() {
-    const headers = "name,exercise_type,description,video_url,source,muscle_groups,equipment,loading_category,track_load,load_format,default_increment";
+    const headers = "id,name,exercise_type,description,video_url,source,muscle_groups,equipment,loading_category,track_load,load_format,default_increment";
     const rows = exercises.map((e) =>
       [
+        e.id,
         csvEscape(e.name),
         e.exercise_type ?? "",
         csvEscape(e.description),
