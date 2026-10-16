@@ -73,14 +73,12 @@ function applySort(items: Exercise[], sort: SortKey): Exercise[] {
 }
 
 // Marks exercises whose weights/reps are logged and shown on /progression.
-function TrackedBadge({ exercise, showFormat }: { exercise: Exercise; showFormat?: boolean }) {
+function TrackedIcon({ exercise, className = "" }: { exercise: Exercise; className?: string }) {
   const format = exercise.load_format ? LOAD_FORMAT_LABELS[exercise.load_format] ?? exercise.load_format : null;
+  const label = `Weights tracked${format ? ` (${format})` : ""}`;
   return (
-    <span
-      className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)] whitespace-nowrap"
-      title={`Weights tracked${format ? ` (${format})` : ""} — shown on Progression`}
-    >
-      <span aria-hidden>↗</span> Tracked{showFormat && format ? ` · ${format}` : ""}
+    <span className={`shrink-0 text-xs font-bold text-[var(--accent)] ${className}`} title={label} aria-label={label}>
+      ↗
     </span>
   );
 }
@@ -1001,7 +999,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         {exercise.sources?.length > 0 && (
           <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.sources.join(", ")}</span>
         )}
-        {exercise.track_load && <TrackedBadge exercise={exercise} />}
+        {exercise.track_load && <TrackedIcon exercise={exercise} />}
         {exercise.is_private && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Private">🔒</span>
         )}
@@ -1043,15 +1041,11 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
           />
         )}
         <div className="space-y-1 min-w-0 flex-1">
-          {(typeBadge || exercise.track_load) && (
-            <div className="flex flex-wrap items-center gap-1.5">
-              {typeBadge}
-              {exercise.track_load && <TrackedBadge exercise={exercise} showFormat />}
-            </div>
-          )}
+          {typeBadge}
           <h3 className="font-medium text-sm leading-snug truncate">{exercise.name}</h3>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          {exercise.track_load && <TrackedIcon exercise={exercise} className="pt-0.5" />}
           {exercise.is_private && (
             <span className="text-xs text-[var(--muted)] pt-0.5" title="Private">🔒</span>
           )}
