@@ -1,5 +1,6 @@
 "use client";
 
+import { MUSCLE_GROUP_LABELS, sortMuscleGroups } from "@/lib/muscleGroups";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
@@ -157,6 +158,17 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
           {/* Description */}
           {exercise.description && (
             <p className="text-sm text-[var(--muted)] leading-relaxed">{exercise.description}</p>
+          )}
+
+          {/* Muscle groups */}
+          {exercise.muscle_groups?.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {sortMuscleGroups(exercise.muscle_groups).map((g) => (
+                <span key={g} className="px-2 py-0.5 rounded-full border border-[var(--border)] text-xs text-[var(--muted)]">
+                  {MUSCLE_GROUP_LABELS[g]}
+                </span>
+              ))}
+            </div>
           )}
 
           {/* Source */}

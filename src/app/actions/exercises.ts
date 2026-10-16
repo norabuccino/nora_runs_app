@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
 import { addSources, normalizeSources } from "@/lib/exerciseSources";
+import { sortMuscleGroups } from "@/lib/muscleGroups";
 import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
@@ -12,6 +13,7 @@ export type ExerciseImportRow = {
   description: string | null;
   video_url: string | null;
   sources: string[];
+  muscle_groups?: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -25,6 +27,7 @@ export async function createExercise(data: {
   video_url?: string | null;
   exercise_type?: string | null;
   sources?: string[];
+  muscle_groups?: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -54,6 +57,7 @@ export async function updateExercise(
     video_url?: string | null;
     exercise_type?: string | null;
     sources?: string[];
+    muscle_groups?: string[];
     is_private?: boolean;
     loading_category?: string | null;
     track_load?: boolean;
@@ -224,6 +228,7 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
     description: row.description,
     video_url: row.video_url,
     sources: normalizeSources(row.sources),
+    muscle_groups: sortMuscleGroups(row.muscle_groups),
     is_private: row.is_private ?? false,
     loading_category: row.loading_category ?? null,
     track_load: row.track_load ?? false,

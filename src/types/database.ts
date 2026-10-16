@@ -272,6 +272,7 @@ export interface Database {
           video_url: string | null;
           exercise_type: string | null;
           sources: string[];
+          muscle_groups: string[];
           is_private: boolean;
           loading_category: string | null;
           track_load: boolean;
@@ -287,6 +288,7 @@ export interface Database {
           video_url?: string | null;
           exercise_type?: string | null;
           sources?: string[];
+          muscle_groups?: string[];
           is_private?: boolean;
           loading_category?: string | null;
           track_load?: boolean;
@@ -302,6 +304,7 @@ export interface Database {
           video_url?: string | null;
           exercise_type?: string | null;
           sources?: string[];
+          muscle_groups?: string[];
           is_private?: boolean;
           loading_category?: string | null;
           track_load?: boolean;

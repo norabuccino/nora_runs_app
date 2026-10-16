@@ -10,6 +10,7 @@ import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { DeleteExerciseModal } from "@/components/DeleteExerciseModal";
 import { SourcesInput } from "@/components/SourcesInput";
 import { collectSources, formatSources, hasSource, normalizeSources } from "@/lib/exerciseSources";
+import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, formatMuscleGroups, sortMuscleGroups, toggleMuscleGroup } from "@/lib/muscleGroups";
 import type { ExerciseUsageEntry } from "@/lib/exerciseUsage";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
@@ -21,6 +22,7 @@ interface ExerciseFormData {
   video_url: string;
   exercise_type: string;
   sources: string[];
+  muscle_groups: string[];
   is_private: boolean;
   loading_category: string;
   track_load: boolean;
@@ -34,6 +36,7 @@ const EMPTY_FORM: ExerciseFormData = {
   video_url: "",
   exercise_type: "",
   sources: [],
+  muscle_groups: [],
   is_private: false,
   loading_category: "",
   track_load: false,
@@ -133,6 +136,29 @@ function ExerciseModal({
                 placeholder="Cues, muscles targeted, coaching notes…"
                 className={`${inputClass} resize-y`}
               />
+            </div>
+
+            <div className="space-y-1">
+              <label className={labelClass}>Muscle groups <span className="text-[var(--muted)]">(optional — pick any that apply)</span></label>
+              <div className="flex flex-wrap gap-1.5">
+                {MUSCLE_GROUPS.map((g) => {
+                  const on = form.muscle_groups.includes(g);
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, muscle_groups: toggleMuscleGroup(p.muscle_groups, g) }))}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                        on
+                          ? "bg-[var(--foreground)] text-[var(--background)]"
+                          : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                      }`}
+                    >
+                      {MUSCLE_GROUP_LABELS[g]}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -256,6 +282,7 @@ export default function ExercisesPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [muscleFilter, setMuscleFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
@@ -284,7 +311,7 @@ export default function ExercisesPage() {
   useEffect(() => { load(); }, []);
 
   function handleExport() {
-    const headers = "name,exercise_type,description,video_url,source,loading_category,track_load,load_format,default_increment";
+    const headers = "name,exercise_type,description,video_url,source,muscle_groups,loading_category,track_load,load_format,default_increment";
     const rows = exercises.map((e) =>
       [
         csvEscape(e.name),
@@ -292,6 +319,7 @@ export default function ExercisesPage() {
         csvEscape(e.description),
         csvEscape(e.video_url),
         csvEscape(formatSources(e.sources)),
+        csvEscape(formatMuscleGroups(e.muscle_groups)),
         e.loading_category ?? "",
         e.track_load ? "true" : "false",
         e.load_format ?? "",
@@ -314,6 +342,7 @@ export default function ExercisesPage() {
     exercises.filter((e) => {
       if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
       if (sourceFilter !== "all" && !hasSource(e.sources, sourceFilter)) return false;
+      if (muscleFilter !== "all" && !e.muscle_groups?.includes(muscleFilter)) return false;
       if (noDescriptionOnly && e.description?.trim()) return false;
       if (!search.trim()) return true;
       return (
@@ -336,6 +365,7 @@ export default function ExercisesPage() {
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
         sources: normalizeSources(data.sources),
+        muscle_groups: sortMuscleGroups(data.muscle_groups),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -362,6 +392,7 @@ export default function ExercisesPage() {
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
         sources: normalizeSources(data.sources),
+        muscle_groups: sortMuscleGroups(data.muscle_groups),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -401,6 +432,7 @@ export default function ExercisesPage() {
   function enterCategory(type: string) {
     setTypeFilter(type);
     setSourceFilter("all");
+    setMuscleFilter("all");
     setNoDescriptionOnly(false);
     setCategory(type);
   }
@@ -409,6 +441,7 @@ export default function ExercisesPage() {
     setCategory(null);
     setTypeFilter("all");
     setSourceFilter("all");
+    setMuscleFilter("all");
     setNoDescriptionOnly(false);
     setSearch("");
   }
@@ -635,6 +668,23 @@ export default function ExercisesPage() {
               </div>
             )}
 
+            {/* Muscle group filter pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {["all", ...MUSCLE_GROUPS].map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setMuscleFilter(g)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    muscleFilter === g
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {g === "all" ? "All muscle groups" : MUSCLE_GROUP_LABELS[g]}
+                </button>
+              ))}
+            </div>
+
             {/* No-description filter */}
             <div className="flex flex-wrap gap-1.5">
               <button
@@ -744,6 +794,7 @@ export default function ExercisesPage() {
             video_url: editing.video_url ?? "",
             exercise_type: editing.exercise_type ?? "",
             sources: editing.sources ?? [],
+            muscle_groups: editing.muscle_groups ?? [],
             is_private: editing.is_private,
             loading_category: editing.loading_category ?? "",
             track_load: editing.track_load,
@@ -914,6 +965,16 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
 
       {exercise.description && (
         <p className="text-xs text-[var(--muted)] line-clamp-2">{exercise.description}</p>
+      )}
+
+      {exercise.muscle_groups?.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {sortMuscleGroups(exercise.muscle_groups).map((g) => (
+            <span key={g} className="px-2 py-0.5 rounded-full border border-[var(--border)] text-[10px] text-[var(--muted)]">
+              {MUSCLE_GROUP_LABELS[g]}
+            </span>
+          ))}
+        </div>
       )}
 
       {exercise.sources?.length > 0 && (
