@@ -591,13 +591,13 @@ export default function ExercisesPage() {
           <button
             onClick={handleExport}
             disabled={exercises.length === 0}
-            className="px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
+            className="hidden sm:inline-block px-3 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] disabled:opacity-40 transition-colors"
           >
             Export CSV
           </button>
           <button
             onClick={() => setShowImport(true)}
-            className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
+            className="hidden sm:inline-block px-4 py-2 rounded-lg border border-[var(--border)] text-sm font-medium hover:bg-[var(--card)] transition-colors"
           >
             Import
           </button>
