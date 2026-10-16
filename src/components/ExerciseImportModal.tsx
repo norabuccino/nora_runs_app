@@ -4,12 +4,13 @@ import { useRef, useState } from "react";
 import { importExercises, type ExerciseImportRow } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS } from "@/lib/paceUtils";
 import { splitCSVLine } from "@/lib/csvUtils";
+import { parseSources } from "@/lib/exerciseSources";
 
 const VALID_TYPES = new Set(Object.keys(EXERCISE_TYPE_LABELS));
 
 const SAMPLE_CSV = [
   "name,exercise_type,description,video_url,source",
-  "Barbell Squat,lift,\"3 sets of 8 — drive through heels, brace core\",,Coach",
+  "Barbell Squat,lift,\"3 sets of 8 — drive through heels, brace core\",,Coach; YouTube",
   "Hip Flexor Stretch,stretch,30s each side — lunge position,,",
   "Box Jump,plyos,Jump onto box and land softly with bent knees,,",
   "Leg Swing,warm_up,10 reps each direction,,",
@@ -47,7 +48,7 @@ function parseCSV(text: string): ExerciseImportRow[] {
       exercise_type: VALID_TYPES.has(rawType) ? rawType : null,
       description: raw.description?.trim() || null,
       video_url: raw.video_url?.trim() || null,
-      source: raw.source?.trim() || null,
+      sources: parseSources(raw.source ?? raw.sources),
     });
   }
   return rows;
@@ -65,7 +66,7 @@ function parseJSON(text: string): ExerciseImportRow[] {
       exercise_type: VALID_TYPES.has(rawType) ? rawType : null,
       description: item.description ?? null,
       video_url: item.video_url ?? null,
-      source: item.source ?? null,
+      sources: parseSources(item.sources ?? item.source),
     };
   });
 }
@@ -136,7 +137,7 @@ export function ExerciseImportModal({
                 <span><code className="text-[var(--foreground)]">exercise_type</code> — warm_up, stretch, lift, plyos, mobility</span>
                 <span><code className="text-[var(--foreground)]">description</code> — coaching notes or cues (optional)</span>
                 <span><code className="text-[var(--foreground)]">video_url</code> — link to video (optional)</span>
-                <span><code className="text-[var(--foreground)]">source</code> — coach, book, etc. (optional)</span>
+                <span><code className="text-[var(--foreground)]">source</code> — coach, book, etc.; separate several with <code className="text-[var(--foreground)]">;</code> (optional)</span>
               </div>
             </div>
             <p className="text-xs text-[var(--muted)]">
@@ -198,7 +199,7 @@ export function ExerciseImportModal({
                           {row.description ?? "—"}
                         </td>
                         <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">
-                          {row.source ?? "—"}
+                          {row.sources.length ? row.sources.join(", ") : "—"}
                         </td>
                       </tr>
                     ))}

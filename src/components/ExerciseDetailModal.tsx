@@ -160,9 +160,9 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
           )}
 
           {/* Source */}
-          {exercise.source && (
+          {exercise.sources?.length > 0 && (
             <p className="text-xs text-[var(--muted)]">
-              <span className="font-medium">Source:</span> {exercise.source}
+              <span className="font-medium">{exercise.sources.length > 1 ? "Sources:" : "Source:"}</span> {exercise.sources.join(", ")}
             </p>
           )}
 

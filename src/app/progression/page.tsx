@@ -1,5 +1,6 @@
 "use client";
 
+import { collectSources, hasSource } from "@/lib/exerciseSources";
 import { useEffect, useState } from "react";
 import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/strengthSessions";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
@@ -41,14 +42,14 @@ export default function ProgressionPage() {
 
   useEffect(() => { load(); }, []);
 
-  const availableSources = Array.from(new Set(rows.map((r) => r.exercise.source).filter(Boolean))) as string[];
+  const availableSources = collectSources(rows.map((r) => r.exercise));
   const availableCategories = Array.from(new Set(rows.map((r) => r.exercise.loading_category).filter(Boolean))) as string[];
   const availableTypes = Array.from(new Set(rows.map((r) => r.exercise.exercise_type).filter(Boolean))) as string[];
 
   const displayed = rows.filter((r) => {
     if (categoryFilter !== "all" && r.exercise.loading_category !== categoryFilter) return false;
     if (typeFilter !== "all" && r.exercise.exercise_type !== typeFilter) return false;
-    if (sourceFilter !== "all" && r.exercise.source !== sourceFilter) return false;
+    if (sourceFilter !== "all" && !hasSource(r.exercise.sources, sourceFilter)) return false;
     return true;
   });
 

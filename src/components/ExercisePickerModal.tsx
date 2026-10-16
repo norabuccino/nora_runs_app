@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
+import { collectSources, hasSource } from "@/lib/exerciseSources";
 
 export interface ExercisePickResult {
   exercise_id: string;
@@ -48,11 +49,11 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
     load();
   }, []);
 
-  const availableSources = Array.from(new Set(exercises.map((e) => e.source).filter(Boolean))) as string[];
+  const availableSources = collectSources(exercises);
 
   const displayed = exercises.filter((e) => {
     if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
-    if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
+    if (sourceFilter !== "all" && !hasSource(e.sources, sourceFilter)) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return e.name.toLowerCase().includes(q) || (e.description?.toLowerCase().includes(q) ?? false);

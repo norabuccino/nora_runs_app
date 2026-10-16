@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
+import { addSources, normalizeSources } from "@/lib/exerciseSources";
 import { summarizeExerciseUsage, type ExerciseUsageEntry, type ExerciseUsageStepRow } from "@/lib/exerciseUsage";
 
 export type ExerciseImportRow = {
@@ -10,7 +11,7 @@ export type ExerciseImportRow = {
   exercise_type: string | null;
   description: string | null;
   video_url: string | null;
-  source: string | null;
+  sources: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -23,7 +24,7 @@ export async function createExercise(data: {
   description?: string | null;
   video_url?: string | null;
   exercise_type?: string | null;
-  source?: string | null;
+  sources?: string[];
   is_private?: boolean;
   loading_category?: string | null;
   track_load?: boolean;
@@ -52,7 +53,7 @@ export async function updateExercise(
     description?: string | null;
     video_url?: string | null;
     exercise_type?: string | null;
-    source?: string | null;
+    sources?: string[];
     is_private?: boolean;
     loading_category?: string | null;
     track_load?: boolean;
@@ -169,19 +170,43 @@ export async function deleteExercise(
 
 export async function bulkUpdateExercises(
   ids: string[],
-  data: { exercise_type?: string | null; source?: string | null }
+  data: { exercise_type?: string | null; addSources?: string[] }
 ): Promise<void> {
   if (!ids.length) return;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
-    .from("exercises")
-    .update(data)
-    .in("id", ids)
-    .eq("user_id", user.id);
-  if (error) throw new Error(error.message);
+  if (data.exercise_type !== undefined) {
+    const { error } = await supabase
+      .from("exercises")
+      .update({ exercise_type: data.exercise_type })
+      .in("id", ids)
+      .eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+  }
+
+  // Sources are added to each exercise's existing list, never replace it.
+  const added = normalizeSources(data.addSources ?? []);
+  if (added.length) {
+    const { data: rows, error } = await supabase
+      .from("exercises")
+      .select("id, sources")
+      .in("id", ids)
+      .eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+    const results = await Promise.all(
+      (rows ?? []).map((row) =>
+        supabase
+          .from("exercises")
+          .update({ sources: addSources(row.sources ?? [], added) })
+          .eq("id", row.id)
+          .eq("user_id", user.id)
+      )
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) throw new Error(failed.error.message);
+  }
 
   revalidatePath("/exercises");
 }
@@ -198,7 +223,7 @@ export async function importExercises(rows: ExerciseImportRow[]): Promise<{ coun
     exercise_type: row.exercise_type,
     description: row.description,
     video_url: row.video_url,
-    source: row.source,
+    sources: normalizeSources(row.sources),
     is_private: row.is_private ?? false,
     loading_category: row.loading_category ?? null,
     track_load: row.track_load ?? false,

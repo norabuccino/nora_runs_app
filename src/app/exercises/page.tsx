@@ -8,6 +8,8 @@ import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, EXERCISE_TYPE_TEXT_COLORS, 
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { DeleteExerciseModal } from "@/components/DeleteExerciseModal";
+import { SourcesInput } from "@/components/SourcesInput";
+import { collectSources, formatSources, hasSource, normalizeSources } from "@/lib/exerciseSources";
 import type { ExerciseUsageEntry } from "@/lib/exerciseUsage";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
@@ -18,7 +20,7 @@ interface ExerciseFormData {
   description: string;
   video_url: string;
   exercise_type: string;
-  source: string;
+  sources: string[];
   is_private: boolean;
   loading_category: string;
   track_load: boolean;
@@ -31,7 +33,7 @@ const EMPTY_FORM: ExerciseFormData = {
   description: "",
   video_url: "",
   exercise_type: "",
-  source: "",
+  sources: [],
   is_private: false,
   loading_category: "",
   track_load: false,
@@ -74,6 +76,7 @@ function ExerciseModal({
   onCancel,
   saving,
   error,
+  sourceSuggestions,
 }: {
   title: string;
   initial: ExerciseFormData;
@@ -81,6 +84,7 @@ function ExerciseModal({
   onCancel: () => void;
   saving: boolean;
   error: string | null;
+  sourceSuggestions: string[];
 }) {
   const [form, setForm] = useState(initial);
 
@@ -132,13 +136,12 @@ function ExerciseModal({
             </div>
 
             <div className="space-y-1">
-              <label className={labelClass}>Source <span className="text-[var(--muted)]">(optional)</span></label>
-              <input
-                type="text"
-                value={form.source}
-                onChange={(e) => setForm((p) => ({ ...p, source: e.target.value }))}
+              <label className={labelClass}>Sources <span className="text-[var(--muted)]">(optional — press Enter to add each)</span></label>
+              <SourcesInput
+                value={form.sources}
+                onChange={(sources) => setForm((p) => ({ ...p, sources }))}
+                suggestions={sourceSuggestions}
                 placeholder="e.g. Coach, Book, YouTube…"
-                className={inputClass}
               />
             </div>
 
@@ -288,7 +291,7 @@ export default function ExercisesPage() {
         e.exercise_type ?? "",
         csvEscape(e.description),
         csvEscape(e.video_url),
-        csvEscape(e.source),
+        csvEscape(formatSources(e.sources)),
         e.loading_category ?? "",
         e.track_load ? "true" : "false",
         e.load_format ?? "",
@@ -305,20 +308,18 @@ export default function ExercisesPage() {
     URL.revokeObjectURL(url);
   }
 
-  const availableSources = Array.from(
-    new Set(exercises.map((e) => e.source).filter(Boolean))
-  ) as string[];
+  const availableSources = collectSources(exercises);
 
   const displayed = applySort(
     exercises.filter((e) => {
       if (typeFilter !== "all" && e.exercise_type !== typeFilter) return false;
-      if (sourceFilter !== "all" && e.source !== sourceFilter) return false;
+      if (sourceFilter !== "all" && !hasSource(e.sources, sourceFilter)) return false;
       if (noDescriptionOnly && e.description?.trim()) return false;
       if (!search.trim()) return true;
       return (
         e.name.toLowerCase().includes(search.toLowerCase()) ||
         (e.description ?? "").toLowerCase().includes(search.toLowerCase()) ||
-        (e.source ?? "").toLowerCase().includes(search.toLowerCase())
+        formatSources(e.sources).toLowerCase().includes(search.toLowerCase())
       );
     }),
     sort
@@ -334,7 +335,7 @@ export default function ExercisesPage() {
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
-        source: data.source.trim() || null,
+        sources: normalizeSources(data.sources),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -360,7 +361,7 @@ export default function ExercisesPage() {
         description: data.description.trim() || null,
         video_url: data.video_url.trim() || null,
         exercise_type: data.exercise_type || null,
-        source: data.source.trim() || null,
+        sources: normalizeSources(data.sources),
         is_private: data.is_private,
         loading_category: data.loading_category || null,
         track_load: data.track_load,
@@ -429,9 +430,9 @@ export default function ExercisesPage() {
 
   function handleBulkApply() {
     if (selectedIds.size === 0) return;
-    const updates: { exercise_type?: string | null; source?: string | null } = {};
+    const updates: { exercise_type?: string | null; addSources?: string[] } = {};
     if (bulkType !== "") updates.exercise_type = bulkType || null;
-    if (bulkSource.trim() !== "") updates.source = bulkSource.trim();
+    if (bulkSource.trim() !== "") updates.addSources = normalizeSources([bulkSource]);
     if (!Object.keys(updates).length) return;
     startTransition(async () => {
       await bulkUpdateExercises(Array.from(selectedIds), updates);
@@ -722,6 +723,7 @@ export default function ExercisesPage() {
           onCancel={() => { setCreating(false); setSaveError(null); }}
           saving={saving}
           error={saveError}
+          sourceSuggestions={availableSources}
         />
       )}
 
@@ -741,7 +743,7 @@ export default function ExercisesPage() {
             description: editing.description ?? "",
             video_url: editing.video_url ?? "",
             exercise_type: editing.exercise_type ?? "",
-            source: editing.source ?? "",
+            sources: editing.sources ?? [],
             is_private: editing.is_private,
             loading_category: editing.loading_category ?? "",
             track_load: editing.track_load,
@@ -752,6 +754,7 @@ export default function ExercisesPage() {
           onCancel={() => { setEditing(null); setSaveError(null); }}
           saving={saving}
           error={saveError}
+          sourceSuggestions={availableSources}
         />
       )}
 
@@ -794,7 +797,7 @@ export default function ExercisesPage() {
             type="text"
             value={bulkSource}
             onChange={(e) => setBulkSource(e.target.value)}
-            placeholder="Source: no change"
+            placeholder="Add source…"
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none w-36"
           />
           <button
@@ -852,8 +855,8 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         )}
         {typeBadge}
         <span className="text-sm font-medium truncate flex-1 min-w-0">{exercise.name}</span>
-        {exercise.source && (
-          <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.source}</span>
+        {exercise.sources?.length > 0 && (
+          <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.sources.join(", ")}</span>
         )}
         {exercise.is_private && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Private">🔒</span>
@@ -913,8 +916,8 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         <p className="text-xs text-[var(--muted)] line-clamp-2">{exercise.description}</p>
       )}
 
-      {exercise.source && (
-        <p className="text-xs text-[var(--muted)]">{exercise.source}</p>
+      {exercise.sources?.length > 0 && (
+        <p className="text-xs text-[var(--muted)]">{exercise.sources.join(", ")}</p>
       )}
 
       <div className="flex gap-2 pt-1 mt-auto">
