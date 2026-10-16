@@ -76,6 +76,9 @@ SUPABASE_DB_PASSWORD         # for running migrations via CLI
 ### middleware.ts must stay as middleware.ts
 Next.js 16 locally warns to rename `middleware.ts` → `proxy.ts`, but **Vercel does not support `proxy.ts`**. Keep the file named `middleware.ts` and the export named `middleware`. This was confirmed through production debugging.
 
+### Stale CSS in local dev
+If something styled via a CSS variable in `src/styles/globals.css` (e.g. a new `--badge-*` color) renders blank locally but is fine in production, the Turbopack cache in `.next` is serving an old stylesheet. Stop the dev server, `rm -rf .next`, and restart.
+
 ### Dev login button
 The login page shows a one-click "⚡ Dev login" button when `NODE_ENV === 'development'` and `NEXT_PUBLIC_DEV_EMAIL` / `NEXT_PUBLIC_DEV_PASSWORD` are set in `.env.local`. The corresponding Supabase account is `admin@local.dev`.
 
@@ -205,6 +208,11 @@ When a user clicks "Add to plan" on a library workout, `addLibraryWorkoutToPlan(
 - **Tracked indicator** — exercises with `track_load` show a small accent `↗` icon (tooltip includes the load format) next to the 🔒/▶ icons, and weight tracking is one of the filters.
 - **Filter bar** — search, a Filters button (badge = number of active filters) and sort share one row; type pills are a single horizontally-scrolling row on mobile; muscle group, equipment, source, weight tracking and "Missing description" live in a collapsible panel of dropdowns (`filtersOpen`); active filters render as removable chips (`activeFilters`) with Clear all and a result count. Built from the shared `FilterControls` components (see Components) — the Workouts page, the plan editor's `LibraryPickerModal` (via `WorkoutFilterBar`) and the Plans page use the same pattern. Keep new filters in the panel rather than adding more pill rows.
 - **Deleting an exercise that's in use** — `handleDelete` first calls `getExerciseUsage()` (workout steps referencing it, grouped per plan/library/scheduled workout via `summarizeExerciseUsage` in `src/lib/exerciseUsage.ts`, plus logged-history count). Unused exercises get a plain confirm; used ones open `DeleteExerciseModal`, which offers to replace it with another library exercise. `deleteExercise(id, { exerciseId, moveHistory })` repoints `workout_steps` (exercise_id, label, and video_url when it was the old exercise's video) and optionally moves `workout_session_exercises` history before deleting.
+- **CSV/JSON import & export** (`ExerciseImportModal`) — Export CSV includes `id`, `name` and every editable field except `is_private` (sources, muscle groups and equipment `;`-separated as labels), so export → edit in a spreadsheet → re-import updates in place. Import has two modes:
+  - **Create** (no `id` column): every row becomes a new exercise via `importExercises`.
+  - **Update existing** (CSV has an `id` column): rows match by `id`, or by an unambiguous case-insensitive name when `id` is blank, and `updateExercisesFromImport` writes only the columns present in the file; **blank cells leave the value unchanged** (so import can't clear a field) and `name` is never written. Parsing/validation (keys *or* labels accepted for type, loading category, load format, muscle groups, equipment) is in `src/lib/exerciseUpdateImport.ts` (`isUpdateImport`, `parseExerciseUpdateRecords`, `matchExerciseUpdates`). Unrecognized columns are ignored, so reference-only columns like `description (reference only)` are safe to include in hand-built files.
+  - CSV text is split with `splitCSVRecords` (`src/lib/csvUtils.ts`), which keeps line breaks inside quoted fields and handles CRLF — don't split on `\n`.
+- **Mobile header** — the Import/Export buttons on `/exercises` and `/workouts` are hidden below the `sm` breakpoint (`hidden sm:inline-block`); nobody imports from a phone and it keeps the header to one line.
 
 ### Strength progression
 
@@ -256,10 +264,12 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 - `src/lib/muscleGroups.ts` / `src/lib/equipment.ts` / `src/lib/tagList.ts` / `src/lib/exerciseSources.ts` / `src/lib/exerciseUsage.ts` — exercise muscle groups, equipment (both on the shared tag-list helper), sources, and where-used helpers (see Exercise library above)
 - `src/lib/muscleGroupBreakdown.ts` — muscle group balance aggregation (see Strength progression above)
 - `src/lib/workoutHistory.ts` / `src/lib/workoutHistoryQuery.ts` — workout history merging + fetching (see Workout history above)
+- `src/lib/exerciseUpdateImport.ts` — parsing/matching for the "update existing exercises" CSV import (see Exercise library above)
+- `src/lib/csvUtils.ts` — `csvEscape`, `splitCSVLine`, and `splitCSVRecords` (quote-aware record splitting)
 - `src/app/actions/workouts.ts` — CRUD for `plan_workouts` + `workout_steps`; also `importWorkouts` for bulk CSV/JSON import
 - `src/app/actions/workoutLibrary.ts` — CRUD for `workouts` library + `addLibraryWorkoutToPlan`
 - `src/app/actions/scheduledWorkouts.ts` — CRUD for ad-hoc `scheduled_workouts` (see above)
-- `src/app/actions/exercises.ts` — CRUD for the `exercises` library, including bulk update/import, `getExerciseUsage`, and delete-with-replacement
+- `src/app/actions/exercises.ts` — CRUD for the `exercises` library, including bulk update, create-import (`importExercises`), update-import (`updateExercisesFromImport`), `getExerciseUsage`, and delete-with-replacement
 - `src/app/actions/strengthSessions.ts` — workout session / per-set logging + progression queries, including `getMuscleGroupBreakdown` (see Strength progression above)
 - `src/app/actions/plans.ts` — CRUD for `training_plans`
 - `src/app/actions/userPlans.ts` — assign plan, mark/unmark workout complete
@@ -289,7 +299,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 | `PlanWeeklyView` / `MyPlanWeeks` | Render a plan's weeks (workouts + week purpose notes from `plan_week_notes`) |
 | `WeekMileageLabel` | Shows a week's mileage range, respecting the mi/km unit preference |
 | `PlanCard` | Summary card for a training plan; uses `PLAN_TYPE_COLORS` from paceUtils |
-| `ExercisePickerModal` / `ExerciseDetailModal` / `ExerciseImportModal` | Pick/view/bulk-import exercises from the `exercises` library; `ExerciseDetailModal` also shows muscle groups, equipment, sources, loading metadata + strength history when `track_load` is true, and is reused as-is by `/progression` |
+| `ExercisePickerModal` / `ExerciseDetailModal` / `ExerciseImportModal` | Pick/view/bulk-import exercises from the `exercises` library (`ExerciseImportModal` creates new exercises, or updates existing ones when the CSV has an `id` column); `ExerciseDetailModal` also shows muscle groups, equipment, sources, loading metadata + strength history when `track_load` is true, and is reused as-is by `/progression` |
 | `DeleteExerciseModal` | Shown when deleting an exercise used in workouts — lists where it's used and offers to replace it with another library exercise (optionally moving its logged history) |
 | `SourcesInput` | Chip-style multi-value input for exercise sources (Enter/comma adds, × removes, suggests existing sources) |
 | `MuscleGroupBalance` | Muscle group balance section on `/progression` (see Strength progression above) |
