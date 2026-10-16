@@ -19,7 +19,7 @@ const VALID_TYPES = new Set(Object.keys(EXERCISE_TYPE_LABELS));
 
 const SAMPLE_CSV = [
   "name,exercise_type,description,video_url,source,muscle_groups",
-  "Barbell Squat,lift,\"3 sets of 8 — drive through heels, brace core\",,Coach; YouTube,Thighs; Hips & Glutes",
+  "Barbell Squat,lower_body,\"3 sets of 8 — drive through heels, brace core\",,Coach; YouTube,Thighs; Hips & Glutes",
   "Hip Flexor Stretch,stretch,30s each side — lunge position,,,Hips & Glutes",
   "Box Jump,plyos,Jump onto box and land softly with bent knees,,,Thighs; Lower Legs",
   "Leg Swing,warm_up,10 reps each direction,,,Hips & Glutes",
@@ -145,7 +145,7 @@ export function ExerciseImportModal({
               <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Columns (CSV)</p>
               <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-xs text-[var(--muted)]">
                 <span><code className="text-[var(--foreground)]">name</code> — exercise name (required)</span>
-                <span><code className="text-[var(--foreground)]">exercise_type</code> — warm_up, stretch, lift, plyos, mobility</span>
+                <span><code className="text-[var(--foreground)]">exercise_type</code> — warm_up, stretch, upper_body, lower_body, full_body, plyos, core, mobility</span>
                 <span><code className="text-[var(--foreground)]">description</code> — coaching notes or cues (optional)</span>
                 <span><code className="text-[var(--foreground)]">video_url</code> — link to video (optional)</span>
                 <span><code className="text-[var(--foreground)]">source</code> — coach, book, etc.; separate several with <code className="text-[var(--foreground)]">;</code> (optional)</span>

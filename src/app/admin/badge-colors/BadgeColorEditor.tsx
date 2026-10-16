@@ -55,7 +55,9 @@ const COLUMNS = [
     badges: [
       { key: "exercise-warm-up", label: "Warm Up" },
       { key: "exercise-stretch", label: "Stretch" },
-      { key: "exercise-lift", label: "Lift" },
+      { key: "exercise-upper-body", label: "Upper Body" },
+      { key: "exercise-lower-body", label: "Lower Body" },
+      { key: "exercise-full-body", label: "Full Body" },
       { key: "exercise-plyos", label: "Plyos" },
       { key: "exercise-core", label: "Core" },
       { key: "exercise-mobility", label: "Mobility" },

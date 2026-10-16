@@ -335,7 +335,9 @@ export const RUN_TYPE_COLORS: Record<string, string> = {
 export const EXERCISE_TYPE_LABELS: Record<string, string> = {
   warm_up: "Warm Up",
   stretch: "Stretch",
-  lift: "Lift",
+  upper_body: "Upper Body",
+  lower_body: "Lower Body",
+  full_body: "Full Body",
   plyos: "Plyos",
   core: "Core",
   mobility: "Mobility",
@@ -344,7 +346,9 @@ export const EXERCISE_TYPE_LABELS: Record<string, string> = {
 export const EXERCISE_TYPE_COLORS: Record<string, string> = {
   warm_up: "bg-[var(--badge-exercise-warm-up-bg)] text-[var(--badge-exercise-warm-up-text)]",
   stretch: "bg-[var(--badge-exercise-stretch-bg)] text-[var(--badge-exercise-stretch-text)]",
-  lift: "bg-[var(--badge-exercise-lift-bg)] text-[var(--badge-exercise-lift-text)]",
+  upper_body: "bg-[var(--badge-exercise-upper-body-bg)] text-[var(--badge-exercise-upper-body-text)]",
+  lower_body: "bg-[var(--badge-exercise-lower-body-bg)] text-[var(--badge-exercise-lower-body-text)]",
+  full_body: "bg-[var(--badge-exercise-full-body-bg)] text-[var(--badge-exercise-full-body-text)]",
   plyos: "bg-[var(--badge-exercise-plyos-bg)] text-[var(--badge-exercise-plyos-text)]",
   core: "bg-[var(--badge-exercise-core-bg)] text-[var(--badge-exercise-core-text)]",
   mobility: "bg-[var(--badge-exercise-mobility-bg)] text-[var(--badge-exercise-mobility-text)]",
