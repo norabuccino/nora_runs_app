@@ -176,6 +176,10 @@ export async function bulkUpdateExercises(
   ids: string[],
   data: {
     exercise_type?: string | null;
+    // true turns weight tracking on (optionally setting load_format);
+    // false turns it off and clears load_format/default_increment, like the edit form.
+    track_load?: boolean;
+    load_format?: string | null;
     addSources?: string[];
     addMuscleGroups?: string[];
     removeMuscleGroups?: string[];
@@ -186,10 +190,23 @@ export async function bulkUpdateExercises(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  if (data.exercise_type !== undefined) {
+  const columns: {
+    exercise_type?: string | null;
+    track_load?: boolean;
+    load_format?: string | null;
+    default_increment?: number | null;
+  } = {};
+  if (data.exercise_type !== undefined) columns.exercise_type = data.exercise_type;
+  if (data.track_load === true) {
+    columns.track_load = true;
+    if (data.load_format !== undefined) columns.load_format = data.load_format;
+  } else if (data.track_load === false) {
+    Object.assign(columns, { track_load: false, load_format: null, default_increment: null });
+  }
+  if (Object.keys(columns).length) {
     const { error } = await supabase
       .from("exercises")
-      .update({ exercise_type: data.exercise_type })
+      .update(columns)
       .in("id", ids)
       .eq("user_id", user.id);
     if (error) throw new Error(error.message);
@@ -224,6 +241,7 @@ export async function bulkUpdateExercises(
   }
 
   revalidatePath("/exercises");
+  if (data.track_load !== undefined) revalidatePath("/progression");
 }
 
 export async function importExercises(rows: ExerciseImportRow[]): Promise<{ count: number }> {

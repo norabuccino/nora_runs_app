@@ -301,6 +301,8 @@ export default function ExercisesPage() {
   const [bulkSource, setBulkSource] = useState("");
   // "add:<group>" or "remove:<group>"; "" = no change.
   const [bulkMuscle, setBulkMuscle] = useState("");
+  const [bulkTrack, setBulkTrack] = useState<"" | "on" | "off">("");
+  const [bulkLoadFormat, setBulkLoadFormat] = useState("");
   const [showImport, setShowImport] = useState(false);
 
   async function load() {
@@ -462,6 +464,8 @@ export default function ExercisesPage() {
     setBulkType("");
     setBulkSource("");
     setBulkMuscle("");
+    setBulkTrack("");
+    setBulkLoadFormat("");
   }
 
   function handleBulkApply() {
@@ -469,6 +473,12 @@ export default function ExercisesPage() {
     const updates: Parameters<typeof bulkUpdateExercises>[1] = {};
     if (bulkType !== "") updates.exercise_type = bulkType || null;
     if (bulkSource.trim() !== "") updates.addSources = normalizeSources([bulkSource]);
+    if (bulkTrack === "on") {
+      updates.track_load = true;
+      if (bulkLoadFormat) updates.load_format = bulkLoadFormat;
+    } else if (bulkTrack === "off") {
+      updates.track_load = false;
+    }
     if (bulkMuscle) {
       const [action, group] = bulkMuscle.split(":");
       if (action === "add") updates.addMuscleGroups = [group];
@@ -876,9 +886,30 @@ export default function ExercisesPage() {
               ))}
             </optgroup>
           </select>
+          <select
+            value={bulkTrack}
+            onChange={(e) => setBulkTrack(e.target.value as "" | "on" | "off")}
+            className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+          >
+            <option value="">Weight tracking: no change</option>
+            <option value="on">Track weights</option>
+            <option value="off">Stop tracking weights</option>
+          </select>
+          {bulkTrack === "on" && (
+            <select
+              value={bulkLoadFormat}
+              onChange={(e) => setBulkLoadFormat(e.target.value)}
+              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+            >
+              <option value="">Load format: no change</option>
+              {Object.entries(LOAD_FORMAT_LABELS).map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
+            </select>
+          )}
           <button
             onClick={handleBulkApply}
-            disabled={isPending || (bulkType === "" && !bulkSource.trim() && !bulkMuscle)}
+            disabled={isPending || (bulkType === "" && !bulkSource.trim() && !bulkMuscle && !bulkTrack)}
             className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
           >
             Apply
