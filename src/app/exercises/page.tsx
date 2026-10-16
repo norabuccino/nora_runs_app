@@ -72,6 +72,19 @@ function applySort(items: Exercise[], sort: SortKey): Exercise[] {
   }
 }
 
+// Marks exercises whose weights/reps are logged and shown on /progression.
+function TrackedBadge({ exercise, showFormat }: { exercise: Exercise; showFormat?: boolean }) {
+  const format = exercise.load_format ? LOAD_FORMAT_LABELS[exercise.load_format] ?? exercise.load_format : null;
+  return (
+    <span
+      className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold text-[var(--accent)] whitespace-nowrap"
+      title={`Weights tracked${format ? ` (${format})` : ""} — shown on Progression`}
+    >
+      <span aria-hidden>↗</span> Tracked{showFormat && format ? ` · ${format}` : ""}
+    </span>
+  );
+}
+
 function ExerciseModal({
   title,
   initial,
@@ -284,6 +297,7 @@ export default function ExercisesPage() {
   const [sourceFilter, setSourceFilter] = useState("all");
   const [muscleFilter, setMuscleFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
+  const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
   const [sort, setSort] = useState<SortKey>("az");
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
   const [category, setCategory] = useState<string | "all" | null>(null);
@@ -348,6 +362,8 @@ export default function ExercisesPage() {
       if (sourceFilter !== "all" && !hasSource(e.sources, sourceFilter)) return false;
       if (muscleFilter !== "all" && !e.muscle_groups?.includes(muscleFilter)) return false;
       if (noDescriptionOnly && e.description?.trim()) return false;
+      if (trackingFilter === "tracked" && !e.track_load) return false;
+      if (trackingFilter === "untracked" && e.track_load) return false;
       if (!search.trim()) return true;
       return (
         e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -438,6 +454,7 @@ export default function ExercisesPage() {
     setSourceFilter("all");
     setMuscleFilter("all");
     setNoDescriptionOnly(false);
+    setTrackingFilter("all");
     setCategory(type);
   }
 
@@ -447,6 +464,7 @@ export default function ExercisesPage() {
     setSourceFilter("all");
     setMuscleFilter("all");
     setNoDescriptionOnly(false);
+    setTrackingFilter("all");
     setSearch("");
   }
 
@@ -715,6 +733,24 @@ export default function ExercisesPage() {
               >
                 No description
               </button>
+              <span className="w-px self-stretch bg-[var(--border)] mx-1" aria-hidden />
+              {([
+                ["all", "Tracked & untracked"],
+                ["tracked", "Tracked weights"],
+                ["untracked", "Not tracked"],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setTrackingFilter(value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    trackingFilter === value
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -965,6 +1001,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         {exercise.sources?.length > 0 && (
           <span className="min-w-0 max-w-[20%] truncate text-xs text-[var(--muted)]">{exercise.sources.join(", ")}</span>
         )}
+        {exercise.track_load && <TrackedBadge exercise={exercise} />}
         {exercise.is_private && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Private">🔒</span>
         )}
@@ -1006,7 +1043,12 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
           />
         )}
         <div className="space-y-1 min-w-0 flex-1">
-          {typeBadge}
+          {(typeBadge || exercise.track_load) && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {typeBadge}
+              {exercise.track_load && <TrackedBadge exercise={exercise} showFormat />}
+            </div>
+          )}
           <h3 className="font-medium text-sm leading-snug truncate">{exercise.name}</h3>
         </div>
         <div className="flex items-center gap-1 shrink-0">
