@@ -25,9 +25,11 @@ interface ExerciseDetailModalProps {
   exercise: Exercise;
   onClose: () => void;
   onEdit?: (e: Exercise) => void;
+  /** When set (e.g. opened from the exercise picker), shows an "Add exercise" button and stacks above the picker. */
+  onSelect?: (e: Exercise) => void;
 }
 
-export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetailModalProps) {
+export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: ExerciseDetailModalProps) {
   const [libraryUsage, setLibraryUsage] = useState<LibraryUsage[]>([]);
   const [planUsage, setPlanUsage] = useState<PlanUsage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
   const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, history[0].loadFormat) : null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+    <div className={`fixed inset-0 ${onSelect ? "z-[70]" : "z-50"} flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm`}>
       <div className="w-full sm:max-w-lg bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90dvh] sm:max-h-[90vh]">
         <div className="p-4 sm:p-5 space-y-4">
 
@@ -155,6 +157,25 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit }: ExerciseDetai
               </button>
             </div>
           </div>
+
+          {onSelect && (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => onSelect(exercise)}
+                className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Add exercise
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+              >
+                Back
+              </button>
+            </div>
+          )}
 
           {/* Description */}
           {exercise.description && (

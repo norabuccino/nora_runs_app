@@ -6,6 +6,7 @@ import type { Exercise } from "@/types/database";
 import { createExercise } from "@/app/actions/exercises";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { collectSources, hasSource } from "@/lib/exerciseSources";
+import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 
 export interface ExercisePickResult {
   exercise_id: string;
@@ -26,6 +27,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
+  const [previewing, setPreviewing] = useState<Exercise | null>(null);
 
   // Create new form state
   const [newName, setNewName] = useState("");
@@ -215,29 +217,42 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 )}
 
                 {displayed.map((exercise) => (
-                  <button
+                  <div
                     key={exercise.id}
-                    type="button"
-                    onClick={() => handleSelect(exercise)}
-                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 flex items-start gap-3 hover:border-[var(--foreground)] transition-colors text-left"
+                    className="w-full rounded-lg border border-[var(--border)] bg-[var(--card)] flex items-stretch hover:border-[var(--foreground)] transition-colors"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        {exercise.exercise_type && (
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? ""}`}>
-                            {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
-                          </span>
+                    <button
+                      type="button"
+                      onClick={() => handleSelect(exercise)}
+                      className="flex-1 min-w-0 pl-3 py-2.5 flex items-start gap-3 text-left"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {exercise.exercise_type && (
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? ""}`}>
+                              {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
+                            </span>
+                          )}
+                          <p className="text-sm font-medium">{exercise.name}</p>
+                        </div>
+                        {exercise.description && (
+                          <p className="text-xs text-[var(--muted)] mt-0.5 line-clamp-1">{exercise.description}</p>
                         )}
-                        <p className="text-sm font-medium">{exercise.name}</p>
                       </div>
-                      {exercise.description && (
-                        <p className="text-xs text-[var(--muted)] mt-0.5 line-clamp-1">{exercise.description}</p>
+                      {exercise.video_url && (
+                        <span className="text-xs text-[var(--muted)] shrink-0 mt-0.5">▶</span>
                       )}
-                    </div>
-                    {exercise.video_url && (
-                      <span className="text-xs text-[var(--muted)] shrink-0 mt-0.5">▶</span>
-                    )}
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewing(exercise)}
+                      title="Preview details"
+                      aria-label={`Preview ${exercise.name}`}
+                      className="shrink-0 px-3 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                    >
+                      ⓘ
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -323,6 +338,14 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
           )}
         </div>
       </div>
+
+      {previewing && (
+        <ExerciseDetailModal
+          exercise={previewing}
+          onClose={() => setPreviewing(null)}
+          onSelect={handleSelect}
+        />
+      )}
     </div>
   );
 }
