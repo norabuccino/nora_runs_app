@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildScheduledWeekDays } from "@/lib/scheduledWorkout";
+import { buildScheduledWeekDays, plannerWeekLabel } from "@/lib/scheduledWorkout";
 
 interface FakeScheduledWorkout {
   id: string;
@@ -43,5 +43,17 @@ describe("buildScheduledWeekDays", () => {
   it("ignores workouts scheduled outside the given week", () => {
     const days = buildScheduledWeekDays("2026-09-14", [sw("a", "2026-09-21")]);
     expect(days.every((d) => d.workouts.length === 0)).toBe(true);
+  });
+});
+
+describe("plannerWeekLabel", () => {
+  it("names the current and next week", () => {
+    expect(plannerWeekLabel(0, "2026-10-12")).toBe("This week");
+    expect(plannerWeekLabel(1, "2026-10-19")).toBe("Next week");
+  });
+
+  it("uses the week's Monday further out", () => {
+    expect(plannerWeekLabel(2, "2026-10-26")).toBe("Week of Oct 26");
+    expect(plannerWeekLabel(4, "2026-11-09")).toBe("Week of Nov 9");
   });
 });

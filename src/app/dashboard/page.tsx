@@ -21,7 +21,7 @@ import {
 import { batchUpdateWorkoutPositions, deleteWorkout } from "@/app/actions/workouts";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import type { WorkoutStepData } from "@/app/actions/workouts";
-import { adaptScheduledWorkout as adaptScheduled, buildScheduledWeekDays } from "@/lib/scheduledWorkout";
+import { adaptScheduledWorkout as adaptScheduled, buildScheduledWeekDays, plannerWeekLabel } from "@/lib/scheduledWorkout";
 import { RecentDays } from "@/components/RecentDays";
 
 interface PlanContext {
@@ -47,6 +47,12 @@ export default function DashboardPage() {
   const weekStartISO = mondayOfWeek(new Date());
   const weekEndISO = scheduledDate(weekStartISO, 1, 6);
 
+  // The ad-hoc week planner can page forward to plan the coming weeks
+  // (e.g. between formal plans). 0 = this week.
+  const [plannerWeekOffset, setPlannerWeekOffset] = useState(0);
+  const plannerStartISO = scheduledDate(weekStartISO, plannerWeekOffset + 1, 0);
+  const plannerEndISO = scheduledDate(weekStartISO, plannerWeekOffset + 1, 6);
+
   const [loading, setLoading] = useState(true);
   const [planContexts, setPlanContexts] = useState<PlanContext[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
@@ -71,7 +77,8 @@ export default function DashboardPage() {
         .from("scheduled_workouts")
         .select("*, workout_steps(*)")
         .gte("scheduled_date", weekStartISO)
-        .lte("scheduled_date", weekEndISO)
+        // Covers today (for the Today section) through the planner's week.
+        .lte("scheduled_date", plannerEndISO > weekEndISO ? plannerEndISO : weekEndISO)
         .order("scheduled_date")
         .order("sort_order"),
     ]);
@@ -145,7 +152,7 @@ export default function DashboardPage() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [plannerWeekOffset]);
 
   function findCtx(planId: string): PlanContext | undefined {
     return planContexts.find((c) => c.plan.id === planId);
@@ -310,7 +317,7 @@ export default function DashboardPage() {
   }
 
   const todaysScheduled = scheduledWorkouts.filter((sw) => sw.scheduled_date === todayISO);
-  const scheduledWeekDays = buildScheduledWeekDays(weekStartISO, scheduledWorkouts);
+  const scheduledWeekDays = buildScheduledWeekDays(plannerStartISO, scheduledWorkouts);
 
   // Scheduled workouts for today — rendered in every state
   const scheduledSection = todaysScheduled.length > 0 ? (
@@ -338,7 +345,36 @@ export default function DashboardPage() {
   // own WeekGrid gives for free.
   const scheduledWeekSection = (
     <div className="space-y-3">
-      <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">This week</h2>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">
+          {plannerWeekLabel(plannerWeekOffset, plannerStartISO)}
+        </h2>
+        <div className="flex items-center gap-1">
+          {plannerWeekOffset > 0 && (
+            <button
+              onClick={() => setPlannerWeekOffset(0)}
+              className="px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              Today
+            </button>
+          )}
+          <button
+            onClick={() => setPlannerWeekOffset((o) => Math.max(0, o - 1))}
+            disabled={plannerWeekOffset === 0}
+            aria-label="Previous week"
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] disabled:opacity-30 disabled:hover:bg-transparent transition-colors"
+          >
+            ‹
+          </button>
+          <button
+            onClick={() => setPlannerWeekOffset((o) => o + 1)}
+            aria-label="Next week"
+            className="w-7 h-7 flex items-center justify-center rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+          >
+            ›
+          </button>
+        </div>
+      </div>
       <div className="sm:overflow-x-auto sm:pb-2">
         <ScheduledWeekGrid
           days={scheduledWeekDays}

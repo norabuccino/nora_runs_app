@@ -7,6 +7,18 @@ export interface ScheduledWeekDay<T> {
 }
 
 /**
+ * Heading for the dashboard's ad-hoc week planner, given how many weeks ahead
+ * of the current one it's showing: "This week", "Next week", then
+ * "Week of Oct 26" (the week's Monday) further out.
+ */
+export function plannerWeekLabel(weekOffset: number, weekStartISO: string): string {
+  if (weekOffset === 0) return "This week";
+  if (weekOffset === 1) return "Next week";
+  const label = parseDateLocal(weekStartISO).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `Week of ${label}`;
+}
+
+/**
  * Buckets a list of scheduled workouts into all 7 calendar days of the week
  * starting at weekStartISO (typically the Monday containing "today"), one
  * entry per day in order regardless of whether it has any workouts yet.
