@@ -4,12 +4,46 @@ import { useState } from "react";
 import { LoadFormatGuide, LoadingCategoryGuide } from "@/components/LoadFormatGuide";
 import type { ExerciseFormData } from "@/lib/exerciseForm";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
-import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, toggleMuscleGroup } from "@/lib/muscleGroups";
-import { EQUIPMENT, EQUIPMENT_LABELS, toggleEquipment } from "@/lib/equipment";
+import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, sortMuscleGroups, toggleMuscleGroup } from "@/lib/muscleGroups";
+import { EQUIPMENT, EQUIPMENT_LABELS, sortEquipment, toggleEquipment } from "@/lib/equipment";
+import { suggestExerciseTags } from "@/lib/exerciseTagSuggestions";
 import { SourcesInput } from "@/components/SourcesInput";
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
+
+/** "Suggested from name: + Dumbbells + Box / step · Add all" under a tag picker. */
+function NameSuggestions({
+  keys,
+  labels,
+  onAdd,
+}: {
+  keys: string[];
+  labels: Record<string, string>;
+  onAdd: (keys: string[]) => void;
+}) {
+  if (keys.length === 0) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+      <span className="text-xs text-[var(--muted)]">Suggested from name:</span>
+      {keys.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => onAdd([k])}
+          className="px-2 py-0.5 rounded-full border border-dashed border-[var(--accent)] text-xs text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors"
+        >
+          + {labels[k]}
+        </button>
+      ))}
+      {keys.length > 1 && (
+        <button type="button" onClick={() => onAdd(keys)} className="text-xs text-[var(--accent)] hover:underline">
+          Add all
+        </button>
+      )}
+    </div>
+  );
+}
 
 interface ExerciseFormFieldsProps {
   value: ExerciseFormData;
@@ -24,6 +58,8 @@ interface ExerciseFormFieldsProps {
 export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFocusName = true, libraryFields = true }: ExerciseFormFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [categoryGuideOpen, setCategoryGuideOpen] = useState(false);
+  // Offered from the name only — the user adds them; never applied on their own.
+  const suggested = suggestExerciseTags(value.name);
   const set = (update: (prev: ExerciseFormData) => ExerciseFormData) => onChange(update(value));
 
   return (
@@ -92,6 +128,11 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                 );
               })}
             </div>
+            <NameSuggestions
+              keys={suggested.muscle_groups.filter((g) => !value.muscle_groups.includes(g))}
+              labels={MUSCLE_GROUP_LABELS}
+              onAdd={(keys) => set((p) => ({ ...p, muscle_groups: sortMuscleGroups([...p.muscle_groups, ...keys]) }))}
+            />
           </div>
 
           <div className="space-y-1">
@@ -115,6 +156,11 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                 );
               })}
             </div>
+            <NameSuggestions
+              keys={suggested.equipment.filter((g) => !value.equipment.includes(g))}
+              labels={EQUIPMENT_LABELS}
+              onAdd={(keys) => set((p) => ({ ...p, equipment: sortEquipment([...p.equipment, ...keys]) }))}
+            />
           </div>
 
           <div className="space-y-1">
