@@ -213,7 +213,22 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 )}
 
                 {!loading && exercises.length > 0 && displayed.length === 0 && (
-                  <p className="text-xs text-[var(--muted)] text-center py-4">No exercises match your filters.</p>
+                  <div className="text-center py-4 space-y-2">
+                    <p className="text-xs text-[var(--muted)]">No exercises match your filters.</p>
+                    {search.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewName(search.trim());
+                          setCreateError(null);
+                          setTab("new");
+                        }}
+                        className="text-xs text-[var(--accent)] hover:underline"
+                      >
+                        + Create &ldquo;{search.trim()}&rdquo; as a new exercise →
+                      </button>
+                    )}
+                  </div>
                 )}
 
                 {displayed.map((exercise) => (
