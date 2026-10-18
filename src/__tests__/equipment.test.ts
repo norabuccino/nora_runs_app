@@ -11,7 +11,7 @@ import {
 describe("equipment tag list", () => {
   it("has unique keys including the examples asked for", () => {
     expect(new Set(EQUIPMENT).size).toBe(EQUIPMENT.length);
-    expect(EQUIPMENT).toEqual(expect.arrayContaining(["resistance_band", "mini_band", "trx", "box_step", "mat"]));
+    expect(EQUIPMENT).toEqual(expect.arrayContaining(["resistance_band", "mini_band", "trx", "box_step", "mat", "assisted_machine"]));
   });
 
   it("sorts into list order and drops unknown keys", () => {

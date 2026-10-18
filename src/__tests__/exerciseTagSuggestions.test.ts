@@ -7,6 +7,8 @@ describe("suggestExerciseTags", () => {
     expect(suggestExerciseTags("Mini Band Monster Walk").equipment).toEqual(["mini_band"]);
     expect(suggestExerciseTags("Banded Pallof Press").equipment).toEqual(["resistance_band"]);
     expect(suggestExerciseTags("Barbell Back Squat").equipment).toEqual(["barbell"]);
+    expect(suggestExerciseTags("Machine Assisted Pull Up").equipment).toEqual(["assisted_machine"]);
+    expect(suggestExerciseTags("Assisted Dip Machine").equipment).toEqual(["assisted_machine"]);
   });
 
   it("suggests muscle groups from the movement", () => {
