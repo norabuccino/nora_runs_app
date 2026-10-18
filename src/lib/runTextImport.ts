@@ -230,12 +230,14 @@ export function parseRunText(text: string, { sport, paceNames }: RunParseOptions
     }
     const sendOff = sport === "swim" ? r.take(/\bon (?:the )?(\d+):(\d{2})\b/) : null;
     const clock = r.take(/\b(\d+):(\d{2})\b/);
-    const t = r.take(/\b(\d+(?:\.\d+)?)\s*(min|mins|minutes?|sec|secs|seconds?|s|hours?|hrs?)\b/);
+    // A bare "s" only means seconds on short numbers ("30s"); "200s"/"400s" are reps, not times.
+    const t = r.take(/\b(\d+(?:\.\d+)?)\s*(min|mins|minutes?|sec|secs|seconds?|hours?|hrs?)\b|\b(\d{1,2})\s*(s)\b/);
     if (sendOff) durationSeconds ??= parseInt(sendOff[1], 10) * 60 + parseInt(sendOff[2], 10);
     if (durationSeconds == null && clock) durationSeconds = parseInt(clock[1], 10) * 60 + parseInt(clock[2], 10);
     if (durationSeconds == null && t) {
-      const n = parseFloat(t[1]);
-      durationSeconds = Math.round(t[2].startsWith("h") ? n * 3600 : t[2].startsWith("m") ? n * 60 : n);
+      const n = parseFloat(t[1] ?? t[3]);
+      const unitWord = t[2] ?? t[4];
+      durationSeconds = Math.round(unitWord.startsWith("h") ? n * 3600 : unitWord.startsWith("m") ? n * 60 : n);
     }
 
     if (withText) {

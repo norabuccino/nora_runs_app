@@ -289,6 +289,12 @@ export function parseWorkoutText(text: string): ParsedWorkout {
   return { blocks, unparsed };
 }
 
+/** Whether a line is part of the exercise list (has a prescription, an A1 prefix, a group header or a rest) — vs. a title or description. */
+export function isExerciseLine(line: string): boolean {
+  const text = line.replace(LIST_PREFIX, "").trim();
+  return STRONG_TOKEN.test(text) || LETTER_PREFIX.test(text) || /:\s*$/.test(text) || /^rest\b/i.test(text) || (GROUP_KEYWORDS.test(text) && text.includes(":"));
+}
+
 /** Every parsed exercise in order — the index is how resolutions are keyed. */
 export function flattenExercises(blocks: ParsedBlock[]): ParsedExercise[] {
   return blocks.flatMap((b) => (b.kind === "single" ? [b.exercise] : b.exercises));

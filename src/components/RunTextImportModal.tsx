@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import type { WorkoutStepFormRow } from "@/components/WorkoutForm";
 import { describeRunStep, parseRunText, toRunFormSteps, type RunBlock } from "@/lib/runTextImport";
 import type { DistanceUnit } from "@/lib/unitUtils";
+import { splitWorkoutText, type WorkoutTextDetails } from "@/lib/workoutTextDetails";
+import { ImportedDetailsPreview } from "@/components/ImportedDetailsPreview";
 
 const PLACEHOLDERS = {
-  run: "Warm up 2 miles, then run 2 sets of 8x200m at 3K pace with 200m recovery after each 200. Jog 800m easy between the two sets. Finish with 2 mile cooldown.",
+  run: "Track 200s\n\nTwo sets of fast 200s to work on turnover.\n\nWarm up 2 miles, then run 2 sets of 8x200m at 3K pace with 200m recovery after each 200. Jog 800m easy between the two sets. Finish with 2 mile cooldown.",
   swim: "200 free warm up. 4x100 back on 1:45 with 15s rest. 100 easy cool down.",
 };
 
@@ -15,7 +17,7 @@ interface RunTextImportModalProps {
   paceNames: string[];
   startGroupId: number;
   defaultUnit: DistanceUnit;
-  onImport: (steps: WorkoutStepFormRow[]) => void;
+  onImport: (steps: WorkoutStepFormRow[], details: WorkoutTextDetails) => void;
   onCancel: () => void;
 }
 
@@ -23,7 +25,12 @@ interface RunTextImportModalProps {
 export function RunTextImportModal({ sport, paceNames, startGroupId, defaultUnit, onImport, onCancel }: RunTextImportModalProps) {
   const [text, setText] = useState("");
   const [showTips, setShowTips] = useState(false);
-  const parsed = useMemo(() => parseRunText(text, { sport, paceNames }), [text, sport, paceNames]);
+  const { details, body } = useMemo(
+    () => splitWorkoutText(text, sport, (line) => parseRunText(line, { sport, paceNames }).blocks.length > 0),
+    [text, sport, paceNames]
+  );
+  const parsed = useMemo(() => parseRunText(body, { sport, paceNames }), [body, sport, paceNames]);
+  const hasDetails = Object.keys(details).length > 0;
   const steps = useMemo(() => toRunFormSteps(parsed.blocks, { startGroupId, defaultUnit }), [parsed, startGroupId, defaultUnit]);
 
   const stepTone = (type: string) =>
@@ -80,6 +87,10 @@ export function RunTextImportModal({ sport, paceNames, startGroupId, defaultUnit
             </button>
             {showTips && (
               <ul className="text-xs text-[var(--muted)] list-disc pl-4 space-y-0.5">
+                <li>
+                  Optional first line = title, then a paragraph of description before the steps. Or label them: <code>Title:</code>,{" "}
+                  <code>Description:</code>, <code>Notes:</code>, <code>Type: tempo</code>.
+                </li>
                 <li>Write it like you&apos;d say it — sentences, commas or &ldquo;then&rdquo; separate the steps.</li>
                 <li>
                   Amounts: <code>2 miles</code>, <code>800m</code>, <code>5 km</code>, <code>20 min</code>, <code>90 sec</code>
@@ -113,6 +124,8 @@ export function RunTextImportModal({ sport, paceNames, startGroupId, defaultUnit
             )}
           </div>
 
+          <ImportedDetailsPreview details={details} />
+
           {parsed.blocks.length > 0 && <ol className="space-y-1.5">{parsed.blocks.map(renderBlock)}</ol>}
 
           {parsed.unknownPaces.length > 0 && (
@@ -130,11 +143,11 @@ export function RunTextImportModal({ sport, paceNames, startGroupId, defaultUnit
           <div className="flex items-center gap-2 pt-1">
             <button
               type="button"
-              onClick={() => onImport(steps)}
-              disabled={steps.length === 0}
+              onClick={() => onImport(steps, details)}
+              disabled={steps.length === 0 && !hasDetails}
               className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {steps.length === 0 ? "Add steps" : `Add ${steps.length} ${steps.length === 1 ? "step" : "steps"}`}
+              {steps.length === 0 ? (hasDetails ? "Add details" : "Add steps") : `Add ${steps.length} ${steps.length === 1 ? "step" : "steps"}`}
             </button>
             <button
               type="button"

@@ -7,6 +7,7 @@ import { ExercisePickerModal, type ExercisePickResult } from "@/components/Exerc
 import {
   describeParsedExercise,
   flattenExercises,
+  isExerciseLine,
   parseWorkoutText,
   toFormSteps,
   type ExerciseResolution,
@@ -14,6 +15,8 @@ import {
   type ParsedExercise,
 } from "@/lib/workoutTextImport";
 import { matchExercise, normalizeExerciseName } from "@/lib/exerciseMatch";
+import { splitWorkoutText, type WorkoutTextDetails } from "@/lib/workoutTextDetails";
+import { ImportedDetailsPreview } from "@/components/ImportedDetailsPreview";
 import type { DistanceUnit } from "@/lib/unitUtils";
 
 type LibraryExercise = { id: string; name: string; video_url: string | null };
@@ -21,7 +24,9 @@ type LibraryExercise = { id: string; name: string; video_url: string | null };
 /** What the user decided for a typed name: a library exercise, or a one-off step that isn't in the library. */
 type Choice = ExerciseResolution;
 
-const PLACEHOLDER = `push ups - 3 sets, 8-10 reps; pull ups - 3 sets, 8-10 reps
+const PLACEHOLDER = `Upper body pull
+
+push ups - 3 sets, 8-10 reps; pull ups - 3 sets, 8-10 reps
 
 Superset (3 rounds):
 Goblet squat x10 @ 25 lb
@@ -33,7 +38,7 @@ Plank 3x30s`;
 interface WorkoutTextImportModalProps {
   startGroupId: number;
   unit: DistanceUnit;
-  onImport: (result: { steps: WorkoutStepFormRow[]; namedGroupIds: number[] }) => void;
+  onImport: (result: { steps: WorkoutStepFormRow[]; namedGroupIds: number[]; details: WorkoutTextDetails }) => void;
   onCancel: () => void;
 }
 
@@ -56,7 +61,8 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
     load();
   }, []);
 
-  const parsed = useMemo(() => parseWorkoutText(text), [text]);
+  const { details, body } = useMemo(() => splitWorkoutText(text, "strength", isExerciseLine), [text]);
+  const parsed = useMemo(() => parseWorkoutText(body), [body]);
   const flat = flattenExercises(parsed.blocks);
 
   function resolve(ex: ParsedExercise) {
@@ -74,7 +80,8 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
 
   const resolved = flat.map(resolve);
   const pending = resolved.filter((r) => !r.choice).length;
-  const canImport = !loading && flat.length > 0 && pending === 0;
+  const hasDetails = Object.keys(details).length > 0;
+  const canImport = !loading && (flat.length > 0 || hasDetails) && pending === 0;
 
   function choose(key: string, choice: Choice) {
     setChoices((prev) => ({ ...prev, [key]: choice }));
@@ -91,7 +98,7 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
 
   function handleImport() {
     const resolutions = resolved.map((r) => r.choice!);
-    onImport(toFormSteps(parsed.blocks, resolutions, { startGroupId, unit }));
+    onImport({ ...toFormSteps(parsed.blocks, resolutions, { startGroupId, unit }), details });
   }
 
   const btn = "text-xs px-2 py-0.5 rounded-md border border-[var(--border)] hover:bg-[var(--card)] transition-colors";
@@ -199,6 +206,10 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
             </button>
             {showTips && (
               <ul className="text-xs text-[var(--muted)] list-disc pl-4 space-y-0.5">
+                <li>
+                  Optional first line = title, then a paragraph of description before the exercises. Or label them:{" "}
+                  <code>Title:</code>, <code>Description:</code>, <code>Notes:</code>, <code>Focus: upper body</code>.
+                </li>
                 <li>One exercise per line, or separate them with <code>;</code></li>
                 <li>
                   Sets and reps: <code>3x10</code>, <code>3 sets, 8-10 reps</code>, <code>x12</code>. Time: <code>30s</code>,{" "}
@@ -218,6 +229,8 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
               </ul>
             )}
           </div>
+
+          <ImportedDetailsPreview details={details} />
 
           {loading ? (
             <p className="text-xs text-[var(--muted)]">Loading your exercises…</p>
@@ -239,7 +252,9 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
               className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
               {flat.length === 0
-                ? "Add exercises"
+                ? hasDetails
+                  ? "Add details"
+                  : "Add exercises"
                 : pending > 0
                 ? `${pending} ${pending === 1 ? "exercise needs" : "exercises need"} a decision`
                 : `Add ${flat.length} ${flat.length === 1 ? "step" : "steps"}`}

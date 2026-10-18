@@ -25,6 +25,7 @@ import { ExercisePickerModal, type ExercisePickResult } from "@/components/Exerc
 import { WorkoutEquipmentEditor } from "@/components/WorkoutEquipment";
 import { WorkoutTextImportModal } from "@/components/WorkoutTextImportModal";
 import { RunTextImportModal } from "@/components/RunTextImportModal";
+import type { WorkoutTextDetails } from "@/lib/workoutTextDetails";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1296,10 +1297,29 @@ export function WorkoutForm({
 
   const [exercisePicker, setExercisePicker] = useState<PickerState | null>(null);
   const [textImportOpen, setTextImportOpen] = useState(false);
+  // A new workout starts with just the type picker; the rest of the form appears once it's chosen.
+  const [typeChosen, setTypeChosen] = useState(!!existing);
 
-  function handleTextImport({ steps, namedGroupIds }: { steps: WorkoutStepFormRow[]; namedGroupIds: number[] }) {
-    // Replace the default empty step rather than leaving it above the imported ones.
-    setForm((prev) => ({ ...prev, steps: [...(prev.steps.length === 1 && isBlankStep(prev.steps[0]) ? [] : prev.steps), ...steps] }));
+  function handleTextImport({
+    steps,
+    namedGroupIds,
+    details = {},
+  }: {
+    steps: WorkoutStepFormRow[];
+    namedGroupIds: number[];
+    details?: WorkoutTextDetails;
+  }) {
+    setForm((prev) => ({
+      ...prev,
+      // Replace the default empty step rather than leaving it above the imported ones.
+      steps: [...(prev.steps.length === 1 && isBlankStep(prev.steps[0]) ? [] : prev.steps), ...steps],
+      // Pasted details only fill fields that are still empty.
+      title: prev.title || details.title || "",
+      description: prev.description || details.description || "",
+      notes: prev.notes || details.notes || "",
+      run_type: prev.run_type || (prev.type === "run" && details.run_type) || "",
+      strength_type: prev.strength_type || (prev.type === "strength" && details.strength_type) || "",
+    }));
     setPerExerciseSetsGroupIds((prev) => new Set([...prev, ...namedGroupIds]));
     setTextImportOpen(false);
   }
@@ -1555,9 +1575,10 @@ export function WorkoutForm({
             <div className="space-y-1">
               <label className={labelClass}>Type</label>
               <select
-                value={form.type}
+                value={typeChosen ? form.type : ""}
                 onChange={(e) => {
                   const newType = e.target.value as WorkoutType;
+                  setTypeChosen(true);
                   setForm((p) => ({
                     ...p,
                     type: newType,
@@ -1569,6 +1590,11 @@ export function WorkoutForm({
                 }}
                 className={inputClass}
               >
+                {!typeChosen && (
+                  <option value="" disabled>
+                    — Choose a workout type —
+                  </option>
+                )}
                 <option value="run">Run</option>
                 <option value="strength">Strength</option>
                 <option value="bike">Bike</option>
@@ -1578,98 +1604,164 @@ export function WorkoutForm({
               </select>
             </div>
 
-            {isRun && (
+            {typeChosen && (
+              <>
+              {/* Paste from text — first thing after the type, for types with steps */}
+              {showSteps && (
+                <button
+                  type="button"
+                  onClick={() => setTextImportOpen(true)}
+                  className="w-full rounded-lg border border-dashed border-[var(--accent)] px-3 py-2 text-left hover:bg-[var(--accent)]/5 transition-colors"
+                >
+                  <span className="block text-sm font-medium text-[var(--accent)]">
+                    Paste a workout from text
+                  </span>
+                  <span className="block text-xs text-[var(--muted)]">
+                    {isStrength ? "Exercises, sets and reps" : "Steps, distances and paces"}, plus the title and description if they&apos;re in the text. Or fill in the fields below.
+                  </span>
+                </button>
+              )}
+
+              {isRun && (
+                <div className="space-y-1">
+                  <label className={labelClass}>Run type</label>
+                  <select
+                    value={form.run_type}
+                    onChange={(e) =>
+                      setForm((p) => ({ ...p, run_type: e.target.value as RunType | "" }))
+                    }
+                    className={inputClass}
+                  >
+                    <option value="">— Select —</option>
+                    <option value="easy_run">Easy Run</option>
+                    <option value="long_run">Long Run</option>
+                    <option value="mp_hmp_run">MP/HMP Run</option>
+                    <option value="interval_run">Interval Run</option>
+                    <option value="threshold_run">Threshold Run</option>
+                    <option value="recovery_run">Recovery Run</option>
+                    <option value="boost_run">Boost Run</option>
+                    <option value="race">Race</option>
+                  </select>
+                </div>
+              )}
+
+              {isStrength && (
+                <div className="space-y-1">
+                  <label className={labelClass}>Strength type</label>
+                  <select
+                    value={form.strength_type}
+                    onChange={(e) => setForm((p) => ({ ...p, strength_type: e.target.value }))}
+                    className={inputClass}
+                  >
+                    <option value="">— Select —</option>
+                    {Object.entries(STRENGTH_TYPE_LABELS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Title */}
               <div className="space-y-1">
-                <label className={labelClass}>Run type</label>
-                <select
-                  value={form.run_type}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, run_type: e.target.value as RunType | "" }))
+                <label className={labelClass}>Title</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder={
+                    isStrength ? "e.g. Upper body push day"
+                    : isRun ? "e.g. Easy run"
+                    : isRest ? "e.g. Rest day"
+                    : "e.g. Workout title"
                   }
                   className={inputClass}
-                >
-                  <option value="">— Select —</option>
-                  <option value="easy_run">Easy Run</option>
-                  <option value="long_run">Long Run</option>
-                  <option value="mp_hmp_run">MP/HMP Run</option>
-                  <option value="interval_run">Interval Run</option>
-                  <option value="threshold_run">Threshold Run</option>
-                  <option value="recovery_run">Recovery Run</option>
-                  <option value="boost_run">Boost Run</option>
-                  <option value="race">Race</option>
-                </select>
+                />
               </div>
-            )}
 
-            {isStrength && (
+              {/* Description */}
               <div className="space-y-1">
-                <label className={labelClass}>Strength type</label>
-                <select
-                  value={form.strength_type}
-                  onChange={(e) => setForm((p) => ({ ...p, strength_type: e.target.value }))}
-                  className={inputClass}
-                >
-                  <option value="">— Select —</option>
-                  {Object.entries(STRENGTH_TYPE_LABELS).map(([val, lbl]) => (
-                    <option key={val} value={val}>{lbl}</option>
-                  ))}
-                </select>
+                <label className={labelClass}>Description</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  rows={isStrength ? 2 : 4}
+                  className={`${inputClass} resize-y`}
+                />
               </div>
-            )}
 
-            {/* Title */}
-            <div className="space-y-1">
-              <label className={labelClass}>Title</label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder={
-                  isStrength ? "e.g. Upper body push day"
-                  : isRun ? "e.g. Easy run"
-                  : isRest ? "e.g. Rest day"
-                  : "e.g. Workout title"
-                }
-                className={inputClass}
-              />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-1">
-              <label className={labelClass}>Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={isStrength ? 2 : 4}
-                className={`${inputClass} resize-y`}
-              />
-            </div>
-
-            {isBike && (
-              <div className="space-y-1">
-                <label className={labelClass}>Location</label>
-                <div className="flex rounded-lg border border-[var(--border)] overflow-hidden w-fit">
-                  {Object.entries(BIKE_LOCATION_LABELS).map(([val, lbl]) => (
-                    <button
-                      key={val}
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, bike_location: val as "indoor" | "outdoor" }))}
-                      className={`px-3 py-1.5 text-sm transition-colors ${
-                        form.bike_location === val
-                          ? "bg-[var(--foreground)] text-[var(--background)]"
-                          : "text-[var(--muted)] hover:text-[var(--foreground)]"
-                      }`}
-                    >
-                      {lbl}
-                    </button>
-                  ))}
+              {isBike && (
+                <div className="space-y-1">
+                  <label className={labelClass}>Location</label>
+                  <div className="flex rounded-lg border border-[var(--border)] overflow-hidden w-fit">
+                    {Object.entries(BIKE_LOCATION_LABELS).map(([val, lbl]) => (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setForm((p) => ({ ...p, bike_location: val as "indoor" | "outdoor" }))}
+                        className={`px-3 py-1.5 text-sm transition-colors ${
+                          form.bike_location === val
+                            ? "bg-[var(--foreground)] text-[var(--background)]"
+                            : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                        }`}
+                      >
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {isBike && (
-              <div className="flex gap-3">
-                <div className="flex-1 space-y-1">
+              {isBike && (
+                <div className="flex gap-3">
+                  <div className="flex-1 space-y-1">
+                    <label className={labelClass}>Duration (min)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.duration_minutes}
+                      onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <label className={labelClass}>Distance</label>
+                      <UnitToggle
+                        units={["mi", "km"]}
+                        active={form.distance_unit}
+                        onChange={(u) => setForm((p) => ({ ...p, distance_unit: u as "mi" | "km" }))}
+                      />
+                    </div>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={form.distance_miles}
+                      onChange={(e) => setForm((p) => ({ ...p, distance_miles: e.target.value }))}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isCrossTrain && (
+                <div className="space-y-1">
+                  <label className={labelClass}>Cross Training Type</label>
+                  <select
+                    value={form.cross_train_type}
+                    onChange={(e) => setForm((p) => ({ ...p, cross_train_type: e.target.value as CrossTrainType | "" }))}
+                    className={inputClass}
+                  >
+                    <option value="">— Select —</option>
+                    {Object.entries(CROSS_TRAIN_TYPE_LABELS).map(([val, lbl]) => (
+                      <option key={val} value={val}>{lbl}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {isCrossTrain && (
+                <div className="space-y-1">
                   <label className={labelClass}>Duration (min)</label>
                   <input
                     type="number"
@@ -1679,249 +1771,203 @@ export function WorkoutForm({
                     className={inputClass}
                   />
                 </div>
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <label className={labelClass}>Distance</label>
-                    <UnitToggle
-                      units={["mi", "km"]}
-                      active={form.distance_unit}
-                      onChange={(u) => setForm((p) => ({ ...p, distance_unit: u as "mi" | "km" }))}
-                    />
-                  </div>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={form.distance_miles}
-                    onChange={(e) => setForm((p) => ({ ...p, distance_miles: e.target.value }))}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            )}
+              )}
 
-            {isCrossTrain && (
-              <div className="space-y-1">
-                <label className={labelClass}>Cross Training Type</label>
-                <select
-                  value={form.cross_train_type}
-                  onChange={(e) => setForm((p) => ({ ...p, cross_train_type: e.target.value as CrossTrainType | "" }))}
-                  className={inputClass}
-                >
-                  <option value="">— Select —</option>
-                  {Object.entries(CROSS_TRAIN_TYPE_LABELS).map(([val, lbl]) => (
-                    <option key={val} value={val}>{lbl}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+              {/* Steps */}
+              {showSteps && (
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                    {isStrength ? "Exercises" : "Steps"}
+                  </span>
 
-            {isCrossTrain && (
-              <div className="space-y-1">
-                <label className={labelClass}>Duration (min)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.duration_minutes}
-                  onChange={(e) => setForm((p) => ({ ...p, duration_minutes: e.target.value }))}
-                  className={inputClass}
-                />
-              </div>
-            )}
+                  {form.steps.length === 0 && (
+                    <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
+                  )}
 
-            {/* Steps */}
-            {showSteps && (
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
-                  {isStrength ? "Exercises" : "Steps"}
-                </span>
-
-                {form.steps.length === 0 && (
-                  <p className="text-xs text-[var(--muted)] italic">{stepsEmptyText}</p>
-                )}
-
-                <DndContext
-                  sensors={outerSensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={onSegmentDragEnd}
-                >
-                  <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
-                    <div className="space-y-2">
-                      {segments.map((seg, si) => {
-                        if (seg.type === "step") {
+                  <DndContext
+                    sensors={outerSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={onSegmentDragEnd}
+                  >
+                    <SortableContext items={segmentIds} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {segments.map((seg, si) => {
+                          if (seg.type === "step") {
+                            return (
+                              <SortableStepCard
+                                key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
+                                id={`step-${seg.index}`}
+                                step={form.steps[seg.index]}
+                                actualIndex={seg.index}
+                                label={`Step ${si + 1}`}
+                                isStrength={isStrength}
+                                isSwim={isSwim}
+                                paces={localPaces}
+                                onRemove={removeStep}
+                                onUpdate={updateStep}
+                                onToggleBothSides={toggleBothSides}
+                                onSwitchUnit={switchStepUnit}
+                                onSwitchDurationUnit={switchStepDurationUnit}
+                                onCreatePace={handleCreatePace}
+                                onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
+                                inputClass={inputClass}
+                                labelClass={labelClass}
+                              />
+                            );
+                          }
                           return (
-                            <SortableStepCard
-                              key={`step-${seg.index}-${form.steps[seg.index].exercise_id}`}
-                              id={`step-${seg.index}`}
-                              step={form.steps[seg.index]}
-                              actualIndex={seg.index}
-                              label={`Step ${si + 1}`}
+                            <SortableGroupContainer
+                              key={`group-${seg.groupId}`}
+                              id={`group-${seg.groupId}`}
+                              groupId={seg.groupId}
+                              repeatCount={seg.repeatCount}
+                              groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
+                              indices={seg.indices}
+                              steps={form.steps}
                               isStrength={isStrength}
                               isSwim={isSwim}
+                              perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
                               paces={localPaces}
+                              onUpdateRepeatCount={updateGroupRepeatCount}
+                              onUpdateGroupName={updateGroupName}
+                              onTogglePerExerciseSets={togglePerExerciseSets}
+                              onUngroup={ungroup}
+                              onAddStepToGroup={handleAddStepToGroup}
+                              onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
+                              onGroupDragEnd={onGroupDragEnd}
                               onRemove={removeStep}
                               onUpdate={updateStep}
                               onToggleBothSides={toggleBothSides}
                               onSwitchUnit={switchStepUnit}
                               onSwitchDurationUnit={switchStepDurationUnit}
                               onCreatePace={handleCreatePace}
-                              onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
                               inputClass={inputClass}
                               labelClass={labelClass}
                             />
                           );
-                        }
-                        return (
-                          <SortableGroupContainer
-                            key={`group-${seg.groupId}`}
-                            id={`group-${seg.groupId}`}
-                            groupId={seg.groupId}
-                            repeatCount={seg.repeatCount}
-                            groupName={form.steps[seg.indices[0]]?.group_name ?? ""}
-                            indices={seg.indices}
-                            steps={form.steps}
-                            isStrength={isStrength}
-                            isSwim={isSwim}
-                            perExerciseSets={perExerciseSetsGroupIds.has(seg.groupId)}
-                            paces={localPaces}
-                            onUpdateRepeatCount={updateGroupRepeatCount}
-                            onUpdateGroupName={updateGroupName}
-                            onTogglePerExerciseSets={togglePerExerciseSets}
-                            onUngroup={ungroup}
-                            onAddStepToGroup={handleAddStepToGroup}
-                            onOpenPicker={(idx) => setExercisePicker({ action: "replace", stepIndex: idx })}
-                            onGroupDragEnd={onGroupDragEnd}
-                            onRemove={removeStep}
-                            onUpdate={updateStep}
-                            onToggleBothSides={toggleBothSides}
-                            onSwitchUnit={switchStepUnit}
-                            onSwitchDurationUnit={switchStepDurationUnit}
-                            onCreatePace={handleCreatePace}
-                            inputClass={inputClass}
-                            labelClass={labelClass}
-                          />
-                        );
-                      })}
-                    </div>
-                  </SortableContext>
-                </DndContext>
+                        })}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
 
-                <div className="flex gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={handleAddStep}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    {addStepLabel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={addRepeatGroup}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    {addGroupLabel}
-                  </button>
-                  {isStrength && (
+                  <div className="flex gap-3 flex-wrap">
                     <button
                       type="button"
-                      onClick={handleAddSection}
+                      onClick={handleAddStep}
                       className="text-xs text-[var(--accent)] hover:underline"
                     >
-                      + Add named group
+                      {addStepLabel}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setTextImportOpen(true)}
-                    className="text-xs text-[var(--accent)] hover:underline"
-                  >
-                    {isStrength ? "+ Paste exercises" : "+ Paste steps"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Equipment (strength only) */}
-            {isStrength && (
-              <WorkoutEquipmentEditor
-                exerciseIds={form.steps.map((s) => s.exercise_id).filter(Boolean)}
-                value={{ added: form.equipment_added, removed: form.equipment_removed }}
-                onChange={(adj) => setForm((p) => ({ ...p, equipment_added: adj.added, equipment_removed: adj.removed }))}
-              />
-            )}
-
-            {/* Continuous timers (strength only) */}
-            {isStrength && (
-              <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={form.continuous_timers}
-                  onChange={(e) => setForm((p) => ({ ...p, continuous_timers: e.target.checked }))}
-                  className="mt-0.5 rounded border-[var(--border)] accent-[var(--accent)]"
-                />
-                <span>
-                  Continuous timers
-                  <span className="block text-xs text-[var(--muted)]">
-                    When a timed exercise or rest ends, automatically move on and start the next timer — no tapping between them.
-                  </span>
-                </span>
-              </label>
-            )}
-
-            {/* Totals (run workouts only) */}
-            {isRun && (
-              <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
-                {(totalDistInUnit > 0 || totalDurationMin > 0) && (
-                  <div className="flex flex-wrap gap-4">
-                    {totalDistInUnit > 0 && (
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className={labelClass}>Total distance</span>
-                          <UnitToggle
-                            units={["mi", "km"]}
-                            active={form.distance_unit}
-                            onChange={(u) =>
-                              setForm((p) => ({ ...p, distance_unit: u as "mi" | "km" }))
-                            }
-                          />
-                        </div>
-                        <p className="text-sm font-medium">
-                          {parseFloat(totalDistInUnit.toFixed(2))} {form.distance_unit}
-                        </p>
-                      </div>
+                    <button
+                      type="button"
+                      onClick={addRepeatGroup}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      {addGroupLabel}
+                    </button>
+                    {isStrength && (
+                      <button
+                        type="button"
+                        onClick={handleAddSection}
+                        className="text-xs text-[var(--accent)] hover:underline"
+                      >
+                        + Add named group
+                      </button>
                     )}
-                    {totalDurationMin > 0 && (
-                      <div className="space-y-0.5">
-                        <span className={labelClass}>Total duration</span>
-                        <p className="text-sm font-medium">{Math.round(totalDurationMin)} min</p>
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTextImportOpen(true)}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      {isStrength ? "+ Paste exercises" : "+ Paste steps"}
+                    </button>
                   </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
 
-            {/* Notes */}
-            <div className="space-y-1">
-              <label className={labelClass}>Notes</label>
-              <textarea
-                value={form.notes}
-                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
-                rows={2}
-                className={`${inputClass} resize-none`}
-              />
-            </div>
-
-            {showSaveToLibrary && !existing && (
-              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={saveToLibrary}
-                  onChange={(e) => setSaveToLibrary(e.target.checked)}
-                  className="rounded border-[var(--border)] accent-[var(--accent)]"
+              {/* Equipment (strength only) */}
+              {isStrength && (
+                <WorkoutEquipmentEditor
+                  exerciseIds={form.steps.map((s) => s.exercise_id).filter(Boolean)}
+                  value={{ added: form.equipment_added, removed: form.equipment_removed }}
+                  onChange={(adj) => setForm((p) => ({ ...p, equipment_added: adj.added, equipment_removed: adj.removed }))}
                 />
-                Save to workout library
-              </label>
+              )}
+
+              {/* Continuous timers (strength only) */}
+              {isStrength && (
+                <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.continuous_timers}
+                    onChange={(e) => setForm((p) => ({ ...p, continuous_timers: e.target.checked }))}
+                    className="mt-0.5 rounded border-[var(--border)] accent-[var(--accent)]"
+                  />
+                  <span>
+                    Continuous timers
+                    <span className="block text-xs text-[var(--muted)]">
+                      When a timed exercise or rest ends, automatically move on and start the next timer — no tapping between them.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              {/* Totals (run workouts only) */}
+              {isRun && (
+                <div className="space-y-2 rounded-lg border border-[var(--border)] bg-[var(--card)] p-2">
+                  {(totalDistInUnit > 0 || totalDurationMin > 0) && (
+                    <div className="flex flex-wrap gap-4">
+                      {totalDistInUnit > 0 && (
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={labelClass}>Total distance</span>
+                            <UnitToggle
+                              units={["mi", "km"]}
+                              active={form.distance_unit}
+                              onChange={(u) =>
+                                setForm((p) => ({ ...p, distance_unit: u as "mi" | "km" }))
+                              }
+                            />
+                          </div>
+                          <p className="text-sm font-medium">
+                            {parseFloat(totalDistInUnit.toFixed(2))} {form.distance_unit}
+                          </p>
+                        </div>
+                      )}
+                      {totalDurationMin > 0 && (
+                        <div className="space-y-0.5">
+                          <span className={labelClass}>Total duration</span>
+                          <p className="text-sm font-medium">{Math.round(totalDurationMin)} min</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="space-y-1">
+                <label className={labelClass}>Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
+                  rows={2}
+                  className={`${inputClass} resize-none`}
+                />
+              </div>
+
+              {showSaveToLibrary && !existing && (
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={saveToLibrary}
+                    onChange={(e) => setSaveToLibrary(e.target.checked)}
+                    className="rounded border-[var(--border)] accent-[var(--accent)]"
+                  />
+                  Save to workout library
+                </label>
+              )}
+              </>
             )}
 
             {error && (
@@ -1931,7 +1977,7 @@ export function WorkoutForm({
             <div className="flex gap-2 pt-1">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || !typeChosen}
                 className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
               >
                 {saving ? "Saving…" : existing ? "Save changes" : "Add workout"}
@@ -1971,7 +2017,7 @@ export function WorkoutForm({
         paceNames={localPaces.map((p) => p.name)}
         startGroupId={Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1}
         defaultUnit={isSwim ? "yd" : (form.distance_unit as DistanceUnit)}
-        onImport={(steps) => handleTextImport({ steps, namedGroupIds: [] })}
+        onImport={(steps, details) => handleTextImport({ steps, namedGroupIds: [], details })}
         onCancel={() => setTextImportOpen(false)}
       />
     )}
