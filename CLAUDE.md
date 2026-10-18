@@ -102,7 +102,11 @@ Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) 
 
 ### Roles and admin area
 
-`profiles.role` is `"admin" | "user"`. `src/lib/profile.ts` exports `getIsAdmin()` (server-side check), used to gate `/admin/*` routes and server actions in `src/app/actions/admin.ts` (`setUserRole`) and `src/app/actions/badgeColors.ts`. `Nav` shows an "Admin" link only when `isAdmin` is passed in. Admin pages: `/admin/users` (role management) and `/admin/badge-colors` (`BadgeColorEditor` — customizes the color/label badges rendered by `WorkoutTypeBadges`).
+`profiles.role` is `"admin" | "user"`. `src/lib/profile.ts` exports `getIsAdmin()` (server-side check), used to gate `/admin/*` routes and server actions in `src/app/actions/admin.ts` (`setUserRole`) and `src/app/actions/badgeColors.ts`. `Nav` shows an "Admin" link only when `isAdmin` is passed in. Admin pages: `/admin/users` (role management), `/admin/badge-colors` (`BadgeColorEditor` — customizes the color/label badges rendered by `WorkoutTypeBadges`), and `/admin/import` (bulk import from plain text, admin-only; server actions in `src/app/actions/adminImport.ts` re-check `getIsAdmin()`):
+- **Workouts** (`WorkoutsImport`): workouts separated by `---` lines; each chunk → `parseWorkoutBlock` (`src/lib/workoutTextBlock.ts`: `detectWorkoutType` from a `Type:` line / step style / keywords, then the single-workout parsers) → `buildWorkoutPayload` (steps via `formRowsToStepData`, run totals via `runTotals`) → `adminImportLibraryWorkouts`.
+- **Plan** (`PlanImport`): `parsePlanMeta` (name/weeks/type/difficulty/days per week/description/source above the weeks) + `parsePlanText` with `collectBodies` (lines under a day line are that workout written out in full) → `adminImportPlan` creates the plan, then `addPlanWorkoutsFromText`. Day workouts without a body use the same library-or-new choices as the plan editor paste (`PlanWorkoutChoices`).
+- **Exercises** (`ExercisesImport`): `parseExerciseList` (`src/lib/exerciseTextImport.ts`; one per line or name + description paragraphs, optional `Type:`/`Equipment:`/`Muscles:`/`Source:`/`Video:` lines; tags/type suggested via `suggestExerciseTags`/`inferExerciseType`); names already in the library are unchecked → `adminImportExercises`.
+- Exercise matching for strength workouts is shared with the workout form's paste via `useExerciseResolver`/`ResolvedExerciseRow` (`src/components/ExerciseResolution.tsx`).
 
 ### Adding new protected routes
 

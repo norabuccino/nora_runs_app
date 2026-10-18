@@ -30,6 +30,10 @@ export interface PlanTextEntry {
   workouts: string[];
   logic: "and" | "or";
   raw: string;
+  /** The day line's text after the day (unsplit). */
+  title: string;
+  /** With `collectBodies`: the lines written under the day line — the workout itself. */
+  body?: string;
 }
 
 export interface ParsedPlanText {
@@ -82,17 +86,31 @@ export function parsePlanText(
     totalWeeks,
     defaultWeek,
     isKnownWorkout = () => false,
+    collectBodies = false,
   }: {
     totalWeeks: number;
     defaultWeek: number;
     /** True for text that is itself one workout's name (library titles like "2x 1K + 4x 200") — never split it. */
     isKnownWorkout?: (text: string) => boolean;
+    /**
+     * Lines under a day line (until the next day or week line) are that day's workout written out
+     * in full, rather than unparsed text. The day line's text is then one workout's title.
+     */
+    collectBodies?: boolean;
   }
 ): ParsedPlanText {
   const entries: PlanTextEntry[] = [];
   const unparsed: string[] = [];
   const outOfRange = new Set<number>();
   let weeks = [defaultWeek];
+  // The entries created by the latest day line — body lines attach to them.
+  let current: PlanTextEntry[] = [];
+  let body: string[] = [];
+  const flushBody = () => {
+    const text = body.join("\n").trim();
+    if (text) for (const e of current) Object.assign(e, { body: text, workouts: [e.title], logic: "and" as const });
+    body = [];
+  };
 
   const addItem = (item: string) => {
     const raw = item.trim().replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "");
@@ -103,14 +121,14 @@ export function parsePlanText(
       return;
     }
     const days = [...new Set(m[1].split(/\/|,|&|\band\b/).map(dayIndex).filter((d): d is number => d != null))];
-    const body = m[2].trim();
-    const or = isKnownWorkout(body) ? [body] : body.split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
+    const dayText = m[2].trim();
+    const or = isKnownWorkout(dayText) ? [dayText] : dayText.split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
     const workouts =
       or.length > 1
         ? or
-        : isKnownWorkout(body)
-        ? [body]
-        : body.split(/\s*\+\s*/).map((s) => s.trim()).filter(Boolean);
+        : isKnownWorkout(dayText)
+        ? [dayText]
+        : dayText.split(/\s*\+\s*/).map((s) => s.trim()).filter(Boolean);
     const logic: "and" | "or" = or.length > 1 ? "or" : "and";
     const valid = weeks.filter((w) => {
       const ok = w >= 1 && w <= totalWeeks;
@@ -118,12 +136,24 @@ export function parsePlanText(
       return ok;
     });
     if (!valid.length || !workouts.length) return;
-    for (const day of days) entries.push({ weeks: valid, day, workouts, logic, raw });
+    for (const day of days) {
+      const entry: PlanTextEntry = { weeks: valid, day, workouts, logic, raw, title: dayText };
+      entries.push(entry);
+      current.push(entry);
+    }
   };
 
   for (const line of text.split(/\r?\n/)) {
+    const header = line.trim() ? parseWeekHeader(line, totalWeeks) : null;
+    const isDayLine = !!line.trim() && DAY_LIST.test(line.trim().replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, ""));
+    if (collectBodies && !header && !isDayLine) {
+      if (current.length) body.push(line);
+      else if (line.trim()) unparsed.push(line.trim());
+      continue;
+    }
     if (!line.trim()) continue;
-    const header = parseWeekHeader(line, totalWeeks);
+    flushBody();
+    current = [];
     if (header) {
       weeks = header.weeks;
       if (header.rest.trim()) header.rest.split(";").forEach(addItem);
@@ -131,7 +161,60 @@ export function parsePlanText(
     }
     line.split(";").forEach(addItem);
   }
+  flushBody();
   return { entries, unparsed, outOfRangeWeeks: [...outOfRange].sort((a, b) => a - b) };
+}
+
+export interface PlanMeta {
+  name?: string;
+  weeks?: number;
+  type?: "marathon" | "half_marathon" | "5k_10k" | "base_building" | "strength" | "custom";
+  difficulty?: "beginner" | "intermediate" | "advanced";
+  daysPerWeek?: number;
+  description?: string;
+  source?: string;
+}
+
+function planTypeFrom(text: string): PlanMeta["type"] {
+  const t = text.toLowerCase();
+  if (/\bhalf\b/.test(t)) return "half_marathon";
+  if (/\bmarathon\b/.test(t)) return "marathon";
+  if (/\b(5|10)\s*k\b/.test(t)) return "5k_10k";
+  if (/\bbase\b/.test(t)) return "base_building";
+  if (/\bstrength\b/.test(t)) return "strength";
+  return t.trim() ? "custom" : undefined;
+}
+
+/**
+ * Plan details written above the first week/day line: "Plan: …"/"Name: …" (or an
+ * unlabeled first line), "Weeks: 16", "Type: marathon", "Difficulty: …",
+ * "Days per week: 5", "Description: …", "Source: …". Returns them and the rest.
+ */
+export function parsePlanMeta(text: string): { meta: PlanMeta; rest: string } {
+  const lines = text.split(/\r?\n/);
+  const meta: PlanMeta = {};
+  let i = 0;
+  for (; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    if (parseWeekHeader(line, 1) || DAY_LIST.test(line)) break;
+    const m = line.match(/^([a-z][a-z ]{1,20}?)\s*:\s*(.+)$/i);
+    const label = m?.[1].toLowerCase().trim();
+    const value = m?.[2].trim() ?? "";
+    if (label && /^(plan|name|title|plan name)$/.test(label)) meta.name = value;
+    else if (label && /^(weeks|length|total weeks|duration)$/.test(label)) meta.weeks = parseInt(value, 10) || undefined;
+    else if (label && /^(type|plan type|race|distance)$/.test(label)) meta.type = planTypeFrom(value);
+    else if (label && /^(difficulty|level)$/.test(label)) {
+      const d = value.toLowerCase().match(/beginner|intermediate|advanced/)?.[0];
+      if (d) meta.difficulty = d as PlanMeta["difficulty"];
+    } else if (label && /^(days per week|days|days\/week)$/.test(label)) meta.daysPerWeek = parseInt(value, 10) || undefined;
+    else if (label && /^(description|desc|about)$/.test(label)) meta.description = meta.description ? `${meta.description}\n${value}` : value;
+    else if (label && /^(source|from|coach|by)$/.test(label)) meta.source = value;
+    else if (!meta.name) meta.name = line;
+    else meta.description = meta.description ? `${meta.description}\n${line}` : line;
+  }
+  if (!meta.type && meta.name) meta.type = planTypeFrom(meta.name);
+  return { meta, rest: lines.slice(i).join("\n") };
 }
 
 export interface NewWorkoutFromText {

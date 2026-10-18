@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePlanText, workoutFromText } from "@/lib/planTextImport";
+import { parsePlanText, parsePlanMeta, workoutFromText } from "@/lib/planTextImport";
 
 const opts = { totalWeeks: 6, defaultWeek: 1 };
 
@@ -56,5 +56,40 @@ describe("workoutFromText", () => {
     expect(workoutFromText("Yoga")).toMatchObject({ type: "cross_train" });
     expect(workoutFromText("off")).toMatchObject({ type: "rest", title: "Rest" });
     expect(workoutFromText("Tempo 8 km at 10k pace")).toMatchObject({ type: "run", run_type: "threshold_run", distance_miles: 8, distance_unit: "km" });
+  });
+});
+
+describe("parsePlanText with collectBodies", () => {
+  it("attaches the lines under a day line as that day's workout", () => {
+    const { entries, unparsed } = parsePlanText(
+      "Week 1\nMon: Easy 4 miles\nTue: Track 200s\n  warm up 2 miles, then 8x200m at 3K pace\n  2 mile cooldown\nWed/Fri: Upper body pull\npull ups 3x8\nrows 3x10 + more\n\nWeek 2\nSat: Long run 10 miles",
+      { ...opts, collectBodies: true }
+    );
+    expect(unparsed).toEqual([]);
+    expect(entries.map((e) => [e.weeks, e.day, e.workouts, e.body ?? null])).toEqual([
+      [[1], 0, ["Easy 4 miles"], null],
+      [[1], 1, ["Track 200s"], "warm up 2 miles, then 8x200m at 3K pace\n  2 mile cooldown"],
+      [[1], 2, ["Upper body pull"], "pull ups 3x8\nrows 3x10 + more"],
+      [[1], 4, ["Upper body pull"], "pull ups 3x8\nrows 3x10 + more"],
+      [[2], 5, ["Long run 10 miles"], null],
+    ]);
+  });
+});
+
+describe("parsePlanMeta", () => {
+  it("reads labeled and unlabeled plan details above the weeks", () => {
+    const { meta, rest } = parsePlanMeta(
+      "Spring Half Build\nWeeks: 12\nDifficulty: Intermediate\nDays per week: 5\nSource: Coach Sam\nBuild to a strong half.\n\nWeek 1\nMon: Easy 4"
+    );
+    expect(meta).toEqual({
+      name: "Spring Half Build",
+      weeks: 12,
+      type: "half_marathon",
+      difficulty: "intermediate",
+      daysPerWeek: 5,
+      source: "Coach Sam",
+      description: "Build to a strong half.",
+    });
+    expect(rest.trim()).toBe("Week 1\nMon: Easy 4");
   });
 });

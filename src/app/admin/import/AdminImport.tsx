@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { WorkoutsImport } from "./WorkoutsImport";
+import { PlanImport } from "./PlanImport";
+import { ExercisesImport } from "./ExercisesImport";
 
 const TABS = [
   { key: "workouts", label: "Workouts" },
+  { key: "plan", label: "Plan" },
+  { key: "exercises", label: "Exercises" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
@@ -34,6 +38,8 @@ export function AdminImport() {
         ))}
       </div>
       {tab === "workouts" && <WorkoutsImport />}
+      {tab === "plan" && <PlanImport />}
+      {tab === "exercises" && <ExercisesImport />}
     </div>
   );
 }

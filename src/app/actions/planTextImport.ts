@@ -2,9 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { createWorkout, updateDayLogic } from "./workouts";
+import { createWorkout, updateDayLogic, type WorkoutData } from "./workouts";
 import { addLibraryWorkoutToPlan } from "./workoutLibrary";
-import type { NewWorkoutFromText } from "@/lib/planTextImport";
+
+/** A plan workout to create: a quick one guessed from a name, or one written out in full with steps. */
+export type PlanWorkoutInput = Omit<WorkoutData, "plan_id" | "week_number" | "day_of_week" | "sort_order">;
 
 export interface PlanTextImportItem {
   week: number;
@@ -13,7 +15,7 @@ export interface PlanTextImportItem {
   /** Copy this library workout… */
   libraryWorkoutId?: string;
   /** …or create this new one. */
-  workout?: NewWorkoutFromText;
+  workout?: PlanWorkoutInput;
   logic: "and" | "or";
 }
 
