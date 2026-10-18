@@ -242,6 +242,8 @@ Tracks actual per-set performance (weight/reps/duration) against the canonical `
 
 `WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.
 
+**Paste exercises** (strength only, both forms): `WorkoutTextImportModal` turns pasted text into steps appended to the form. `src/lib/workoutTextImport.ts` is the rule-based parser (`parseWorkoutText` → blocks of single / superset / named group; grammar in the file header: `3x10`, `3 sets, 8-10 reps`, `30s`, `each side`, `@ 20 lb`, `Rest 60s`, `Superset (3 rounds):` / `Circuit x3:` headers, `A1`/`A2` prefixes, other `Name:` headers = named groups) and `toFormSteps` builds `WorkoutStepFormRow`s (rep ranges → low end in `reps`, "8–10 reps" in notes). `src/lib/exerciseMatch.ts` (`matchExercise`) fuzzy-matches names to the library (normalizes case/plurals/abbreviations like DB/KB/SL; exact → matched, else up to 3 suggestions). Unmatched names must be resolved before adding: use a suggestion, create a new exercise (`ExercisePickerModal` with `initialTab="new"` + `initialName`), pick from library, or keep as a one-off step.
+
 ### Day logic (AND/OR day slots)
 
 `plan_workouts.day_logic` (`"and"` | `"or"`, default `"or"`) governs how multiple workouts scheduled to the same week/day slot relate: `"and"` means all are required that day, `"or"` means they're alternatives (pick one). `CopyToDaysModal` lets a user copy a workout to other day slots within a plan.

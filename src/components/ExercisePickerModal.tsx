@@ -20,19 +20,22 @@ export interface ExercisePickResult {
 interface ExercisePickerModalProps {
   onSelect: (result: ExercisePickResult) => void;
   onCancel: () => void;
+  initialTab?: "library" | "new";
+  /** Prefills the library search and the new exercise's name. */
+  initialName?: string;
 }
 
-export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalProps) {
-  const [tab, setTab] = useState<"library" | "new">("library");
+export function ExercisePickerModal({ onSelect, onCancel, initialTab = "library", initialName = "" }: ExercisePickerModalProps) {
+  const [tab, setTab] = useState<"library" | "new">(initialTab);
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialTab === "library" ? initialName : "");
   const [typeFilter, setTypeFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [previewing, setPreviewing] = useState<Exercise | null>(null);
 
   // Create new form state
-  const [newForm, setNewForm] = useState<ExerciseFormData>(EMPTY_EXERCISE_FORM);
+  const [newForm, setNewForm] = useState<ExerciseFormData>({ ...EMPTY_EXERCISE_FORM, name: initialName });
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);

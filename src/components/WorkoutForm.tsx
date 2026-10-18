@@ -23,6 +23,7 @@ import { createPace } from "@/app/actions/paces";
 import { splitSetWeights, resizeSetWeights, joinSetWeights } from "@/lib/workoutSteps";
 import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
 import { WorkoutEquipmentEditor } from "@/components/WorkoutEquipment";
+import { WorkoutTextImportModal } from "@/components/WorkoutTextImportModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -1288,6 +1289,17 @@ export function WorkoutForm({
     | { action: "replace"; stepIndex: number };
 
   const [exercisePicker, setExercisePicker] = useState<PickerState | null>(null);
+  const [textImportOpen, setTextImportOpen] = useState(false);
+
+  function handleTextImport({ steps, namedGroupIds }: { steps: WorkoutStepFormRow[]; namedGroupIds: number[] }) {
+    setForm((prev) => {
+      // Replace the default empty step rather than leaving it above the imported ones.
+      const untouched = prev.steps.length === 1 && !prev.steps[0].label && !prev.steps[0].exercise_id;
+      return { ...prev, steps: [...(untouched ? [] : prev.steps), ...steps] };
+    });
+    setPerExerciseSetsGroupIds((prev) => new Set([...prev, ...namedGroupIds]));
+    setTextImportOpen(false);
+  }
 
   function handlePickerSelect(result: ExercisePickResult) {
     if (!exercisePicker) return;
@@ -1815,6 +1827,15 @@ export function WorkoutForm({
                       + Add named group
                     </button>
                   )}
+                  {isStrength && (
+                    <button
+                      type="button"
+                      onClick={() => setTextImportOpen(true)}
+                      className="text-xs text-[var(--accent)] hover:underline"
+                    >
+                      + Paste exercises
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1931,6 +1952,15 @@ export function WorkoutForm({
       <ExercisePickerModal
         onSelect={handlePickerSelect}
         onCancel={() => setExercisePicker(null)}
+      />
+    )}
+
+    {textImportOpen && (
+      <WorkoutTextImportModal
+        startGroupId={Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1}
+        unit={form.distance_unit as DistanceUnit}
+        onImport={handleTextImport}
+        onCancel={() => setTextImportOpen(false)}
       />
     )}
   </>
