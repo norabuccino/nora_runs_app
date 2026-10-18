@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise, getExerciseUsage, bulkUpdateExercises } from "@/app/actions/exercises";
-import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, EXERCISE_TYPE_TEXT_COLORS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
+import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, EXERCISE_TYPE_TEXT_COLORS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { ExerciseImportModal } from "@/components/ExerciseImportModal";
 import { DeleteExerciseModal } from "@/components/DeleteExerciseModal";
@@ -18,47 +18,16 @@ import {
   PillRow,
   activeFilterList,
 } from "@/components/FilterControls";
-import { SourcesInput } from "@/components/SourcesInput";
+import { ExerciseFormFields } from "@/components/ExerciseFormFields";
+import { EMPTY_EXERCISE_FORM, exerciseFormToPayload, exerciseToForm, type ExerciseFormData } from "@/lib/exerciseForm";
 import { collectSources, formatSources, hasSource, normalizeSources } from "@/lib/exerciseSources";
-import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, formatMuscleGroups, sortMuscleGroups, toggleMuscleGroup } from "@/lib/muscleGroups";
-import { EQUIPMENT, EQUIPMENT_LABELS, formatEquipment, sortEquipment, toggleEquipment } from "@/lib/equipment";
+import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, formatMuscleGroups, sortMuscleGroups } from "@/lib/muscleGroups";
+import { EQUIPMENT, EQUIPMENT_LABELS, formatEquipment, sortEquipment } from "@/lib/equipment";
 import type { ExerciseUsageEntry } from "@/lib/exerciseUsage";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
 import { byString, byStringDesc, thenBy } from "@/lib/sortUtils";
 
-interface ExerciseFormData {
-  name: string;
-  description: string;
-  video_url: string;
-  exercise_type: string;
-  sources: string[];
-  muscle_groups: string[];
-  equipment: string[];
-  is_private: boolean;
-  loading_category: string;
-  track_load: boolean;
-  load_format: string;
-  default_increment: string;
-}
-
-const EMPTY_FORM: ExerciseFormData = {
-  name: "",
-  description: "",
-  video_url: "",
-  exercise_type: "",
-  sources: [],
-  muscle_groups: [],
-  equipment: [],
-  is_private: false,
-  loading_category: "",
-  track_load: false,
-  load_format: "",
-  default_increment: "",
-};
-
-const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
-const labelClass = "text-xs text-[var(--muted)]";
 
 const TYPE_FILTERS = [
   { value: "all", label: "All" },
@@ -125,177 +94,7 @@ function ExerciseModal({
           </div>
 
           <div className="space-y-3">
-            <div className="space-y-1">
-              <label className={labelClass}>Type</label>
-              <select
-                value={form.exercise_type}
-                onChange={(e) => setForm((p) => ({ ...p, exercise_type: e.target.value }))}
-                className={inputClass}
-              >
-                <option value="">— Select type —</option>
-                {Object.entries(EXERCISE_TYPE_LABELS).map(([val, lbl]) => (
-                  <option key={val} value={val}>{lbl}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Name</label>
-              <input
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                placeholder="e.g. Barbell Squat"
-                className={inputClass}
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Description <span className="text-[var(--muted)]">(optional)</span></label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                rows={8}
-                placeholder="Cues, muscles targeted, coaching notes…"
-                className={`${inputClass} resize-y`}
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Muscle groups <span className="text-[var(--muted)]">(optional — pick any that apply)</span></label>
-              <div className="flex flex-wrap gap-1.5">
-                {MUSCLE_GROUPS.map((g) => {
-                  const on = form.muscle_groups.includes(g);
-                  return (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, muscle_groups: toggleMuscleGroup(p.muscle_groups, g) }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        on
-                          ? "bg-[var(--foreground)] text-[var(--background)]"
-                          : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                      }`}
-                    >
-                      {MUSCLE_GROUP_LABELS[g]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Equipment <span className="text-[var(--muted)]">(optional — pick any that apply)</span></label>
-              <div className="flex flex-wrap gap-1.5">
-                {EQUIPMENT.map((g) => {
-                  const on = form.equipment.includes(g);
-                  return (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setForm((p) => ({ ...p, equipment: toggleEquipment(p.equipment, g) }))}
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
-                        on
-                          ? "bg-[var(--foreground)] text-[var(--background)]"
-                          : "border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] hover:border-[var(--foreground)]"
-                      }`}
-                    >
-                      {EQUIPMENT_LABELS[g]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Sources <span className="text-[var(--muted)]">(optional — press Enter to add each)</span></label>
-              <SourcesInput
-                value={form.sources}
-                onChange={(sources) => setForm((p) => ({ ...p, sources }))}
-                suggestions={sourceSuggestions}
-                placeholder="e.g. Coach, Book, YouTube…"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className={labelClass}>Video URL <span className="text-[var(--muted)]">(optional)</span></label>
-              <input
-                type="url"
-                value={form.video_url}
-                onChange={(e) => setForm((p) => ({ ...p, video_url: e.target.value }))}
-                placeholder="https://youtube.com/..."
-                className={inputClass}
-              />
-            </div>
-
-            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-              <input
-                type="checkbox"
-                checked={form.is_private}
-                onChange={(e) => setForm((p) => ({ ...p, is_private: e.target.checked }))}
-                className="w-4 h-4 accent-[var(--accent)]"
-              />
-              <span className="text-sm">Private — only visible to you</span>
-            </label>
-
-            <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-              <input
-                type="checkbox"
-                checked={form.track_load}
-                onChange={(e) => setForm((p) => ({ ...p, track_load: e.target.checked }))}
-                className="w-4 h-4 accent-[var(--accent)]"
-              />
-              <span className="text-sm">Track load — log weight/reps and show up in Strength Progression</span>
-            </label>
-
-            {form.track_load && (
-              <div className="space-y-3 rounded-lg border border-[var(--border)] p-3">
-                <div className="space-y-1">
-                  <label className={labelClass}>Loading category <span className="text-[var(--muted)]">(optional)</span></label>
-                  <select
-                    value={form.loading_category}
-                    onChange={(e) => setForm((p) => ({ ...p, loading_category: e.target.value }))}
-                    className={inputClass}
-                  >
-                    <option value="">— None —</option>
-                    {Object.entries(LOADING_CATEGORY_LABELS).map(([val, lbl]) => (
-                      <option key={val} value={val}>{lbl}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className={labelClass}>Load format</label>
-                  <select
-                    value={form.load_format}
-                    onChange={(e) => setForm((p) => ({ ...p, load_format: e.target.value }))}
-                    className={inputClass}
-                  >
-                    <option value="">— Select format —</option>
-                    {Object.entries(LOAD_FORMAT_LABELS).map(([val, lbl]) => (
-                      <option key={val} value={val}>{lbl}</option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-[var(--muted)]">
-                    How to interpret a logged number — e.g. per hand so &quot;15&quot; means 15 lb/hand, not 15 lb total.
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <label className={labelClass}>Default increment <span className="text-[var(--muted)]">(optional)</span></label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    value={form.default_increment}
-                    onChange={(e) => setForm((p) => ({ ...p, default_increment: e.target.value }))}
-                    placeholder="e.g. 2.5"
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-            )}
+            <ExerciseFormFields value={form} onChange={setForm} sourceSuggestions={sourceSuggestions} />
 
             {error && <p className="text-xs text-red-500">{error}</p>}
 
@@ -437,20 +236,7 @@ export default function ExercisesPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      await createExercise({
-        name: data.name.trim(),
-        description: data.description.trim() || null,
-        video_url: data.video_url.trim() || null,
-        exercise_type: data.exercise_type || null,
-        sources: normalizeSources(data.sources),
-        muscle_groups: sortMuscleGroups(data.muscle_groups),
-        equipment: sortEquipment(data.equipment),
-        is_private: data.is_private,
-        loading_category: data.loading_category || null,
-        track_load: data.track_load,
-        load_format: data.track_load ? data.load_format || null : null,
-        default_increment: data.track_load && data.default_increment ? parseFloat(data.default_increment) : null,
-      });
+      await createExercise(exerciseFormToPayload(data));
       setCreating(false);
       await load();
     } catch (e) {
@@ -465,20 +251,7 @@ export default function ExercisesPage() {
     setSaving(true);
     setSaveError(null);
     try {
-      await updateExercise(editing.id, {
-        name: data.name.trim(),
-        description: data.description.trim() || null,
-        video_url: data.video_url.trim() || null,
-        exercise_type: data.exercise_type || null,
-        sources: normalizeSources(data.sources),
-        muscle_groups: sortMuscleGroups(data.muscle_groups),
-        equipment: sortEquipment(data.equipment),
-        is_private: data.is_private,
-        loading_category: data.loading_category || null,
-        track_load: data.track_load,
-        load_format: data.track_load ? data.load_format || null : null,
-        default_increment: data.track_load && data.default_increment ? parseFloat(data.default_increment) : null,
-      });
+      await updateExercise(editing.id, exerciseFormToPayload(data));
       setEditing(null);
       await load();
     } catch (e) {
@@ -842,7 +615,7 @@ export default function ExercisesPage() {
       {creating && (
         <ExerciseModal
           title="New exercise"
-          initial={EMPTY_FORM}
+          initial={EMPTY_EXERCISE_FORM}
           onSave={handleCreate}
           onCancel={() => { setCreating(false); setSaveError(null); }}
           saving={saving}
@@ -862,20 +635,7 @@ export default function ExercisesPage() {
       {editing && (
         <ExerciseModal
           title="Edit exercise"
-          initial={{
-            name: editing.name,
-            description: editing.description ?? "",
-            video_url: editing.video_url ?? "",
-            exercise_type: editing.exercise_type ?? "",
-            sources: editing.sources ?? [],
-            muscle_groups: editing.muscle_groups ?? [],
-            equipment: editing.equipment ?? [],
-            is_private: editing.is_private,
-            loading_category: editing.loading_category ?? "",
-            track_load: editing.track_load,
-            load_format: editing.load_format ?? "",
-            default_increment: editing.default_increment != null ? String(editing.default_increment) : "",
-          }}
+          initial={exerciseToForm(editing)}
           onSave={handleUpdate}
           onCancel={() => { setEditing(null); setSaveError(null); }}
           saving={saving}

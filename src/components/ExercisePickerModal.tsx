@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise } from "@/app/actions/exercises";
+import { EMPTY_EXERCISE_FORM, exerciseFormToPayload, type ExerciseFormData } from "@/lib/exerciseForm";
+import { ExerciseFormFields } from "@/components/ExerciseFormFields";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS } from "@/lib/paceUtils";
 import { collectSources, hasSource } from "@/lib/exerciseSources";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
@@ -30,10 +32,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   const [previewing, setPreviewing] = useState<Exercise | null>(null);
 
   // Create new form state
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newVideoUrl, setNewVideoUrl] = useState("");
-  const [newExerciseType, setNewExerciseType] = useState("");
+  const [newForm, setNewForm] = useState<ExerciseFormData>(EMPTY_EXERCISE_FORM);
   const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [createError, setCreateError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -71,17 +70,12 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
   }
 
   async function handleCreate() {
-    if (!newName.trim()) { setCreateError("Name is required"); return; }
+    if (!newForm.name.trim()) { setCreateError("Name is required"); return; }
     setCreating(true);
     setCreateError(null);
     try {
       if (saveToLibrary) {
-        const exercise = await createExercise({
-          name: newName.trim(),
-          description: newDescription.trim() || null,
-          video_url: newVideoUrl.trim() || null,
-          exercise_type: newExerciseType || null,
-        });
+        const exercise = await createExercise(exerciseFormToPayload(newForm));
         onSelect({
           exercise_id: exercise.id,
           name: exercise.name,
@@ -91,9 +85,9 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
       } else {
         onSelect({
           exercise_id: "",
-          name: newName.trim(),
-          description: newDescription.trim(),
-          video_url: newVideoUrl.trim(),
+          name: newForm.name.trim(),
+          description: newForm.description.trim(),
+          video_url: newForm.video_url.trim(),
         });
       }
     } catch (e) {
@@ -219,7 +213,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                       <button
                         type="button"
                         onClick={() => {
-                          setNewName(search.trim());
+                          setNewForm((p) => ({ ...p, name: search.trim() }));
                           setCreateError(null);
                           setTab("new");
                         }}
@@ -275,51 +269,6 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
 
           {tab === "new" && (
             <div className="space-y-3 flex-1">
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--muted)]">Type</label>
-                <select
-                  value={newExerciseType}
-                  onChange={(e) => setNewExerciseType(e.target.value)}
-                  className={inputClass}
-                >
-                  <option value="">— Select type —</option>
-                  {Object.entries(EXERCISE_TYPE_LABELS).map(([val, lbl]) => (
-                    <option key={val} value={val}>{lbl}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--muted)]">Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Barbell Squat"
-                  value={newName}
-                  onChange={(e) => { setNewName(e.target.value); setCreateError(null); }}
-                  className={inputClass}
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--muted)]">Description <span className="text-[var(--muted)]">(optional)</span></label>
-                <textarea
-                  placeholder="Cues, muscles targeted, etc."
-                  value={newDescription}
-                  onChange={(e) => setNewDescription(e.target.value)}
-                  rows={4}
-                  className={`${inputClass} resize-y`}
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-[var(--muted)]">Video URL <span className="text-[var(--muted)]">(optional)</span></label>
-                <input
-                  type="url"
-                  placeholder="https://youtube.com/..."
-                  value={newVideoUrl}
-                  onChange={(e) => setNewVideoUrl(e.target.value)}
-                  className={inputClass}
-                />
-              </div>
-
               <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                 <input
                   type="checkbox"
@@ -329,6 +278,18 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 />
                 Save to exercise library
               </label>
+              {!saveToLibrary && (
+                <p className="text-xs text-[var(--muted)]">
+                  A one-off exercise that only lives in this workout — no tags, equipment or weight tracking.
+                </p>
+              )}
+
+              <ExerciseFormFields
+                value={newForm}
+                onChange={(v) => { setNewForm(v); setCreateError(null); }}
+                sourceSuggestions={availableSources}
+                libraryFields={saveToLibrary}
+              />
 
               {createError && <p className="text-xs text-red-500">{createError}</p>}
 
@@ -336,7 +297,7 @@ export function ExercisePickerModal({ onSelect, onCancel }: ExercisePickerModalP
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={creating || !newName.trim()}
+                  disabled={creating || !newForm.name.trim()}
                   className="flex-1 rounded-lg bg-[var(--foreground)] text-[var(--background)] py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
                 >
                   {creating ? "Adding…" : "Add exercise"}
