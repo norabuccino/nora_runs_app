@@ -30,6 +30,7 @@ const EQUIPMENT_RULES: Rule[] = [
   { match: /\bfoam roll(er)?s?\b/, equipment: ["foam_roller"] },
   { match: /\bsliders?\b/, equipment: ["sliders"] },
   { match: /\b(yoga )?blocks?\b/, equipment: ["yoga_block"] },
+  { match: /\bmats?\b/, equipment: ["mat"] },
   { match: /\bwall\b/, unless: /\bwall ball\b/, equipment: ["wall"] },
   { match: /\b(pull ?ups?|chin ?ups?|pull ?up bar|hanging|dead hang)\b/, equipment: ["pull_up_bar"] },
   { match: /\b(squat )?rack\b/, equipment: ["squat_rack"] },
@@ -60,6 +61,7 @@ const DESCRIPTION_EQUIPMENT_RULES: Rule[] = [
   { match: /\bsliders?\b/, equipment: ["sliders"] },
   // A bare "block" in a description usually means something to stand on ("a step or block").
   { match: /\b(yoga blocks?|blocks? between)\b/, equipment: ["yoga_block"] },
+  { match: /\bmats?\b/, equipment: ["mat"] },
   { match: /\bwall\b/, equipment: ["wall"] },
   { match: /\b(pull ?up bar|chin ?up bar|hang(ing)? from (a|the) bar)\b/, equipment: ["pull_up_bar"] },
   { match: /\b(squat|power) rack\b/, equipment: ["squat_rack"] },

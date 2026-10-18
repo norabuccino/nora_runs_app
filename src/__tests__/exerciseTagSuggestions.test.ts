@@ -25,6 +25,7 @@ describe("suggestExerciseTags", () => {
 
   it("suggests equipment the description says the exercise needs", () => {
     expect(suggestExerciseTags("Goblet Squat", "Hold a kettlebell at your chest and sit back.").equipment).toEqual(["kettlebell"]);
+    expect(suggestExerciseTags("Dead Bugs", "Lie on your back on a mat").equipment).toEqual(["mat"]);
     expect(suggestExerciseTags("Fire Hydrants", "Start on all fours with a resistance band above both knees.").equipment).toEqual(["mini_band"]);
   });
 
