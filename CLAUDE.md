@@ -236,6 +236,7 @@ Tracks actual per-set performance (weight/reps/duration) against the canonical `
 - `title`, `description`, `distance_miles`, `pace_type`, `duration_minutes`, `notes`
 - `steps[]` — array of `WorkoutStepFormRow` (step_type, label, pace_type, duration_minutes, distance_miles, notes, sets, reps, weight_suggestion, video_url, exercise_id, both_sides)
 - `continuous_timers` — boolean, strength only (column on `plan_workouts`/`workouts`/`scheduled_workouts`); when true, `StrengthWorkoutPlayer` auto-advances when a timed exercise/rest ends and auto-starts the next timer, with a full-screen flash announcing the new step
+- `equipment_added` / `equipment_removed` — `text[]`, strength only (columns on all three workout tables). A workout's equipment is derived from its exercises' `equipment`, then adjusted by these (`resolveEquipment` in `src/lib/workoutEquipment.ts`), so it keeps tracking exercise changes. `WorkoutEquipmentEditor` edits it in both forms; `WorkoutEquipmentSummary` shows it in `WorkoutDetailModal`/`PlanWorkoutDetailModal`
 - `saveToLibrary?` — optional boolean; only present when `WorkoutForm` is opened with `showSaveToLibrary={true}` (plan editor create-new flow)
 
 `WorkoutStepFormRow` is exported from `WorkoutForm.tsx` and imported by `WorkoutLibraryForm.tsx`.

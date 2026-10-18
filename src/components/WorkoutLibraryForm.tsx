@@ -28,6 +28,7 @@ import {
   type StringStepKey,
 } from "./WorkoutForm";
 import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
+import { WorkoutEquipmentEditor } from "@/components/WorkoutEquipment";
 
 interface WorkoutLibraryFormProps {
   existing?: LibraryWorkoutWithSteps | null;
@@ -53,6 +54,8 @@ export interface WorkoutLibraryFormData {
   bike_location: "indoor" | "outdoor" | "";
   cross_train_type: CrossTrainType | "";
   continuous_timers: boolean;
+  equipment_added: string[];
+  equipment_removed: string[];
 }
 
 function blankStep(
@@ -173,6 +176,8 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     bike_location: (existing?.bike_location as "indoor" | "outdoor" | null) ?? "",
     cross_train_type: (existing?.cross_train_type as CrossTrainType | null) ?? "",
     continuous_timers: existing?.continuous_timers ?? false,
+    equipment_added: existing?.equipment_added ?? [],
+    equipment_removed: existing?.equipment_removed ?? [],
   }));
 
   const isStrength = form.type === "strength";
@@ -500,6 +505,8 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
         bike_location: isBike ? form.bike_location : "",
         cross_train_type: isCrossTrain ? form.cross_train_type : "",
         continuous_timers: isStrength && form.continuous_timers,
+        equipment_added: isStrength ? form.equipment_added : [],
+        equipment_removed: isStrength ? form.equipment_removed : [],
         // Types without a Steps builder (bike, cross_train, rest) never get a
         // chance to clear the default blank step — drop it here instead of
         // silently persisting it, and clear out any steps left over from
@@ -829,6 +836,15 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                   )}
                 </div>
               </div>
+            )}
+
+            {/* Equipment (strength only) */}
+            {isStrength && (
+              <WorkoutEquipmentEditor
+                exerciseIds={form.steps.map((s) => s.exercise_id).filter(Boolean)}
+                value={{ added: form.equipment_added, removed: form.equipment_removed }}
+                onChange={(adj) => setForm((p) => ({ ...p, equipment_added: adj.added, equipment_removed: adj.removed }))}
+              />
             )}
 
             {/* Continuous timers (strength only) */}

@@ -335,6 +335,8 @@ describe("weekMileageRange", () => {
       bike_location: null,
       cross_train_type: null,
       continuous_timers: false,
+      equipment_added: [],
+      equipment_removed: [],
       ...overrides,
     };
   }
@@ -413,6 +415,8 @@ describe("weekActualMileage", () => {
       bike_location: null,
       cross_train_type: null,
       continuous_timers: false,
+      equipment_added: [],
+      equipment_removed: [],
       ...overrides,
     };
   }

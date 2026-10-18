@@ -219,6 +219,8 @@ export default function WorkoutsPage() {
       bike_location: data.bike_location || null,
       cross_train_type: data.cross_train_type || null,
       continuous_timers: data.continuous_timers,
+      equipment_added: data.equipment_added,
+      equipment_removed: data.equipment_removed,
       steps: data.steps.map((s) => {
         const rawDur = s.duration_minutes ? parseFloat(s.duration_minutes) : null;
         return {

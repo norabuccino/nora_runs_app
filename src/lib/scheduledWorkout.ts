@@ -74,5 +74,7 @@ export function adaptScheduledWorkout(sw: ScheduledWorkout): PlanWorkout {
     bike_location: sw.bike_location,
     cross_train_type: sw.cross_train_type,
     continuous_timers: sw.continuous_timers ?? false,
+    equipment_added: sw.equipment_added ?? [],
+    equipment_removed: sw.equipment_removed ?? [],
   };
 }

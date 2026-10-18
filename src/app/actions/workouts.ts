@@ -43,6 +43,8 @@ export interface WorkoutData {
   bike_location?: string | null;
   cross_train_type?: string | null;
   continuous_timers?: boolean;
+  equipment_added?: string[];
+  equipment_removed?: string[];
 }
 
 export interface ImportWorkoutRow {
@@ -222,6 +224,8 @@ export async function copyWorkoutToDays(
         day_logic: dayLogic,
         library_workout_id: source.library_workout_id ?? null,
         continuous_timers: source.continuous_timers ?? false,
+        equipment_added: source.equipment_added ?? [],
+        equipment_removed: source.equipment_removed ?? [],
       })
       .select()
       .single();

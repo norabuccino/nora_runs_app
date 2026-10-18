@@ -271,6 +271,8 @@ export default function DashboardPage() {
       bike_location: formData.bike_location || null,
       cross_train_type: formData.cross_train_type || null,
       continuous_timers: formData.continuous_timers,
+      equipment_added: formData.equipment_added,
+      equipment_removed: formData.equipment_removed,
     });
     setAddMode(null);
     await load();

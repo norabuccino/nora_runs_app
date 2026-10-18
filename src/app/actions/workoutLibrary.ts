@@ -21,6 +21,8 @@ export interface LibraryWorkoutData {
   bike_location?: string | null;
   cross_train_type?: string | null;
   continuous_timers?: boolean;
+  equipment_added?: string[];
+  equipment_removed?: string[];
 }
 
 export async function createLibraryWorkout(data: LibraryWorkoutData) {
@@ -90,6 +92,8 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
         bike_location: workoutRow.bike_location ?? null,
         cross_train_type: workoutRow.cross_train_type ?? null,
         continuous_timers: workoutRow.continuous_timers ?? false,
+        equipment_added: workoutRow.equipment_added ?? [],
+        equipment_removed: workoutRow.equipment_removed ?? [],
       })
       .eq("library_workout_id", id);
 
@@ -341,6 +345,8 @@ export async function addLibraryWorkoutToPlan(
       bike_location: workout.bike_location ?? null,
       cross_train_type: workout.cross_train_type ?? null,
       continuous_timers: workout.continuous_timers ?? false,
+      equipment_added: workout.equipment_added ?? [],
+      equipment_removed: workout.equipment_removed ?? [],
     })
     .select()
     .single();

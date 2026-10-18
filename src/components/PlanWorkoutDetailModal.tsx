@@ -8,6 +8,7 @@ import { STEP_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE
 import { displayDistance } from "@/lib/unitUtils";
 import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
 import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
+import { WorkoutEquipmentSummary } from "@/components/WorkoutEquipment";
 
 function StepRow({
   step,
@@ -202,6 +203,15 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
           {/* Description */}
           {workout.description && (
             <p className="text-sm text-[var(--muted)]">{workout.description}</p>
+          )}
+
+          {/* Equipment needed (strength only) */}
+          {isStrength && !loadingSteps && (
+            <WorkoutEquipmentSummary
+              exerciseIds={steps.map((s) => s.exercise_id)}
+              added={workout.equipment_added}
+              removed={workout.equipment_removed}
+            />
           )}
 
           {/* Start Workout */}

@@ -10,6 +10,7 @@ import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
 import { adaptScheduledWorkout } from "@/lib/scheduledWorkout";
 import { createScheduledWorkoutFromLibrary, markScheduledWorkoutComplete } from "@/app/actions/scheduledWorkouts";
 import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
+import { WorkoutEquipmentSummary } from "@/components/WorkoutEquipment";
 
 function StepRow({
   step,
@@ -255,6 +256,15 @@ export function WorkoutDetailModal({ workout, onClose, onEdit }: WorkoutDetailMo
           {/* Description */}
           {workout.description && (
             <p className="text-sm text-[var(--muted)]">{workout.description}</p>
+          )}
+
+          {/* Equipment needed (strength only) */}
+          {isStrength && (
+            <WorkoutEquipmentSummary
+              exerciseIds={workout.workout_steps.map((s) => s.exercise_id)}
+              added={workout.equipment_added}
+              removed={workout.equipment_removed}
+            />
           )}
 
           {/* Start Workout — logs a copy as today's scheduled workout */}
