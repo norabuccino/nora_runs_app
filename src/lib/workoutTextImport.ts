@@ -356,7 +356,7 @@ export function toFormSteps(
       label: ex.isRest ? "Rest" : res?.label ?? ex.name,
       pace_type: "",
       duration_minutes: sec == null ? "" : useMin ? String(sec / 60) : String(sec),
-      duration_unit: useMin ? "min" : "sec",
+      duration_unit: useMin || sec == null ? "min" : "sec",
       distance_miles: "",
       distance_unit: unit,
       notes: [...rangeNotes, ex.notes].filter(Boolean).join(" · "),

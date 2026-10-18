@@ -24,6 +24,7 @@ import { splitSetWeights, resizeSetWeights, joinSetWeights } from "@/lib/workout
 import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
 import { WorkoutEquipmentEditor } from "@/components/WorkoutEquipment";
 import { WorkoutTextImportModal } from "@/components/WorkoutTextImportModal";
+import { RunTextImportModal } from "@/components/RunTextImportModal";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -198,6 +199,11 @@ function blankStep(
     both_sides: false,
     stroke_style: "",
   };
+}
+
+/** True for a step nobody has filled in yet (the form's default first row). */
+export function isBlankStep(s: WorkoutStepFormRow): boolean {
+  return !s.label && !s.exercise_id && !s.distance_miles && !s.duration_minutes && !s.pace_type && !s.notes && !s.reps;
 }
 
 // ── Grip icon ─────────────────────────────────────────────────────────────────
@@ -1292,11 +1298,8 @@ export function WorkoutForm({
   const [textImportOpen, setTextImportOpen] = useState(false);
 
   function handleTextImport({ steps, namedGroupIds }: { steps: WorkoutStepFormRow[]; namedGroupIds: number[] }) {
-    setForm((prev) => {
-      // Replace the default empty step rather than leaving it above the imported ones.
-      const untouched = prev.steps.length === 1 && !prev.steps[0].label && !prev.steps[0].exercise_id;
-      return { ...prev, steps: [...(untouched ? [] : prev.steps), ...steps] };
-    });
+    // Replace the default empty step rather than leaving it above the imported ones.
+    setForm((prev) => ({ ...prev, steps: [...(prev.steps.length === 1 && isBlankStep(prev.steps[0]) ? [] : prev.steps), ...steps] }));
     setPerExerciseSetsGroupIds((prev) => new Set([...prev, ...namedGroupIds]));
     setTextImportOpen(false);
   }
@@ -1827,15 +1830,13 @@ export function WorkoutForm({
                       + Add named group
                     </button>
                   )}
-                  {isStrength && (
-                    <button
-                      type="button"
-                      onClick={() => setTextImportOpen(true)}
-                      className="text-xs text-[var(--accent)] hover:underline"
-                    >
-                      + Paste exercises
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setTextImportOpen(true)}
+                    className="text-xs text-[var(--accent)] hover:underline"
+                  >
+                    {isStrength ? "+ Paste exercises" : "+ Paste steps"}
+                  </button>
                 </div>
               </div>
             )}
@@ -1955,11 +1956,22 @@ export function WorkoutForm({
       />
     )}
 
-    {textImportOpen && (
+    {textImportOpen && isStrength && (
       <WorkoutTextImportModal
         startGroupId={Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1}
         unit={form.distance_unit as DistanceUnit}
         onImport={handleTextImport}
+        onCancel={() => setTextImportOpen(false)}
+      />
+    )}
+
+    {textImportOpen && !isStrength && (
+      <RunTextImportModal
+        sport={isSwim ? "swim" : "run"}
+        paceNames={localPaces.map((p) => p.name)}
+        startGroupId={Math.max(0, ...form.steps.map((s) => s.repeat_group_id ?? 0)) + 1}
+        defaultUnit={isSwim ? "yd" : (form.distance_unit as DistanceUnit)}
+        onImport={(steps) => handleTextImport({ steps, namedGroupIds: [] })}
         onCancel={() => setTextImportOpen(false)}
       />
     )}
