@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LoadFormatGuide } from "@/components/LoadFormatGuide";
+import { LoadFormatGuide, LoadingCategoryGuide } from "@/components/LoadFormatGuide";
 import type { ExerciseFormData } from "@/lib/exerciseForm";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS, LOAD_FORMAT_LABELS } from "@/lib/paceUtils";
 import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, toggleMuscleGroup } from "@/lib/muscleGroups";
@@ -23,6 +23,7 @@ interface ExerciseFormFieldsProps {
 /** Every editable field of a library exercise — used by the Exercises page modal and the exercise picker's "Create new" tab. */
 export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFocusName = true, libraryFields = true }: ExerciseFormFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
+  const [categoryGuideOpen, setCategoryGuideOpen] = useState(false);
   const set = (update: (prev: ExerciseFormData) => ExerciseFormData) => onChange(update(value));
 
   return (
@@ -175,6 +176,17 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                     <option key={val} value={val}>{lbl}</option>
                   ))}
                 </select>
+                <p className="text-xs text-[var(--muted)]">
+                  The movement pattern — groups the exercise on Progression.{" "}
+                  <button
+                    type="button"
+                    onClick={() => setCategoryGuideOpen((o) => !o)}
+                    className="text-[var(--accent)] hover:underline"
+                  >
+                    {categoryGuideOpen ? "Hide guide" : "Which one?"}
+                  </button>
+                </p>
+                {categoryGuideOpen && <LoadingCategoryGuide compact />}
               </div>
 
               <div className="space-y-1">

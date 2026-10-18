@@ -2,14 +2,14 @@
 // logged number means, when to pick it, and examples from the exercise library.
 // Shown on /reference and from the exercise form's Load format field.
 
-export interface LoadFormatGuideEntry {
+export interface GuideEntry {
   key: string;
   meaning: string;
   whenToUse: string;
   examples: string;
 }
 
-export const LOAD_FORMAT_GUIDE: LoadFormatGuideEntry[] = [
+export const LOAD_FORMAT_GUIDE: GuideEntry[] = [
   {
     key: "single_db_kb",
     meaning: "One dumbbell or kettlebell — log its weight.",

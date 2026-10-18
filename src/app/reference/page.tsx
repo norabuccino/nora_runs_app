@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LoadFormatGuide } from "@/components/LoadFormatGuide";
+import { LoadFormatGuide, LoadingCategoryGuide } from "@/components/LoadFormatGuide";
 
 export default function ReferencePage() {
   return (
@@ -18,6 +18,18 @@ export default function ReferencePage() {
           </p>
         </div>
         <LoadFormatGuide />
+      </section>
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="font-semibold">Loading categories</h2>
+          <p className="text-sm text-[var(--muted)] mt-0.5">
+            The movement pattern a tracked exercise trains. It groups exercises on{" "}
+            <Link href="/progression" className="text-[var(--accent)] hover:underline">Progression</Link>, so pick the
+            pattern doing most of the work.
+          </p>
+        </div>
+        <LoadingCategoryGuide />
       </section>
     </div>
   );
