@@ -392,6 +392,7 @@ export const LOAD_FORMAT_LABELS: Record<string, string> = {
   machine: "Machine weight",
   bodyweight: "Bodyweight",
   bodyweight_plus: "Bodyweight + added weight",
+  assisted: "Assisted (counterweight)",
   band: "Band / resistance level",
   other: "Other",
 };

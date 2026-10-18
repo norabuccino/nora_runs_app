@@ -100,6 +100,29 @@ describe("computeTrend", () => {
   });
 });
 
+describe("assisted load format", () => {
+  it("formats the assistance", () => {
+    expect(formatLoad(40, "assisted")).toBe("40 lb assist");
+  });
+
+  it("treats less assistance as progress", () => {
+    expect(computeTrend(30, 40, "assisted")).toBe("up");
+    expect(computeTrend(50, 40, "assisted")).toBe("down");
+    expect(computeTrend(40, 40, "assisted")).toBe("same");
+    expect(computeTrend(50, 40, "machine")).toBe("up");
+  });
+
+  it("suggests reducing assistance after hitting the target, never below zero", () => {
+    const sets = [
+      { completed: true, reps_completed: 8 },
+      { completed: true, reps_completed: 8 },
+    ] as Parameters<typeof computeRecommendation>[0]["sets"];
+    const base = { plannedReps: 8, plannedDurationSeconds: null, sets, previousWeight: null, defaultIncrement: 5, loadFormat: "assisted" };
+    expect(computeRecommendation({ ...base, currentWeight: 40 })).toEqual({ status: "increase", suggestedWeight: 35 });
+    expect(computeRecommendation({ ...base, currentWeight: 3 })).toEqual({ status: "increase", suggestedWeight: 0 });
+  });
+});
+
 describe("computeRecommendation", () => {
   it("returns none when there are no completed sets", () => {
     expect(

@@ -655,7 +655,9 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
           <div className="flex gap-4 justify-center" onClick={(e) => e.stopPropagation()}>
             {isWeighted && (
               <label className="flex flex-col items-center gap-1">
-                <span className="text-xs text-[var(--muted)]">Weight</span>
+                <span className="text-xs text-[var(--muted)]">
+                  {sessionExercise?.load_format === "assisted" ? "Assist (lb)" : "Weight"}
+                </span>
                 <input
                   type="number"
                   inputMode="decimal"

@@ -59,6 +59,12 @@ export const LOAD_FORMAT_GUIDE: GuideEntry[] = [
     examples: "Pull up, chin up, single leg glute hip thrust",
   },
   {
+    key: "assisted",
+    meaning: "The help the machine gives — log the number on the stack. Lower is harder, so going down is progress.",
+    whenToUse: "Counterweight assisted pull-up/dip machines.",
+    examples: "Assisted pull up, assisted chin up, assisted dips",
+  },
+  {
     key: "band",
     meaning: "The band is the resistance — log the band level.",
     whenToUse: "Exercises where a band, not a weight, provides the load.",

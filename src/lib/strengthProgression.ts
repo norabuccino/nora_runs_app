@@ -22,6 +22,8 @@ export function formatLoad(weight: number | null, loadFormat: string | null): st
       return `${weight} lb (machine)`;
     case "band":
       return `Band level ${weight}`;
+    case "assisted":
+      return `${weight} lb assist`;
     case "total":
     case "single_db_kb":
     case "other":
@@ -70,11 +72,20 @@ export function deriveCurrentLoad(sets: WorkoutSetLog[] | null | undefined): num
 
 export type Trend = "up" | "down" | "same";
 
-export function computeTrend(current: number | null, previous: number | null): Trend | null {
+/**
+ * Assisted exercises (counterweight machines) log the help the machine gives,
+ * so a lower number is progress — trend and recommendations run in reverse.
+ */
+export function isAssistedLoad(loadFormat: string | null | undefined): boolean {
+  return loadFormat === "assisted";
+}
+
+/** "up" means progress: heavier, or less assistance for an assisted load format. */
+export function computeTrend(current: number | null, previous: number | null, loadFormat?: string | null): Trend | null {
   if (current == null || previous == null) return null;
-  if (current > previous) return "up";
-  if (current < previous) return "down";
-  return "same";
+  if (current === previous) return "same";
+  const heavier = current > previous;
+  return heavier !== isAssistedLoad(loadFormat) ? "up" : "down";
 }
 
 export type RecommendationStatus = "hold" | "increase" | "build_reps" | "none";
@@ -91,6 +102,7 @@ export interface RecommendationInput {
   currentWeight: number | null;
   previousWeight: number | null;
   defaultIncrement: number | null;
+  loadFormat?: string | null;
 }
 
 /**
@@ -104,6 +116,7 @@ export function computeRecommendation({
   currentWeight,
   previousWeight,
   defaultIncrement,
+  loadFormat,
 }: RecommendationInput): Recommendation {
   const completedSets = sets.filter((s) => s.completed);
   if (completedSets.length === 0 || currentWeight == null) return { status: "none" };
@@ -120,7 +133,13 @@ export function computeRecommendation({
   if (metTarget) {
     return {
       status: "increase",
-      suggestedWeight: defaultIncrement != null ? currentWeight + defaultIncrement : undefined,
+      // "increase" = make it harder: for an assisted machine that means less assistance (never below 0).
+      suggestedWeight:
+        defaultIncrement == null
+          ? undefined
+          : isAssistedLoad(loadFormat)
+          ? Math.max(0, currentWeight - defaultIncrement)
+          : currentWeight + defaultIncrement,
     };
   }
 

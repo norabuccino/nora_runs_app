@@ -4,7 +4,7 @@ import { collectSources, hasSource } from "@/lib/exerciseSources";
 import { useEffect, useState } from "react";
 import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/strengthSessions";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
-import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets, isAssistedLoad } from "@/lib/strengthProgression";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { MuscleGroupBalance } from "@/components/MuscleGroupBalance";
 import type { Exercise } from "@/types/database";
@@ -117,7 +117,11 @@ export default function ProgressionPage() {
                 {displayed.map((row) => {
                   const currentLoad = deriveCurrentLoad(row.latest?.sets ?? null);
                   const previousLoad = deriveCurrentLoad(row.previous?.sets ?? null);
-                  const trend = computeTrend(currentLoad, previousLoad);
+                  const loadFormat = row.latest?.loadFormat ?? null;
+                  const assisted = isAssistedLoad(loadFormat);
+                  // Switching to/from assisted flips what the numbers mean, so there's no trend across it.
+                  const trend =
+                    assisted === isAssistedLoad(row.previous?.loadFormat) ? computeTrend(currentLoad, previousLoad, loadFormat) : null;
                   const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, row.latest?.loadFormat ?? null) : null;
                   const previousLoadLabel = previousLoad != null ? formatLoad(previousLoad, row.previous?.loadFormat ?? null) : null;
                   const actual = row.latest ? formatActualSets(row.latest.sets) : null;
@@ -129,11 +133,14 @@ export default function ProgressionPage() {
                         currentWeight: currentLoad,
                         previousWeight: previousLoad,
                         defaultIncrement: row.exercise.default_increment,
+                        loadFormat,
                       })
                     : { status: "none" as const };
                   const suggestion =
                     rec.status === "increase" && rec.suggestedWeight != null
-                      ? `Increase to ${formatLoad(rec.suggestedWeight, row.latest?.loadFormat ?? null)}`
+                      ? `${assisted ? "Reduce to" : "Increase to"} ${formatLoad(rec.suggestedWeight, loadFormat)}`
+                      : rec.status === "increase" && assisted
+                      ? "Reduce assist"
                       : RECOMMENDATION_LABELS[rec.status];
 
                   return (
