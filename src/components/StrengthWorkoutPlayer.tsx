@@ -5,6 +5,7 @@ import { useWakeLock } from "@/hooks/useWakeLock";
 import type { PlanWorkout, WorkoutStep, WorkoutSession, WorkoutSessionExerciseWithSets } from "@/types/database";
 import {
   buildSessionBeats,
+  buildWorkoutOutline,
   formatStepDuration,
   isRestStep,
   stepTimedSeconds,
@@ -19,6 +20,7 @@ import {
   type ExerciseHistoryEntry,
 } from "@/app/actions/strengthSessions";
 import { formatLoad, deriveCurrentLoad, formatActualSets } from "@/lib/strengthProgression";
+import { WorkoutOutline } from "@/components/WorkoutOutline";
 
 const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
 
@@ -305,6 +307,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   // replays the full-screen "now on to…" flash after each timer-driven advance.
   const [autoStartBeat, setAutoStartBeat] = useState<number | null>(null);
   const [flashKey, setFlashKey] = useState(0);
+  const [outlineOpen, setOutlineOpen] = useState(false); // mobile drawer; the sidebar is always shown on large screens
 
   // Keep the screen awake for the whole session, on mobile and desktop.
   useWakeLock(!finished);
@@ -450,6 +453,12 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     setBeatIndex((i) => Math.max(0, i - 1));
   }
 
+  function jumpTo(index: number) {
+    setAutoStartBeat(null);
+    setBeatIndex(index);
+    setOutlineOpen(false);
+  }
+
   function toggleSound() {
     const next = !soundEnabled;
     setSoundEnabled(next);
@@ -485,6 +494,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const nextDetail = [nextRepsLabel || nextDurationLabel, nextWeight].filter(Boolean).join(" · ");
 
   const isRest = isRestStep(beat.step);
+  const outline = buildWorkoutOutline(steps, beats, beatIndex);
   // In continuous mode a timed beat moves on by itself, so a stray tap on the
   // screen shouldn't skip it — the Next button still works.
   const tapToAdvance = !(continuous && isTimed);
@@ -536,6 +546,14 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         </div>
         <div className="flex items-center gap-4 shrink-0">
           <button
+            onClick={() => setOutlineOpen(true)}
+            aria-label="Show full workout"
+            title="Full workout"
+            className="lg:hidden text-[var(--muted)] hover:text-[var(--foreground)] text-lg leading-none"
+          >
+            ☰
+          </button>
+          <button
             onClick={toggleSound}
             aria-label={soundEnabled ? "Mute timer chime" : "Unmute timer chime"}
             aria-pressed={soundEnabled}
@@ -553,13 +571,38 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
         </div>
       </div>
 
+      {/* Mobile: full-workout drawer */}
+      {outlineOpen && (
+        <div className="lg:hidden absolute inset-0 z-20 flex justify-end bg-black/40" onClick={() => setOutlineOpen(false)}>
+          <aside
+            className="h-full w-80 max-w-[85vw] bg-[var(--background)] border-l border-[var(--border)] flex flex-col animate-[beat-enter_0.2s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+              <p className="text-sm font-semibold">Full workout</p>
+              <button
+                onClick={() => setOutlineOpen(false)}
+                aria-label="Close full workout"
+                className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3">
+              <WorkoutOutline outline={outline} onJump={jumpTo} />
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex-1 flex min-h-0">
       {/* Exercise area — tap anywhere to advance. The weight/reps inputs and timer controls stop propagation,
           so editing them never advances. Keyed by beatIndex so the enter animation replays on every advance,
           making the step change unmistakable. */}
       <div
         key={beatIndex}
         onClick={tapToAdvance ? advance : undefined}
-        className={`flex-1 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] select-none ${
+        className={`flex-1 min-w-0 flex flex-col items-center justify-center gap-4 px-6 py-8 text-center overflow-y-auto animate-[beat-enter_0.25s_ease-out] select-none ${
           tapToAdvance ? "cursor-pointer" : ""
         } ${isRest ? "bg-emerald-500/10" : ""}`}
       >
@@ -676,6 +719,15 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
             ? "Tap anywhere to finish →"
             : "Tap anywhere for next →"}
         </span>
+      </div>
+
+      {/* Large screens: full workout sidebar */}
+      <aside className="hidden lg:flex w-80 shrink-0 flex-col border-l border-[var(--border)]">
+        <p className="px-4 pt-3 pb-1 text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Full workout</p>
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
+          <WorkoutOutline outline={outline} onJump={jumpTo} />
+        </div>
+      </aside>
       </div>
 
       {/* Footer nav */}

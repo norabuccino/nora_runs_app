@@ -5,6 +5,7 @@ import {
   stepTimedSeconds,
   isRestStep,
   buildSessionBeats,
+  buildWorkoutOutline,
   suggestedWeightForSet,
   splitSetWeights,
   resizeSetWeights,
@@ -273,5 +274,37 @@ describe("per-set weight editing helpers", () => {
   it("round-trips through suggestedWeightForSet", () => {
     const stored = joinSetWeights(["BW", "20 lb", "20 lb"]);
     expect([1, 2, 3].map((n) => suggestedWeightForSet(stored, n))).toEqual(["BW", "20 lb", "20 lb"]);
+  });
+});
+
+describe("buildWorkoutOutline", () => {
+  const warmup = makeStep({ id: "warmup", sets: 2 });
+  const a = makeStep({ id: "a", repeat_group_id: 1, repeat_count: 2, group_name: "Superset A" });
+  const b = makeStep({ id: "b", repeat_group_id: 1, repeat_count: 2, group_name: "Superset A", both_sides: true });
+  const steps = [warmup, a, b];
+  const beats = buildSessionBeats(steps);
+  // warmup×2, then a, bL, bR, a, bL, bR
+
+  it("sections standalone steps and supersets with their rounds", () => {
+    const outline = buildWorkoutOutline(steps, beats, 0);
+    expect(outline.map((s) => [s.title, s.isSuperset, s.rounds, s.items.map((i) => i.step.id)])).toEqual([
+      [null, false, null, ["warmup"]],
+      ["Superset A", true, 2, ["a", "b"]],
+    ]);
+    expect(outline[1].items[1].beatIndices).toHaveLength(4);
+  });
+
+  it("marks steps done, current or upcoming relative to the current beat", () => {
+    const outline = buildWorkoutOutline(steps, beats, 3); // b, left side, round 1
+    const [w, sa, sb] = [outline[0].items[0], outline[1].items[0], outline[1].items[1]];
+    expect([w.status, w.completedBeats]).toEqual(["done", 2]);
+    expect([sa.status, sa.completedBeats]).toEqual(["upcoming", 1]);
+    expect([sb.status, sb.completedBeats]).toEqual(["current", 0]);
+  });
+
+  it("treats a named group (per-exercise sets) as a group, not a superset", () => {
+    const x = makeStep({ id: "x", repeat_group_id: 2, sets: 3, group_name: "Warm Up" });
+    const outline = buildWorkoutOutline([x], buildSessionBeats([x]), 0);
+    expect([outline[0].title, outline[0].isSuperset, outline[0].rounds]).toEqual(["Warm Up", false, null]);
   });
 });

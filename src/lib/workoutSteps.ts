@@ -182,3 +182,59 @@ export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
 
   return beats;
 }
+
+export type OutlineStatus = "done" | "current" | "upcoming";
+
+export interface OutlineItem {
+  step: WorkoutStep;
+  /** Indices into the session's beats that belong to this step, in order. */
+  beatIndices: number[];
+  completedBeats: number;
+  status: OutlineStatus;
+}
+
+export interface OutlineSection {
+  /** Group name, or null for a standalone exercise / an unnamed superset. */
+  title: string | null;
+  isSuperset: boolean;
+  rounds: number | null;
+  items: OutlineItem[];
+}
+
+/**
+ * The whole workout as a list of sections (standalone exercises, supersets,
+ * named groups) for the session player's overview sidebar, with each step's
+ * progress relative to the current beat. Beats before `beatIndex` count as done.
+ */
+export function buildWorkoutOutline(steps: WorkoutStep[], beats: SessionBeat[], beatIndex: number): OutlineSection[] {
+  const beatsByStep = new Map<WorkoutStep, number[]>();
+  beats.forEach((beat, i) => {
+    const list = beatsByStep.get(beat.step);
+    if (list) list.push(i);
+    else beatsByStep.set(beat.step, [i]);
+  });
+
+  const item = (step: WorkoutStep): OutlineItem => {
+    const beatIndices = beatsByStep.get(step) ?? [];
+    const completedBeats = beatIndices.filter((i) => i < beatIndex).length;
+    const status: OutlineStatus = beatIndices.includes(beatIndex)
+      ? "current"
+      : beatIndices.length > 0 && completedBeats === beatIndices.length
+      ? "done"
+      : "upcoming";
+    return { step, beatIndices, completedBeats, status };
+  };
+
+  return groupSteps(steps).map((segment) => {
+    if (segment.type === "step") {
+      return { title: null, isSuperset: false, rounds: null, items: [item(segment.step)] };
+    }
+    const isSuperset = !segment.steps.some((s) => s.sets != null && s.sets > 0);
+    return {
+      title: segment.steps[0].group_name || null,
+      isSuperset,
+      rounds: isSuperset ? (segment.repeatCount && segment.repeatCount > 0 ? segment.repeatCount : 1) : null,
+      items: segment.steps.map(item),
+    };
+  });
+}
