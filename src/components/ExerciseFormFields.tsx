@@ -16,16 +16,18 @@ const labelClass = "text-xs text-[var(--muted)]";
 function NameSuggestions({
   keys,
   labels,
+  source,
   onAdd,
 }: {
   keys: string[];
   labels: Record<string, string>;
+  source: string;
   onAdd: (keys: string[]) => void;
 }) {
   if (keys.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-      <span className="text-xs text-[var(--muted)]">Suggested from name:</span>
+      <span className="text-xs text-[var(--muted)]">Suggested from {source}:</span>
       {keys.map((k) => (
         <button
           key={k}
@@ -58,8 +60,8 @@ interface ExerciseFormFieldsProps {
 export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFocusName = true, libraryFields = true }: ExerciseFormFieldsProps) {
   const [guideOpen, setGuideOpen] = useState(false);
   const [categoryGuideOpen, setCategoryGuideOpen] = useState(false);
-  // Offered from the name only — the user adds them; never applied on their own.
-  const suggested = suggestExerciseTags(value.name);
+  // Offered from the name (and description, for equipment) only — the user adds them; never applied on their own.
+  const suggested = suggestExerciseTags(value.name, value.description);
   const set = (update: (prev: ExerciseFormData) => ExerciseFormData) => onChange(update(value));
 
   return (
@@ -131,6 +133,7 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
             <NameSuggestions
               keys={suggested.muscle_groups.filter((g) => !value.muscle_groups.includes(g))}
               labels={MUSCLE_GROUP_LABELS}
+              source="name"
               onAdd={(keys) => set((p) => ({ ...p, muscle_groups: sortMuscleGroups([...p.muscle_groups, ...keys]) }))}
             />
           </div>
@@ -159,6 +162,7 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
             <NameSuggestions
               keys={suggested.equipment.filter((g) => !value.equipment.includes(g))}
               labels={EQUIPMENT_LABELS}
+              source="name & description"
               onAdd={(keys) => set((p) => ({ ...p, equipment: sortEquipment([...p.equipment, ...keys]) }))}
             />
           </div>

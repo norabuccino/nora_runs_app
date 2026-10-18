@@ -23,6 +23,22 @@ describe("suggestExerciseTags", () => {
     expect(suggestExerciseTags("Rear Foot Elevated Split Squat").muscle_groups).toEqual(["thighs"]);
   });
 
+  it("suggests equipment the description says the exercise needs", () => {
+    expect(suggestExerciseTags("Goblet Squat", "Hold a kettlebell at your chest and sit back.").equipment).toEqual(["kettlebell"]);
+    expect(suggestExerciseTags("Fire Hydrants", "Start on all fours with a resistance band above both knees.").equipment).toEqual(["mini_band"]);
+  });
+
+  it("ignores optional, negated and verb-only mentions in the description", () => {
+    const desc =
+      "Step forward into a lunge. Modification: place a hand on the wall for balance. Progression: hold 2 dumbbells. No band needed.";
+    expect(suggestExerciseTags("Reverse Lunge", desc).equipment).toEqual([]);
+    expect(suggestExerciseTags("Heel Taps", "Stand with one foot on a step or block").equipment).toEqual(["box_step"]);
+  });
+
+  it("never suggests muscle groups from the description", () => {
+    expect(suggestExerciseTags("Mystery Move", "Squeeze your glutes").muscle_groups).toEqual([]);
+  });
+
   it("suggests nothing for an empty or unrecognized name", () => {
     expect(suggestExerciseTags("")).toEqual({ equipment: [], muscle_groups: [] });
     expect(suggestExerciseTags("Zercher Thing")).toEqual({ equipment: [], muscle_groups: [] });
