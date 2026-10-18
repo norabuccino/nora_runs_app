@@ -153,10 +153,16 @@ const TYPE_RULES: [RegExp, WorkoutType][] = [
   [/\b(run|runs|jog|tempo|threshold|track|intervals?|repeats|fartlek|long|easy|recovery|race|strides|hills?|miles?|mi|km|mp|hmp|shakeout)\b/, "run"],
 ];
 
+/** The workout type a name/description suggests ("Upper body pull" → strength), or null when nothing does. */
+export function inferWorkoutType(text: string): WorkoutType | null {
+  const t = text.toLowerCase();
+  return TYPE_RULES.find(([re]) => re.test(t))?.[1] ?? null;
+}
+
 /** A best guess at a new plan workout from a short description ("Long run 10 miles"). */
 export function workoutFromText(text: string): NewWorkoutFromText {
   const t = text.toLowerCase();
-  const type = TYPE_RULES.find(([re]) => re.test(t))?.[1] ?? "run";
+  const type = inferWorkoutType(t) ?? "run";
   const dist = t.match(/\b(\d+(?:\.\d+)?)\s*(miles?|mi|km|k)\b(?!\s*pace)/);
   const mins = t.match(/\b(\d+(?:\.\d+)?)\s*(min|mins|minutes?)\b|\b(\d+(?:\.\d+)?)\s*(hr|hrs|hours?)\b/);
   const title = text.trim().replace(/^./, (c) => c.toUpperCase());

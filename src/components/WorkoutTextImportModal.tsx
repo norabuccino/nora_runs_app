@@ -1,28 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { useMemo, useState } from "react";
 import type { WorkoutStepFormRow } from "@/components/WorkoutForm";
-import { ExercisePickerModal, type ExercisePickResult } from "@/components/ExercisePickerModal";
+import { ResolvedExerciseRow, useExerciseResolver } from "@/components/ExerciseResolution";
 import {
   describeParsedExercise,
   flattenExercises,
   isExerciseLine,
   parseWorkoutText,
   toFormSteps,
-  type ExerciseResolution,
   type ParsedBlock,
   type ParsedExercise,
 } from "@/lib/workoutTextImport";
-import { matchExercise, normalizeExerciseName } from "@/lib/exerciseMatch";
 import { splitWorkoutText, type WorkoutTextDetails } from "@/lib/workoutTextDetails";
 import { ImportedDetailsPreview } from "@/components/ImportedDetailsPreview";
 import type { DistanceUnit } from "@/lib/unitUtils";
-
-type LibraryExercise = { id: string; name: string; video_url: string | null };
-
-/** What the user decided for a typed name: a library exercise, or a one-off step that isn't in the library. */
-type Choice = ExerciseResolution;
 
 const PLACEHOLDER = `Upper body pull
 
@@ -44,126 +36,36 @@ interface WorkoutTextImportModalProps {
 
 export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel }: WorkoutTextImportModalProps) {
   const [text, setText] = useState("");
-  const [exercises, setExercises] = useState<LibraryExercise[]>([]);
-  const [loading, setLoading] = useState(true);
-  // Keyed by normalized typed name, so one decision covers every row with that name.
-  const [choices, setChoices] = useState<Record<string, Choice>>({});
-  const [picker, setPicker] = useState<{ key: string; name: string; tab: "library" | "new" } | null>(null);
+  const { loading, resolve, choose, openPicker, pickerModal } = useExerciseResolver();
   const [showTips, setShowTips] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      const supabase = createClient();
-      const { data } = await supabase.from("exercises").select("id, name, video_url").order("name");
-      setExercises(data ?? []);
-      setLoading(false);
-    }
-    load();
-  }, []);
 
   const { details, body } = useMemo(() => splitWorkoutText(text, "strength", isExerciseLine), [text]);
   const parsed = useMemo(() => parseWorkoutText(body), [body]);
   const flat = flattenExercises(parsed.blocks);
-
-  function resolve(ex: ParsedExercise) {
-    const key = normalizeExerciseName(ex.name);
-    if (ex.isRest) return { key, choice: { exercise_id: "", label: "Rest", video_url: "" } as Choice, match: null };
-    const chosen = choices[key];
-    const match = matchExercise(ex.name, exercises);
-    if (chosen) return { key, choice: chosen, match };
-    if (match.exercise) {
-      const e = match.exercise;
-      return { key, choice: { exercise_id: e.id, label: e.name, video_url: e.video_url ?? "" }, match };
-    }
-    return { key, choice: null, match };
-  }
 
   const resolved = flat.map(resolve);
   const pending = resolved.filter((r) => !r.choice).length;
   const hasDetails = Object.keys(details).length > 0;
   const canImport = !loading && (flat.length > 0 || hasDetails) && pending === 0;
 
-  function choose(key: string, choice: Choice) {
-    setChoices((prev) => ({ ...prev, [key]: choice }));
-  }
-
-  function handlePicked(result: ExercisePickResult) {
-    if (!picker) return;
-    if (result.exercise_id && !exercises.some((e) => e.id === result.exercise_id)) {
-      setExercises((prev) => [...prev, { id: result.exercise_id, name: result.name, video_url: result.video_url || null }]);
-    }
-    choose(picker.key, { exercise_id: result.exercise_id, label: result.name, video_url: result.video_url });
-    setPicker(null);
-  }
-
   function handleImport() {
     const resolutions = resolved.map((r) => r.choice!);
     onImport({ ...toFormSteps(parsed.blocks, resolutions, { startGroupId, unit }), details });
   }
 
-  const btn = "text-xs px-2 py-0.5 rounded-md border border-[var(--border)] hover:bg-[var(--card)] transition-colors";
   let rowIndex = 0;
 
   function renderRow(ex: ParsedExercise, inSuperset: boolean) {
-    const { key, choice, match } = resolved[rowIndex++];
-    const summary = describeParsedExercise(ex, inSuperset);
-    const isLibrary = !!choice?.exercise_id;
+    const i = rowIndex++;
     return (
-      <li key={rowIndex} className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-sm">
-              {ex.isRest ? (
-                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Rest</span>
-              ) : choice ? (
-                <>
-                  <span className={isLibrary ? "text-[var(--accent)]" : "text-[var(--muted)]"}>{isLibrary ? "✓" : "○"}</span>{" "}
-                  <span className="font-medium">{choice.label}</span>
-                  {!isLibrary && <span className="text-xs text-[var(--muted)]"> · one-off, not in library</span>}
-                  {normalizeExerciseName(choice.label) !== key && (
-                    <span className="text-xs text-[var(--muted)]"> · typed “{ex.name}”</span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <span className="text-amber-600 dark:text-amber-400">?</span> <span className="font-medium">{ex.name}</span>
-                  <span className="text-xs text-[var(--muted)]"> · not in your library</span>
-                </>
-              )}
-            </p>
-            {summary && <p className="text-xs text-[var(--muted)]">{summary}</p>}
-          </div>
-          {choice && !ex.isRest && (
-            <button type="button" onClick={() => setPicker({ key, name: ex.name, tab: "library" })} className={`${btn} shrink-0`}>
-              Change
-            </button>
-          )}
-        </div>
-
-        {!choice && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {match?.suggestions.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => choose(key, { exercise_id: s.id, label: s.name, video_url: s.video_url ?? "" })}
-                className={`${btn} border-[var(--accent)] text-[var(--accent)]`}
-              >
-                Use “{s.name}”
-              </button>
-            ))}
-            <button type="button" onClick={() => setPicker({ key, name: ex.name, tab: "new" })} className={btn}>
-              + Create new exercise
-            </button>
-            <button type="button" onClick={() => setPicker({ key, name: ex.name, tab: "library" })} className={btn}>
-              Pick from library
-            </button>
-            <button type="button" onClick={() => choose(key, { exercise_id: "", label: ex.name, video_url: "" })} className={btn}>
-              Keep as one-off
-            </button>
-          </div>
-        )}
-      </li>
+      <ResolvedExerciseRow
+        key={i}
+        ex={ex}
+        summary={describeParsedExercise(ex, inSuperset)}
+        resolved={resolved[i]}
+        onChoose={choose}
+        onOpenPicker={openPicker}
+      />
     );
   }
 
@@ -270,15 +172,7 @@ export function WorkoutTextImportModal({ startGroupId, unit, onImport, onCancel 
         </div>
       </div>
 
-      {picker && (
-        <ExercisePickerModal
-          key={`${picker.key}-${picker.tab}`}
-          initialTab={picker.tab}
-          initialName={picker.name}
-          onSelect={handlePicked}
-          onCancel={() => setPicker(null)}
-        />
-      )}
+      {pickerModal}
     </div>
   );
 }
