@@ -47,7 +47,7 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
           <Link href="/dashboard" className="font-bold text-sm tracking-tight">
             Workout Planner
           </Link>
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden xl:flex items-center gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -78,7 +78,7 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
 
         <div className="flex items-center gap-2">
           {/* Unit preference toggle */}
-          <div className="hidden md:flex rounded border border-[var(--border)] overflow-hidden text-xs">
+          <div className="hidden xl:flex rounded border border-[var(--border)] overflow-hidden text-xs">
             {(["mi", "km"] as const).map((u) => (
               <button
                 key={u}
@@ -114,17 +114,17 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
             )}
           </button>
 
-          <span className="hidden md:block text-xs text-[var(--muted)]">{userEmail}</span>
-
+          {/* No room for the email beside 9 links; it's in the Sign out tooltip and the menu */}
           <button
             onClick={handleSignOut}
-            className="hidden md:block text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+            title={`Signed in as ${userEmail}`}
+            className="hidden xl:block text-sm text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
           >
             Sign out
           </button>
 
           <button
-            className="md:hidden p-2 text-[var(--muted)]"
+            className="xl:hidden p-2 text-[var(--muted)]"
             onClick={() => setMenuOpen(!menuOpen)}
             aria-label="Toggle menu"
           >
@@ -140,7 +140,7 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
       </div>
 
       {menuOpen && (
-        <div className="md:hidden border-t border-[var(--border)] px-4 py-3 space-y-1 bg-[var(--background)]">
+        <div className="xl:hidden border-t border-[var(--border)] px-4 py-3 space-y-1 bg-[var(--background)]">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -168,8 +168,23 @@ export function Nav({ userEmail, isAdmin = false }: NavProps) {
               Admin
             </Link>
           )}
-          <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
-            <span className="text-xs text-[var(--muted)]">{userEmail}</span>
+          <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-3">
+            <span className="text-xs text-[var(--muted)] truncate">{userEmail}</span>
+            <div className="flex shrink-0 rounded border border-[var(--border)] overflow-hidden text-xs">
+              {(["mi", "km"] as const).map((u) => (
+                <button
+                  key={u}
+                  onClick={() => setUnitPref(u)}
+                  className={`px-2 py-1 transition-colors ${
+                    unitPref === u
+                      ? "bg-[var(--foreground)] text-[var(--background)]"
+                      : "text-[var(--muted)] hover:text-[var(--foreground)]"
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
             <button
               onClick={handleSignOut}
               className="text-sm text-[var(--muted)] hover:text-[var(--foreground)]"

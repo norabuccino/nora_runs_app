@@ -283,7 +283,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 
 | Component | Purpose |
 |---|---|
-| `Nav` | Top nav with links: Today, History, My Plan, Plans, Workouts, Exercises, Progression, Paces, Reference; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
+| `Nav` | Top nav with links: Today, History, My Plan, Plans, Workouts, Exercises, Progression, Paces, Reference; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle. Links collapse into the hamburger menu below `xl` (9 links don't fit at `md`); the email only shows in that menu and the Sign out tooltip |
 | `WorkoutForm` | Modal form for creating/editing plan/scheduled workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
 | `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
 | `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
