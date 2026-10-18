@@ -21,6 +21,7 @@ const navLinks = [
   { href: "/exercises", label: "Exercises" },
   { href: "/progression", label: "Progression" },
   { href: "/paces", label: "Paces" },
+  { href: "/reference", label: "Reference" },
 ];
 
 export function Nav({ userEmail, isAdmin = false }: NavProps) {

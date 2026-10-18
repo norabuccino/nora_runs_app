@@ -94,7 +94,7 @@ Three files work together — use the right one for the context:
 
 ### Auth flow
 
-Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/history`, `/plans`, `/my-plan`, `/paces`, `/workouts`, `/exercises`, and `/admin`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
+Auth is enforced in `src/middleware.ts`, which runs on every request. It redirects unauthenticated users away from `/dashboard`, `/history`, `/reference`, `/plans`, `/my-plan`, `/paces`, `/workouts`, `/exercises`, and `/admin`, and redirects authenticated users away from `/auth/*` (except `/auth/callback`).
 
 The middleware wraps all Supabase calls in a try/catch — auth failures are logged but never crash the site. Same for `layout.tsx`.
 
@@ -283,7 +283,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 
 | Component | Purpose |
 |---|---|
-| `Nav` | Top nav with links: Today, History, My Plan, Plans, Workouts, Exercises, Progression, Paces; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
+| `Nav` | Top nav with links: Today, History, My Plan, Plans, Workouts, Exercises, Progression, Paces, Reference; shows Admin link when `isAdmin`; includes mi/km toggle and theme toggle |
 | `WorkoutForm` | Modal form for creating/editing plan/scheduled workouts (includes run type + steps); accepts `showSaveToLibrary` prop to show "Save to library" checkbox |
 | `WorkoutLibraryForm` | Modal form for creating/editing library workouts (same fields, no plan context) |
 | `WorkoutCard` | Displays a single plan workout; modes: view / dashboard (with complete button) / edit. Edit mode shows full-width type pill + title only + Edit/Delete at bottom |
@@ -304,6 +304,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 | `ExercisePickerModal` / `ExerciseDetailModal` / `ExerciseImportModal` | Pick/view/bulk-import exercises from the `exercises` library (`ExerciseImportModal` creates new exercises, or updates existing ones when the CSV has an `id` column); `ExerciseDetailModal` also shows muscle groups, equipment, sources, loading metadata + strength history when `track_load` is true, and is reused as-is by `/progression` |
 | `DeleteExerciseModal` | Shown when deleting an exercise used in workouts — lists where it's used and offers to replace it with another library exercise (optionally moving its logged history) |
 | `SourcesInput` | Chip-style multi-value input for exercise sources (Enter/comma adds, × removes, suggests existing sources) |
+| `LoadFormatGuide` | Cheat sheet of every load format (meaning, when to use, examples; text in `src/lib/loadFormatGuide.ts` — add an entry when adding a `LOAD_FORMAT_LABELS` key, a test enforces it). Shown on `/reference` (Nav: "Reference", a home for reference material) and behind "Which one?" under the exercise form's Load format |
 | `MuscleGroupBalance` | Muscle group balance section on `/progression` (see Strength progression above) |
 | `BadgeColorEditor` | Admin UI (`/admin/badge-colors`) for customizing workout/run-type badge colors and layout |
 | `PaceCalculator` | Pace calculation utility UI |

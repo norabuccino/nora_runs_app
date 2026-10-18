@@ -45,6 +45,7 @@ export async function middleware(request: NextRequest) {
       pathname.startsWith("/exercises") ||
       pathname.startsWith("/progression") ||
       pathname.startsWith("/history") ||
+      pathname.startsWith("/reference") ||
       pathname.startsWith("/admin");
 
     if (!user && isProtectedRoute) {
