@@ -21,6 +21,7 @@ import { WeekGrid, type DayMap } from "@/components/WeekGrid";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
 import { LibraryPickerModal } from "@/components/LibraryPickerModal";
+import { PlanTextImportModal } from "@/components/PlanTextImportModal";
 import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
 import { updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
@@ -257,6 +258,7 @@ export default function EditPlanPage() {
   const [loading, setLoading] = useState(true);
   const [flow, setFlow] = useState<AddFlow>({ step: "idle" });
   const [copying, setCopying] = useState<PlanWorkout | null>(null);
+  const [pastingPlan, setPastingPlan] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [planName, setPlanName] = useState("");
   const [planDescription, setPlanDescription] = useState("");
@@ -507,9 +509,29 @@ export default function EditPlanPage() {
         </button>
       </div>
 
-      <p className="text-sm text-[var(--muted)]">
-        Click <strong>+ Add</strong> in any day cell to add a workout, or click <strong>Edit</strong> on an existing one.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-[var(--muted)]">
+          Click <strong>+ Add</strong> in any day cell to add a workout, or click <strong>Edit</strong> on an existing one.
+        </p>
+        <button
+          onClick={() => setPastingPlan(true)}
+          className="px-3 py-1.5 rounded-lg border border-dashed border-[var(--accent)] text-sm text-[var(--accent)] hover:bg-[var(--accent)]/5 transition-colors"
+        >
+          Paste plan from text
+        </button>
+      </div>
+
+      {pastingPlan && (
+        <PlanTextImportModal
+          planId={id}
+          totalWeeks={plan.total_weeks}
+          onCancel={() => setPastingPlan(false)}
+          onDone={async () => {
+            setPastingPlan(false);
+            await load();
+          }}
+        />
+      )}
 
       <PlanEditDnd
         workouts={workouts}

@@ -175,6 +175,10 @@ Clicking **+ Add** on a day in the plan editor (`/plans/[id]/edit`) runs a two-s
 
 Clicking **Edit** on an existing workout bypasses the picker and goes directly to `WorkoutForm`.
 
+### Plan editor paste import
+
+"Paste plan from text" on `/plans/[id]/edit` opens `PlanTextImportModal`. `parsePlanText` (`src/lib/planTextImport.ts`) reads week headings (`Week 1`, `Weeks 2-4`, `Weeks 1, 3`, `Every week`; lines before any heading use the modal's chosen week), day lines (`Mon:`…`Sun:` with Monday = Day 1 since plans count days from a Monday start, or `Day 3`/`D3`; `Mon/Wed/Fri:` for several), and slots with `a + b` (AND day logic) or `a or b` (OR) — never splitting text that is itself a library title (`isKnownWorkout`). Each distinct workout text is matched to the user's library titles with `matchExercise` (exact → copied like "Add to plan"; else new workout via `workoutFromText`, which guesses type/run type/strength type/distance/time, with "Similar in your library" suggestions, a type select, Pick from library or Skip). `addPlanWorkoutsFromText` (`src/app/actions/planTextImport.ts`) adds them server-side in order (sort order after existing ones) and sets AND logic for `+` slots. Weeks beyond `total_weeks` are skipped with a warning.
+
 ### Workout library vs plan workouts
 
 Two separate workout concepts exist:
