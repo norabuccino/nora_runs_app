@@ -4,7 +4,7 @@ import { collectSources, hasSource } from "@/lib/exerciseSources";
 import { useEffect, useState } from "react";
 import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/strengthSessions";
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
-import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets, isAssistedLoad } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets, isAssistedLoad, groupByLoadingCategory } from "@/lib/strengthProgression";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { BandColorsLink } from "@/components/BandColorsModal";
 import { useBandColors } from "@/hooks/useBandColors";
@@ -56,6 +56,7 @@ export default function ProgressionPage() {
     if (sourceFilter !== "all" && !hasSource(r.exercise.sources, sourceFilter)) return false;
     return true;
   });
+  const groups = groupByLoadingCategory(displayed, (r) => r.exercise.loading_category);
 
   return (
     <div className="space-y-8">
@@ -111,7 +112,6 @@ export default function ProgressionPage() {
               <thead>
                 <tr className="bg-[var(--card)] text-[var(--muted)] text-xs uppercase tracking-wide">
                   <th className="px-3 py-2 text-left font-medium">Exercise</th>
-                  <th className="px-3 py-2 text-left font-medium">Category</th>
                   <th className="px-3 py-2 text-left font-medium">Current load</th>
                   <th className="px-3 py-2 text-left font-medium">Last performance</th>
                   <th className="px-3 py-2 text-left font-medium">Previous load</th>
@@ -119,8 +119,14 @@ export default function ProgressionPage() {
                   <th className="px-3 py-2 text-left font-medium">Suggestion</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--border)]">
-                {displayed.map((row) => {
+              {groups.map((group) => (
+              <tbody key={group.category ?? "none"} className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
+                <tr className="bg-[var(--card)]">
+                  <th colSpan={6} className="px-3 py-1.5 text-left text-xs font-semibold text-[var(--muted)]">
+                    {group.label}
+                  </th>
+                </tr>
+                {group.items.map((row) => {
                   const currentLoad = deriveCurrentLoad(row.latest?.sets ?? null);
                   const previousLoad = deriveCurrentLoad(row.previous?.sets ?? null);
                   const loadFormat = row.latest?.loadFormat ?? null;
@@ -156,9 +162,6 @@ export default function ProgressionPage() {
                       className="cursor-pointer hover:bg-[var(--card)] transition-colors"
                     >
                       <td className="px-3 py-2 font-medium whitespace-nowrap">{row.exercise.name}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">
-                        {row.exercise.loading_category ? LOADING_CATEGORY_LABELS[row.exercise.loading_category] ?? row.exercise.loading_category : "—"}
-                      </td>
                       <td className="px-3 py-2 whitespace-nowrap font-medium">{currentLoadLabel ?? "—"}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">{actual ?? "—"}</td>
                       <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">{previousLoadLabel ?? "—"}</td>
@@ -170,6 +173,7 @@ export default function ProgressionPage() {
                   );
                 })}
               </tbody>
+              ))}
             </table>
           </div>
         </div>

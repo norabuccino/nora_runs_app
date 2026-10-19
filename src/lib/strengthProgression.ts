@@ -1,5 +1,6 @@
 import type { WorkoutSetLog } from "@/types/database";
 import { BAND_LEVELS, bandLevelText, type BandColors } from "@/lib/bandColors";
+import { LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 
 export { BAND_LEVELS };
 
@@ -177,4 +178,37 @@ export function computeRecommendation({
   }
 
   return { status: "hold" };
+}
+
+export interface LoadingCategoryGroup<T> {
+  category: string | null;
+  label: string;
+  items: T[];
+}
+
+/**
+ * Groups items by loading category for the progression dashboard: known
+ * categories in LOADING_CATEGORY_LABELS order, then any unknown ones
+ * alphabetically, then uncategorized last. Item order within a group is kept.
+ */
+export function groupByLoadingCategory<T>(
+  items: T[],
+  getCategory: (item: T) => string | null | undefined
+): LoadingCategoryGroup<T>[] {
+  const byCategory = new Map<string | null, T[]>();
+  for (const item of items) {
+    const category = getCategory(item) || null;
+    const list = byCategory.get(category);
+    if (list) list.push(item);
+    else byCategory.set(category, [item]);
+  }
+  const known = Object.keys(LOADING_CATEGORY_LABELS);
+  const rank = (category: string | null) => (category == null ? known.length + 1 : known.includes(category) ? known.indexOf(category) : known.length);
+  return Array.from(byCategory.entries())
+    .sort(([a], [b]) => rank(a) - rank(b) || (a ?? "").localeCompare(b ?? ""))
+    .map(([category, groupItems]) => ({
+      category,
+      label: category == null ? "Uncategorized" : LOADING_CATEGORY_LABELS[category] ?? category,
+      items: groupItems,
+    }));
 }

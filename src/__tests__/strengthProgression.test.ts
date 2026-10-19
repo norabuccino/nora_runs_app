@@ -8,6 +8,7 @@ import {
   formatActualSets,
   loadInputLabel,
   effectiveLoadFormat,
+  groupByLoadingCategory,
 } from "@/lib/strengthProgression";
 import type { WorkoutSetLog } from "@/types/database";
 
@@ -304,5 +305,32 @@ describe("effectiveLoadFormat", () => {
     expect(effectiveLoadFormat(null, "band")).toBe("band");
     expect(effectiveLoadFormat(null, null)).toBeNull();
     expect(effectiveLoadFormat(null, undefined)).toBeNull();
+  });
+});
+
+describe("groupByLoadingCategory", () => {
+  const items = [
+    { name: "Plank", cat: "core_carry" },
+    { name: "Mystery", cat: null },
+    { name: "Squat", cat: "bilateral_squat" },
+    { name: "Odd", cat: "zzz_custom" },
+    { name: "Pallof", cat: "core_carry" },
+  ];
+
+  it("orders known categories by label order, then unknown, then uncategorized", () => {
+    const groups = groupByLoadingCategory(items, (i) => i.cat);
+    expect(groups.map((g) => g.category)).toEqual(["bilateral_squat", "core_carry", "zzz_custom", null]);
+    expect(groups.map((g) => g.label)).toEqual(["Bilateral Squat / Knee Dominant", "Core / Carry", "zzz_custom", "Uncategorized"]);
+  });
+
+  it("keeps item order within a group", () => {
+    const groups = groupByLoadingCategory(items, (i) => i.cat);
+    expect(groups[1].items.map((i) => i.name)).toEqual(["Plank", "Pallof"]);
+  });
+
+  it("treats empty strings as uncategorized", () => {
+    const groups = groupByLoadingCategory([{ cat: "" }, { cat: undefined }], (i) => i.cat);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].category).toBeNull();
   });
 });
