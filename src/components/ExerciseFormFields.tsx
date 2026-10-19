@@ -8,6 +8,7 @@ import { MUSCLE_GROUPS, MUSCLE_GROUP_LABELS, sortMuscleGroups, toggleMuscleGroup
 import { EQUIPMENT, EQUIPMENT_LABELS, sortEquipment, toggleEquipment } from "@/lib/equipment";
 import { suggestExerciseTags } from "@/lib/exerciseTagSuggestions";
 import { SourcesInput } from "@/components/SourcesInput";
+import { BandColorsLink } from "@/components/BandColorsModal";
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
@@ -261,6 +262,11 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                     {guideOpen ? "Hide guide" : "Which one?"}
                   </button>
                 </p>
+                {value.load_format === "band" && (
+                  <p className="text-xs">
+                    <BandColorsLink />
+                  </p>
+                )}
                 {guideOpen && <LoadFormatGuide compact />}
               </div>
 

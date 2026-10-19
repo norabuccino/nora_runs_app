@@ -21,6 +21,7 @@ import {
 } from "@/app/actions/strengthSessions";
 import { formatLoad, deriveCurrentLoad, formatActualSets, isBandLoad, loadInputLabel } from "@/lib/strengthProgression";
 import { LoadInput } from "@/components/LoadInput";
+import { useBandColors } from "@/hooks/useBandColors";
 import { WorkoutOutline } from "@/components/WorkoutOutline";
 
 const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
@@ -301,6 +302,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const [beatIndex, setBeatIndex] = useState(() => (tracked ? 0 : loadSavedBeatIndex(workout.id, beats.length)));
   const [finished, setFinished] = useState(false);
   const [weightInput, setWeightInput] = useState("");
+  const bandColors = useBandColors();
   const [repsInput, setRepsInput] = useState("");
   const [soundEnabled, setSoundEnabled] = useState(true); // chime on/off for this workout only
   // Continuous mode: the beat whose timer should start on its own when it's
@@ -409,7 +411,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
   const lastPerfForExercise = sessionExercise?.exercise_id ? lastPerf[sessionExercise.exercise_id] : undefined;
   const lastLoad = lastPerfForExercise ? deriveCurrentLoad(lastPerfForExercise.sets) : null;
-  const lastLoadLabel = lastLoad != null ? formatLoad(lastLoad, lastPerfForExercise!.loadFormat) : null;
+  const lastLoadLabel = lastLoad != null ? formatLoad(lastLoad, lastPerfForExercise!.loadFormat, bandColors) : null;
   const lastActual = lastPerfForExercise ? formatActualSets(lastPerfForExercise.sets) : null;
 
   function logCurrentBeat() {

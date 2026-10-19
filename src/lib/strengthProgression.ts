@@ -1,17 +1,7 @@
 import type { WorkoutSetLog } from "@/types/database";
+import { BAND_LEVELS, bandLevelText, type BandColors } from "@/lib/bandColors";
 
-/**
- * Band resistance is logged as an ordered level (stored in `weight`) and shown
- * by name — bands are light/medium/heavy, not pounds, and brands disagree on
- * colors. Keeping it numeric lets trends and "go up a band" still work.
- */
-export const BAND_LEVELS: { value: number; label: string }[] = [
-  { value: 1, label: "Extra light" },
-  { value: 2, label: "Light" },
-  { value: 3, label: "Medium" },
-  { value: 4, label: "Heavy" },
-  { value: 5, label: "Extra heavy" },
-];
+export { BAND_LEVELS };
 
 export function isBandLoad(loadFormat: string | null | undefined): boolean {
   return loadFormat === "band";
@@ -27,9 +17,9 @@ export function loadInputLabel(loadFormat: string | null | undefined): string {
 /**
  * Turns a raw weight number + load format into unambiguous display text —
  * the single place that decides whether "30" means 30 lb total or two
- * 30-lb dumbbells.
+ * 30-lb dumbbells. Pass the user's band colors to name band levels by color too.
  */
-export function formatLoad(weight: number | null, loadFormat: string | null): string | null {
+export function formatLoad(weight: number | null, loadFormat: string | null, bandColors?: BandColors): string | null {
   if (weight == null) return loadFormat === "bodyweight" ? "Bodyweight" : null;
   switch (loadFormat) {
     case "per_hand":
@@ -45,8 +35,8 @@ export function formatLoad(weight: number | null, loadFormat: string | null): st
     case "machine":
       return `${weight} lb (machine)`;
     case "band": {
-      const level = BAND_LEVELS.find((l) => l.value === weight);
-      return level ? `${level.label} band` : `Band level ${weight}`;
+      const level = bandLevelText(weight, bandColors);
+      return level ? `${level} band` : `Band level ${weight}`;
     }
     case "assisted":
       return `${weight} lb assist`;

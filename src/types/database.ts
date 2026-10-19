@@ -658,6 +658,23 @@ export interface Database {
           purpose?: string;
         };
       };
+      user_settings: {
+        Row: {
+          user_id: string;
+          band_colors: Json;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          band_colors?: Json;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          band_colors?: Json;
+          updated_at?: string;
+        };
+      };
       app_settings: {
         Row: {
           key: string;
@@ -733,6 +750,7 @@ export type StrengthType = "upper_body" | "lower_body" | "full_body" | "core" | 
 export type DifficultyType = "beginner" | "intermediate" | "advanced";
 export type Exercise = Database["public"]["Tables"]["exercises"]["Row"];
 export type AppSetting = Database["public"]["Tables"]["app_settings"]["Row"];
+export type UserSettings = Database["public"]["Tables"]["user_settings"]["Row"];
 
 // Strength progression
 export type WorkoutSession = Database["public"]["Tables"]["workout_sessions"]["Row"];

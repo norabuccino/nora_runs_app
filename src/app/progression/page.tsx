@@ -6,6 +6,8 @@ import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/stre
 import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets, isAssistedLoad } from "@/lib/strengthProgression";
 import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
+import { BandColorsLink } from "@/components/BandColorsModal";
+import { useBandColors } from "@/hooks/useBandColors";
 import { MuscleGroupBalance } from "@/components/MuscleGroupBalance";
 import type { Exercise } from "@/types/database";
 
@@ -28,6 +30,7 @@ const selectClass =
 
 export default function ProgressionPage() {
   const [rows, setRows] = useState<ProgressionRow[]>([]);
+  const bandColors = useBandColors();
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -56,11 +59,14 @@ export default function ProgressionPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold">Strength Progression</h1>
-        <p className="text-sm text-[var(--muted)] mt-1">
-          Derived from your completed workouts — what you&apos;re using now, and how it&apos;s trending.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Strength Progression</h1>
+          <p className="text-sm text-[var(--muted)] mt-1">
+            Derived from your completed workouts — what you&apos;re using now, and how it&apos;s trending.
+          </p>
+        </div>
+        <BandColorsLink className="text-sm mt-1" />
       </div>
 
       <MuscleGroupBalance />
@@ -122,8 +128,8 @@ export default function ProgressionPage() {
                   // Switching to/from assisted flips what the numbers mean, so there's no trend across it.
                   const trend =
                     assisted === isAssistedLoad(row.previous?.loadFormat) ? computeTrend(currentLoad, previousLoad, loadFormat) : null;
-                  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, row.latest?.loadFormat ?? null) : null;
-                  const previousLoadLabel = previousLoad != null ? formatLoad(previousLoad, row.previous?.loadFormat ?? null) : null;
+                  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, row.latest?.loadFormat ?? null, bandColors) : null;
+                  const previousLoadLabel = previousLoad != null ? formatLoad(previousLoad, row.previous?.loadFormat ?? null, bandColors) : null;
                   const actual = row.latest ? formatActualSets(row.latest.sets) : null;
                   const rec = row.latest
                     ? computeRecommendation({
@@ -138,7 +144,7 @@ export default function ProgressionPage() {
                     : { status: "none" as const };
                   const suggestion =
                     rec.status === "increase" && rec.suggestedWeight != null
-                      ? `${assisted ? "Reduce to" : "Increase to"} ${formatLoad(rec.suggestedWeight, loadFormat)}`
+                      ? `${assisted ? "Reduce to" : "Increase to"} ${formatLoad(rec.suggestedWeight, loadFormat, bandColors)}`
                       : rec.status === "increase" && assisted
                       ? "Reduce assist"
                       : RECOMMENDATION_LABELS[rec.status];

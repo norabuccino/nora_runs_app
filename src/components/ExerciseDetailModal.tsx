@@ -9,6 +9,8 @@ import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } f
 import { getExerciseHistory, updateLoggedSets, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
 import { formatLoad, deriveCurrentLoad, formatActualSets, loadInputLabel } from "@/lib/strengthProgression";
 import { LoadInput } from "@/components/LoadInput";
+import { BandColorsLink } from "@/components/BandColorsModal";
+import { useBandColors } from "@/hooks/useBandColors";
 import { setLogDrafts, setLogEdits, type SetLogDraft } from "@/lib/setLogForm";
 
 interface LibraryUsage {
@@ -112,6 +114,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
   const [history, setHistory] = useState<ExerciseHistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(exercise.track_load);
   const [editingSession, setEditingSession] = useState<string | null>(null);
+  const bandColors = useBandColors();
   const [historyVersion, setHistoryVersion] = useState(0); // bumped after an edit to refetch
 
   useEffect(() => {
@@ -189,7 +192,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
 
   const hasUsage = libraryUsage.length > 0 || planUsage.length > 0;
   const currentLoad = history[0] ? deriveCurrentLoad(history[0].sets) : null;
-  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, history[0].loadFormat) : null;
+  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, history[0].loadFormat, bandColors) : null;
 
   return (
     <div className={`fixed inset-0 ${onSelect ? "z-[70]" : "z-50"} flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm`}>
@@ -301,7 +304,14 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
           {exercise.track_load && (
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Strength history</p>
+                <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
+                  Strength history
+                  {exercise.load_format === "band" && (
+                    <span className="normal-case tracking-normal font-normal ml-2">
+                      <BandColorsLink />
+                    </span>
+                  )}
+                </p>
                 {currentLoadLabel && (
                   <p className="text-xs text-[var(--muted)]">
                     Current: <span className="font-medium text-[var(--foreground)]">{currentLoadLabel}</span>
@@ -316,7 +326,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
                 <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
                   {history.map((entry) => {
                     const load = deriveCurrentLoad(entry.sets);
-                    const loadLabel = load != null ? formatLoad(load, entry.loadFormat) : null;
+                    const loadLabel = load != null ? formatLoad(load, entry.loadFormat, bandColors) : null;
                     const actual = formatActualSets(entry.sets);
                     const editing = editingSession === entry.sessionId;
                     return (

@@ -6,6 +6,7 @@ import { getOrCreateWorkoutSession, saveLoggedSets } from "@/app/actions/strengt
 import { buildSetLogForm, setLogChanges, updateSetLogRow, type SetLogExercise } from "@/lib/setLogForm";
 import { loadInputLabel } from "@/lib/strengthProgression";
 import { LoadInput } from "@/components/LoadInput";
+import { BandColorsLink } from "@/components/BandColorsModal";
 import { LOAD_FORMAT_LABELS, parseDateLocal } from "@/lib/paceUtils";
 
 interface LogSetsModalProps {
@@ -99,7 +100,15 @@ export function LogSetsModal({ workout, steps, sessionSource, onClose, onSaved }
                 )}
                 <p className="text-sm font-medium">{ex.name}</p>
                 {ex.loadFormat && (
-                  <p className="text-xs text-[var(--muted)]">{LOAD_FORMAT_LABELS[ex.loadFormat] ?? ex.loadFormat}</p>
+                  <p className="text-xs text-[var(--muted)]">
+                    {LOAD_FORMAT_LABELS[ex.loadFormat] ?? ex.loadFormat}
+                    {ex.loadFormat === "band" && (
+                      <>
+                        {" · "}
+                        <BandColorsLink />
+                      </>
+                    )}
+                  </p>
                 )}
               </div>
               <div className="px-3 py-2 space-y-1.5">

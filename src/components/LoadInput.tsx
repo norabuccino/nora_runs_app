@@ -1,6 +1,8 @@
 "use client";
 
-import { BAND_LEVELS, isBandLoad } from "@/lib/strengthProgression";
+import { isBandLoad } from "@/lib/strengthProgression";
+import { BAND_LEVELS, bandColorFor, bandLevelText } from "@/lib/bandColors";
+import { useBandColors } from "@/hooks/useBandColors";
 
 interface LoadInputProps {
   loadFormat: string | null;
@@ -11,27 +13,46 @@ interface LoadInputProps {
   "aria-label"?: string;
 }
 
+/** A small dot in the band's color, for the user's own band set (nothing if that level has no color). */
+export function BandSwatch({ level }: { level: number }) {
+  const colors = useBandColors();
+  const color = bandColorFor(level, colors);
+  if (!color) return null;
+  return (
+    <span
+      title={color.label}
+      className="inline-block w-3 h-3 rounded-full border border-[var(--border)] shrink-0"
+      style={{ backgroundColor: color.hex }}
+    />
+  );
+}
+
 /**
  * The input for a logged set's load: a band-level dropdown for band
- * exercises, otherwise a number box (pounds or machine assistance).
+ * exercises (labelled with the user's band colors), otherwise a number box
+ * (pounds or machine assistance).
  */
 export function LoadInput({ loadFormat, value, onChange, className, disabled, "aria-label": ariaLabel }: LoadInputProps) {
+  const colors = useBandColors();
   if (isBandLoad(loadFormat)) {
     return (
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        disabled={disabled}
-        aria-label={ariaLabel}
-        className={className}
-      >
-        <option value="">—</option>
-        {BAND_LEVELS.map((level) => (
-          <option key={level.value} value={String(level.value)}>
-            {level.label}
-          </option>
-        ))}
-      </select>
+      <span className="flex items-center gap-1.5 min-w-0">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          className={className}
+        >
+          <option value="">—</option>
+          {BAND_LEVELS.map((level) => (
+            <option key={level.value} value={String(level.value)}>
+              {bandLevelText(level.value, colors)}
+            </option>
+          ))}
+        </select>
+        {value !== "" && <BandSwatch level={Number(value)} />}
+      </span>
     );
   }
   return (
