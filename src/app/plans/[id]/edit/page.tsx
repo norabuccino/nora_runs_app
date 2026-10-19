@@ -268,21 +268,18 @@ export default function EditPlanPage() {
 
   async function load() {
     const supabase = createClient();
-    const [{ data: p }, { data: w }, { data: pac }, { data: notes }, { data: { user } }] = await Promise.all([
+    const [{ data: p }, { data: w }, { data: pac }, { data: notes }, { data: canEdit }] = await Promise.all([
       supabase.from("training_plans").select("*").eq("id", id).single(),
       supabase.from("plan_workouts").select("*, workout_steps(*)").eq("plan_id", id).order("sort_order"),
       supabase.from("running_paces").select("*").order("created_at"),
       supabase.from("plan_week_notes").select("*").eq("plan_id", id),
-      supabase.auth.getUser(),
+      supabase.rpc("can_edit_plan", { pid: id }),
     ]);
 
-    // Non-admins cannot edit base plans (only their own personal copies)
-    if (p && !p.source_plan_id && user) {
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-      if (profile?.role !== "admin") {
-        router.replace(`/plans/${id}`);
-        return;
-      }
+    // Own plans (including personal copies) are editable; site plans only by admins.
+    if (p && canEdit !== true) {
+      router.replace(`/plans/${id}`);
+      return;
     }
 
     const workoutsWithSteps: WorkoutWithSteps[] = (w ?? []).map((wk) => ({

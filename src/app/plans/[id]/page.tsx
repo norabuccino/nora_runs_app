@@ -5,6 +5,7 @@ import { PLAN_TYPE_LABELS, DIFFICULTY_LABELS, DIFFICULTY_COLORS, WEEKDAY_NAMES, 
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
 import { getIsAdmin } from "@/lib/profile";
+import { canEditPlan } from "@/lib/contentAccess";
 import type { PlanWorkout, RunningPace } from "@/types/database";
 import { PlanWeeklyView } from "@/components/PlanWeeklyView";
 
@@ -16,12 +17,13 @@ export default async function PlanDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: plan }, { data: workouts }, { data: paces }, { data: weekNotesData }, isAdmin] = await Promise.all([
+  const [{ data: plan }, { data: workouts }, { data: paces }, { data: weekNotesData }, isAdmin, canEdit] = await Promise.all([
     supabase.from("training_plans").select("*").eq("id", id).single(),
     supabase.from("plan_workouts").select("*").eq("plan_id", id).order("week_number").order("day_of_week").order("sort_order"),
     supabase.from("running_paces").select("*").order("created_at"),
     supabase.from("plan_week_notes").select("*").eq("plan_id", id),
     getIsAdmin(),
+    canEditPlan(supabase, id),
   ]);
 
   const weekNotes: Record<number, string> = {};
@@ -79,25 +81,25 @@ export default async function PlanDetailPage({ params }: Props) {
 
         <div className="flex gap-2 shrink-0">
           {isAdmin && (
-            <>
-              <form action={async () => {
-                "use server";
-                await duplicatePlan(id);
-              }}>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
-                >
-                  Duplicate
-                </button>
-              </form>
-              <Link
-                href={`/plans/${id}/edit`}
-                className="self-start px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+            <form action={async () => {
+              "use server";
+              await duplicatePlan(id);
+            }}>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
               >
-                Edit plan
-              </Link>
-            </>
+                Duplicate
+              </button>
+            </form>
+          )}
+          {canEdit && (
+            <Link
+              href={`/plans/${id}/edit`}
+              className="self-start px-4 py-2 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--card)] transition-colors"
+            >
+              Edit plan
+            </Link>
           )}
           {!plan.source_plan_id && plan.type === "strength" && plan.days_per_week ? (
             <form action={handleAssign} className="space-y-3">

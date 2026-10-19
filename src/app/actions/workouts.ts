@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { canEditPlan } from "@/lib/contentAccess";
 import { revalidatePath } from "next/cache";
 import type { WorkoutType, PaceType, RunType } from "@/types/database";
 
@@ -66,14 +67,7 @@ export async function createWorkout(data: WorkoutData) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: plan } = await supabase
-    .from("training_plans")
-    .select("id")
-    .eq("id", data.plan_id)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, data.plan_id))) throw new Error("Plan not found");
 
   // Determine day_logic: default to 'or' for multi-workout days, inherit from
   // existing workouts once the user has already set a preference (3rd+).
@@ -171,13 +165,7 @@ export async function copyWorkoutToDays(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: plan } = await supabase
-    .from("training_plans")
-    .select("id")
-    .eq("id", planId)
-    .eq("user_id", user.id)
-    .single();
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, planId))) throw new Error("Plan not found");
 
   const [{ data: source }, { data: sourceSteps }] = await Promise.all([
     supabase.from("plan_workouts").select("*").eq("id", sourceId).single(),
@@ -270,13 +258,7 @@ export async function batchUpdateWorkoutPositions(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: plan } = await supabase
-    .from("training_plans")
-    .select("id")
-    .eq("id", planId)
-    .eq("user_id", user.id)
-    .single();
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, planId))) throw new Error("Plan not found");
 
   await Promise.all(
     updates.map(({ id, week_number, day_of_week, sort_order }) =>
@@ -302,13 +284,7 @@ export async function updateDayLogic(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: plan } = await supabase
-    .from("training_plans")
-    .select("id")
-    .eq("id", planId)
-    .eq("user_id", user.id)
-    .single();
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, planId))) throw new Error("Plan not found");
 
   const { error } = await supabase
     .from("plan_workouts")
@@ -331,14 +307,7 @@ export async function importWorkouts(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: plan } = await supabase
-    .from("training_plans")
-    .select("id")
-    .eq("id", planId)
-    .eq("user_id", user.id)
-    .single();
-
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, planId))) throw new Error("Plan not found");
 
   let imported = 0;
   for (const row of rows) {

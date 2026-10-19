@@ -12,9 +12,11 @@ const needsDaySetup = (plan: TrainingPlan) => plan.type === "strength" && !!plan
 interface PlanCardProps {
   plan: TrainingPlan;
   isAdmin?: boolean;
+  /** Own plan, or a site plan for an admin. */
+  canEdit?: boolean;
 }
 
-export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
+export function PlanCard({ plan, isAdmin = false, canEdit = false }: PlanCardProps) {
   const [isPending, startTransition] = useTransition();
 
   function handleAdd() {
@@ -66,14 +68,16 @@ export function PlanCard({ plan, isAdmin = false }: PlanCardProps) {
         </div>
       </Link>
       <div className="border-t border-[var(--border)] px-4 py-3 flex gap-2">
+        {canEdit && (
+          <Link
+            href={`/plans/${plan.id}/edit`}
+            className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
+          >
+            Edit
+          </Link>
+        )}
         {isAdmin && (
           <>
-            <Link
-              href={`/plans/${plan.id}/edit`}
-              className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
-            >
-              Edit
-            </Link>
             <button
               onClick={handleDuplicate}
               disabled={isPending}

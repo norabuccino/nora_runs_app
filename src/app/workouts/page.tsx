@@ -22,6 +22,9 @@ import { displayDistance } from "@/lib/unitUtils";
 import { useCompactMode } from "@/hooks/useCompactMode";
 import { csvEscape } from "@/lib/csvUtils";
 import { byString, byStringDesc, byNumberAsc, byNumberDesc, thenBy } from "@/lib/sortUtils";
+import { canEditContent } from "@/lib/contentOwnership";
+import { useViewer } from "@/hooks/useViewer";
+import { PlanOnlyBadge } from "@/components/PlanOnlyBadge";
 
 type SortKey = "az" | "za" | "type" | "duration_desc" | "duration_asc" | "newest" | "oldest";
 
@@ -65,7 +68,8 @@ function applySort(items: LibraryWorkoutWithSteps[], sort: SortKey): LibraryWork
 export default function WorkoutsPage() {
   const [workouts, setWorkouts] = useState<LibraryWorkoutWithSteps[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const viewer = useViewer();
+  const isAdmin = viewer.isAdmin;
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<LibraryWorkoutWithSteps | null>(null);
@@ -85,6 +89,7 @@ export default function WorkoutsPage() {
   const [bulkType, setBulkType] = useState("");
   const [bulkRunType, setBulkRunType] = useState("");
   const [bulkSource, setBulkSource] = useState("");
+  const [bulkPlanOnly, setBulkPlanOnly] = useState<"" | "yes" | "no">("");
 
   function handleExport() {
     const headers = "type,run_type,strength_type,title,description,distance,distance_unit,pace_type,duration_minutes,notes,source";
@@ -179,15 +184,11 @@ export default function WorkoutsPage() {
 
   async function load() {
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const [{ data: ws }, { data: pac }, { data: profile }] = await Promise.all([
+    // RLS returns the user's own workouts plus site workouts (plan-only ones for admins only).
+    const [{ data: ws }, { data: pac }] = await Promise.all([
       supabase.from("workouts").select("*, workout_steps(*)").order("created_at", { ascending: false }),
       supabase.from("running_paces").select("*").order("created_at"),
-      user
-        ? supabase.from("profiles").select("role").eq("id", user.id).single()
-        : Promise.resolve({ data: null }),
     ]);
-    setIsAdmin(profile?.role === "admin");
 
     setWorkouts(
       (ws ?? []).map((w) => ({
@@ -221,6 +222,7 @@ export default function WorkoutsPage() {
       continuous_timers: data.continuous_timers,
       equipment_added: data.equipment_added,
       equipment_removed: data.equipment_removed,
+      ...(isAdmin ? { plan_only: data.plan_only } : {}),
       steps: data.steps.map((s) => {
         const rawDur = s.duration_minutes ? parseFloat(s.duration_minutes) : null;
         return {
@@ -246,9 +248,10 @@ export default function WorkoutsPage() {
       }),
     };
 
-    if (editing) {
+    if (editing && canEditContent(editing.user_id, viewer)) {
       await updateLibraryWorkout(editing.id, payload);
     } else {
+      // New, or a site workout the user can't change — saved as their own copy.
       await createLibraryWorkout(payload);
     }
     setFormOpen(false);
@@ -301,11 +304,12 @@ export default function WorkoutsPage() {
     setBulkType("");
     setBulkRunType("");
     setBulkSource("");
+    setBulkPlanOnly("");
   }
 
   function handleBulkApply() {
     if (selectedIds.size === 0) return;
-    const updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null } = {};
+    const updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null; plan_only?: boolean } = {};
     if (bulkType) {
       updates.type = bulkType as WorkoutType;
       updates.run_type = bulkType === "run" ? ((bulkRunType as RunType) || null) : null;
@@ -313,6 +317,7 @@ export default function WorkoutsPage() {
       updates.run_type = bulkRunType as RunType;
     }
     if (bulkSource.trim()) updates.source = bulkSource.trim();
+    if (bulkPlanOnly) updates.plan_only = bulkPlanOnly === "yes";
     if (!Object.keys(updates).length) return;
     startTransition(async () => {
       await bulkUpdateLibraryWorkouts(Array.from(selectedIds), updates);
@@ -322,7 +327,7 @@ export default function WorkoutsPage() {
   }
 
   const displayed = applySort(
-    applySearch(applyWorkoutFilter(workouts, filter), search),
+    applySearch(applyWorkoutFilter(workouts, filter, viewer), search),
     sort
   );
 
@@ -496,6 +501,8 @@ export default function WorkoutsPage() {
             panelOpen={filtersOpen}
             panelId="workout-filters"
             resultCount={displayed.length}
+            showCreatedBy
+            showPlanOnly={isAdmin}
           />
 
           {selectMode && displayed.length > 0 && (
@@ -534,6 +541,8 @@ export default function WorkoutsPage() {
                   key={workout.id}
                   workout={workout}
                   compact
+                  canEdit={canEditContent(workout.user_id, viewer)}
+                  showPlanOnly={isAdmin}
                   selectMode={selectMode}
                   selected={selectedIds.has(workout.id)}
                   onToggleSelect={toggleSelect}
@@ -551,6 +560,8 @@ export default function WorkoutsPage() {
                 <WorkoutLibraryCard
                   key={workout.id}
                   workout={workout}
+                  canEdit={canEditContent(workout.user_id, viewer)}
+                  showPlanOnly={isAdmin}
                   selectMode={selectMode}
                   selected={selectedIds.has(workout.id)}
                   onToggleSelect={toggleSelect}
@@ -580,6 +591,8 @@ export default function WorkoutsPage() {
           paces={paces}
           onSave={handleSave}
           onCancel={() => { setFormOpen(false); setEditing(null); }}
+          showPlanOnly={isAdmin}
+          saveAsCopy={!!editing && !canEditContent(editing.user_id, viewer)}
         />
       )}
 
@@ -647,9 +660,20 @@ export default function WorkoutsPage() {
             placeholder="Source: no change"
             className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none w-36"
           />
+          {isAdmin && (
+            <select
+              value={bulkPlanOnly}
+              onChange={(e) => setBulkPlanOnly(e.target.value as "" | "yes" | "no")}
+              className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-2 py-1.5 text-xs focus:outline-none"
+            >
+              <option value="">Plan only: no change</option>
+              <option value="yes">Plan only</option>
+              <option value="no">Standalone</option>
+            </select>
+          )}
           <button
             onClick={handleBulkApply}
-            disabled={isPending || (!bulkType && !bulkRunType && !bulkSource.trim())}
+            disabled={isPending || (!bulkType && !bulkRunType && !bulkSource.trim() && !bulkPlanOnly)}
             className="px-3 py-1.5 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-xs font-medium hover:opacity-90 disabled:opacity-40 transition-opacity whitespace-nowrap"
           >
             Apply
@@ -668,6 +692,9 @@ export default function WorkoutsPage() {
 
 interface WorkoutLibraryCardProps {
   workout: LibraryWorkoutWithSteps;
+  /** Own workout, or a site workout for an admin. Otherwise Edit makes a copy and there's no Delete. */
+  canEdit: boolean;
+  showPlanOnly: boolean;
   compact?: boolean;
   selectMode?: boolean;
   selected?: boolean;
@@ -679,7 +706,7 @@ interface WorkoutLibraryCardProps {
   onAddToPlan: (w: LibraryWorkoutWithSteps) => void;
 }
 
-function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
+function WorkoutLibraryCard({ workout, canEdit, showPlanOnly, compact, selectMode, selected, onToggleSelect, onDetail, onEdit, onDelete, onDuplicate, onAddToPlan }: WorkoutLibraryCardProps) {
   const distanceLabel = workout.distance_miles
     ? displayDistance(workout.distance_miles, workout.distance_unit ?? "mi")
     : null;
@@ -702,6 +729,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
         )}
         <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} compact />
         <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
+        {showPlanOnly && workout.plan_only && <PlanOnlyBadge />}
         {(distanceLabel || durationLabel) && (
           <div className="flex-shrink-0 text-right">
             {distanceLabel && <p className="text-xs font-medium leading-tight">{distanceLabel}</p>}
@@ -710,7 +738,7 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(workout); }}
-          title="Edit"
+          title={canEdit ? "Edit" : "Customize (makes your own copy)"}
           className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
         >
           ✎
@@ -749,7 +777,10 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
           />
         )}
         <div className="space-y-1 min-w-0 flex-1">
-          <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} />
+            {showPlanOnly && workout.plan_only && <PlanOnlyBadge />}
+          </div>
           <h3 className="font-medium text-sm leading-snug truncate">{workout.title}</h3>
         </div>
         {(distanceLabel || durationLabel) && (
@@ -774,8 +805,9 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(workout); }}
           className="px-3 rounded-lg border border-[var(--border)] text-xs hover:bg-[var(--background)] transition-colors"
+          title={canEdit ? undefined : "Makes your own copy to change"}
         >
-          Edit
+          {canEdit ? "Edit" : "Customize"}
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDuplicate(workout); }}
@@ -784,12 +816,14 @@ function WorkoutLibraryCard({ workout, compact, selectMode, selected, onToggleSe
         >
           Duplicate
         </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(workout); }}
-          className="px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--muted)] hover:text-red-500 hover:border-red-300 transition-colors"
-        >
-          Delete
-        </button>
+        {canEdit && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(workout); }}
+            className="px-3 rounded-lg border border-[var(--border)] text-xs text-[var(--muted)] hover:text-red-500 hover:border-red-300 transition-colors"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );

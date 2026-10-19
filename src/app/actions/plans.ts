@@ -38,11 +38,11 @@ export async function updatePlan(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  // RLS limits this to the user's own plans, plus site plans for admins.
   const { error } = await supabase
     .from("training_plans")
     .update(data)
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/plans");
@@ -162,8 +162,7 @@ export async function deletePlan(id: string) {
   const { error } = await supabase
     .from("training_plans")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
 
   if (error) throw new Error(error.message);
   revalidatePath("/plans");

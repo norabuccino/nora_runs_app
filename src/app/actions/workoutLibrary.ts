@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { canEditPlan } from "@/lib/contentAccess";
 import { revalidatePath } from "next/cache";
 import type { WorkoutType, RunType } from "@/types/database";
 import type { WorkoutStepData } from "./workouts";
@@ -29,6 +30,8 @@ export interface LibraryWorkoutData {
   continuous_timers?: boolean;
   equipment_added?: string[];
   equipment_removed?: string[];
+  /** Only used inside plans — hidden from regular users' library (admins set it). */
+  plan_only?: boolean;
 }
 
 export async function createLibraryWorkout(data: LibraryWorkoutData) {
@@ -59,12 +62,14 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
   if (!user) throw new Error("Not authenticated");
 
   const { steps, ...workoutRow } = data;
-  const { error } = await supabase
+  // RLS limits this to the user's own workouts, plus site workouts for admins.
+  const { data: updated, error } = await supabase
     .from("workouts")
     .update(workoutRow)
     .eq("id", id)
-    .eq("user_id", user.id);
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!updated?.length) throw new Error("You can't edit this workout");
 
   if (steps !== undefined) {
     await supabase.from("workout_steps").delete().eq("workout_id", id);
@@ -130,12 +135,13 @@ export async function deleteLibraryWorkout(id: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("workouts")
     .delete()
     .eq("id", id)
-    .eq("user_id", user.id);
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!deleted?.length) throw new Error("You can't delete this workout");
 
   revalidatePath("/workouts");
 }
@@ -182,13 +188,13 @@ export async function importLibraryWorkouts(
   const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
   if (profile?.role !== "admin") throw new Error("Admin access required");
 
-  // Build exercise name → id map for step linking
-  const { data: exercises } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .eq("user_id", user.id);
+  // Build exercise name → id map for step linking: every exercise the user
+  // can see (site exercises included), with their own winning a name clash.
+  const { data: exercises } = await supabase.from("exercises").select("id, name, user_id");
   const exerciseByName = new Map(
-    (exercises ?? []).map((e) => [e.name.toLowerCase(), e.id])
+    [...(exercises ?? [])]
+      .sort((a, b) => Number(a.user_id === user.id) - Number(b.user_id === user.id))
+      .map((e) => [e.name.toLowerCase(), e.id])
   );
   const unmatchedSet = new Set<string>();
 
@@ -250,18 +256,18 @@ export async function importLibraryWorkouts(
 
 export async function bulkUpdateLibraryWorkouts(
   ids: string[],
-  updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null }
+  updates: { type?: WorkoutType; run_type?: RunType | null; source?: string | null; plan_only?: boolean }
 ) {
   if (!ids.length) return;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  // RLS skips workouts the user can't edit.
   const { error } = await supabase
     .from("workouts")
     .update(updates)
-    .in("id", ids)
-    .eq("user_id", user.id);
+    .in("id", ids);
   if (error) throw new Error(error.message);
 
   revalidatePath("/workouts");
@@ -273,16 +279,17 @@ export async function duplicateLibraryWorkout(id: string) {
   if (!user) throw new Error("Not authenticated");
 
   const [{ data: workout }, { data: steps }] = await Promise.all([
-    supabase.from("workouts").select("*").eq("id", id).eq("user_id", user.id).single(),
+    supabase.from("workouts").select("*").eq("id", id).single(),
     supabase.from("workout_steps").select("*").eq("workout_id", id).order("step_order"),
   ]);
   if (!workout) throw new Error("Workout not found");
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { id: _id, created_at: _ca, user_id: _uid, ...rest } = workout;
+  // A copy of a site workout is the user's own, so it's never plan-only.
   const { data: copy, error } = await supabase
     .from("workouts")
-    .insert({ ...rest, user_id: user.id, title: `Copy of ${workout.title}` })
+    .insert({ ...rest, user_id: user.id, title: `Copy of ${workout.title}`, plan_only: workout.user_id === user.id ? workout.plan_only : false })
     .select()
     .single();
   if (error) throw new Error(error.message);
@@ -310,11 +317,12 @@ export async function addLibraryWorkoutToPlan(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  // Verify ownership of both the library workout and the plan, and fetch
-  // existing workouts on the target day to determine sort_order and day_logic.
-  const [{ data: workout }, { data: plan }, { data: existingOnDay }] = await Promise.all([
-    supabase.from("workouts").select("*").eq("id", workoutId).eq("user_id", user.id).single(),
-    supabase.from("training_plans").select("id").eq("id", planId).eq("user_id", user.id).single(),
+  // The library workout just has to be visible (own or site, per RLS); the plan
+  // has to be editable. Also fetch existing workouts on the target day to
+  // determine sort_order and day_logic.
+  const [{ data: workout }, canEdit, { data: existingOnDay }] = await Promise.all([
+    supabase.from("workouts").select("*").eq("id", workoutId).single(),
+    canEditPlan(supabase, planId),
     supabase
       .from("plan_workouts")
       .select("id, day_logic")
@@ -323,7 +331,7 @@ export async function addLibraryWorkoutToPlan(
       .eq("day_of_week", dayOfWeek),
   ]);
   if (!workout) throw new Error("Workout not found");
-  if (!plan) throw new Error("Plan not found");
+  if (!canEdit) throw new Error("Plan not found");
 
   const existingCount = existingOnDay?.length ?? 0;
   let dayLogic: "and" | "or";

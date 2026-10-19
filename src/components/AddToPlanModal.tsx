@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { addLibraryWorkoutToPlan } from "@/app/actions/workoutLibrary";
 import type { TrainingPlan } from "@/types/database";
 import { DAY_NAMES } from "@/lib/paceUtils";
+import { canEditContent } from "@/lib/contentOwnership";
+import { useViewer } from "@/hooks/useViewer";
 
 interface AddToPlanModalProps {
   workoutId: string;
@@ -21,17 +23,22 @@ export function AddToPlanModal({ workoutId, workoutTitle, onClose, onAdded }: Ad
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const viewer = useViewer();
+
+  // Only plans the user can add to: their own (incl. personal copies), plus site plans for admins.
   useEffect(() => {
+    if (!viewer.loaded) return;
     const supabase = createClient();
     supabase
       .from("training_plans")
       .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => {
-        setPlans(data ?? []);
-        if (data?.length) setSelectedPlanId(data[0].id);
+        const editable = (data ?? []).filter((p) => canEditContent(p.user_id, viewer));
+        setPlans(editable);
+        if (editable.length) setSelectedPlanId(editable[0].id);
       });
-  }, []);
+  }, [viewer]);
 
   const selectedPlan = plans.find((p) => p.id === selectedPlanId);
 

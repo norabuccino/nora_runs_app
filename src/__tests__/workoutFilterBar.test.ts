@@ -104,3 +104,27 @@ describe("workoutActiveFilters", () => {
     expect(next).toEqual({ ...f, source: "all" });
   });
 });
+
+describe("applyWorkoutFilter created by / plan only", () => {
+  const viewer = { userId: "me", isAdmin: true, siteIds: new Set(["site"]) };
+  const items = [
+    { id: "mine", type: "run", user_id: "me", plan_only: false },
+    { id: "site", type: "run", user_id: "site", plan_only: false },
+    { id: "site-plan", type: "run", user_id: "site", plan_only: true },
+  ];
+
+  it("filters by who created the workout", () => {
+    expect(applyWorkoutFilter(items, filter({ createdBy: "mine" }), viewer).map((x) => x.id)).toEqual(["mine"]);
+    expect(applyWorkoutFilter(items, filter({ createdBy: "site" }), viewer).map((x) => x.id)).toEqual(["site", "site-plan"]);
+  });
+
+  it("filters plan-only vs standalone", () => {
+    expect(applyWorkoutFilter(items, filter({ planOnly: "plan_only" }), viewer).map((x) => x.id)).toEqual(["site-plan"]);
+    expect(applyWorkoutFilter(items, filter({ planOnly: "standalone" }), viewer).map((x) => x.id)).toEqual(["mine", "site"]);
+  });
+
+  it("shows chips for both", () => {
+    const labels = workoutActiveFilters(filter({ createdBy: "site", planOnly: "plan_only" }), () => {}).map((f) => f.label);
+    expect(labels).toEqual(["Site", "Plan only"]);
+  });
+});

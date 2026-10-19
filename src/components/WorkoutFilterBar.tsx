@@ -11,6 +11,7 @@ import {
   activeFilterList,
   type ActiveFilter,
 } from "@/components/FilterControls";
+import { CREATED_BY_LABELS, matchesCreatedBy, ownershipOf, type CreatedByFilter, type Viewer } from "@/lib/contentOwnership";
 
 export interface WorkoutFilter {
   type: WorkoutType | "all";
@@ -18,6 +19,9 @@ export interface WorkoutFilter {
   strengthType: StrengthType | "all";
   crossTrainType: CrossTrainType | "all";
   source: string | "all";
+  createdBy: CreatedByFilter;
+  /** Admin-only: plan-only vs standalone library workouts. */
+  planOnly: "all" | "plan_only" | "standalone";
 }
 
 export const DEFAULT_FILTER: WorkoutFilter = {
@@ -26,7 +30,11 @@ export const DEFAULT_FILTER: WorkoutFilter = {
   strengthType: "all",
   crossTrainType: "all",
   source: "all",
+  createdBy: "all",
+  planOnly: "all",
 };
+
+const PLAN_ONLY_LABELS = { plan_only: "Plan only", standalone: "Standalone" } as const;
 
 export const NO_SOURCE_SENTINEL = "__none__";
 
@@ -37,8 +45,10 @@ export function applyWorkoutFilter<
     strength_type?: string | null;
     cross_train_type?: string | null;
     source?: string | null;
+    user_id?: string;
+    plan_only?: boolean;
   }
->(items: T[], filter: WorkoutFilter): T[] {
+>(items: T[], filter: WorkoutFilter, viewer?: Viewer): T[] {
   return items.filter((w) => {
     if (filter.type !== "all" && w.type !== filter.type) return false;
     if (filter.type === "run" && filter.runType !== "all" && w.run_type !== filter.runType)
@@ -49,6 +59,8 @@ export function applyWorkoutFilter<
       return false;
     if (filter.source === NO_SOURCE_SENTINEL && w.source) return false;
     if (filter.source !== "all" && filter.source !== NO_SOURCE_SENTINEL && (w.source ?? null) !== filter.source) return false;
+    if (viewer && w.user_id && !matchesCreatedBy(filter.createdBy, ownershipOf(w.user_id, viewer))) return false;
+    if (filter.planOnly !== "all" && !!w.plan_only !== (filter.planOnly === "plan_only")) return false;
     return true;
   });
 }
@@ -90,6 +102,16 @@ export function workoutActiveFilters(filter: WorkoutFilter, onChange: (filter: W
       label: filter.source === NO_SOURCE_SENTINEL ? "No source" : filter.source,
       clear: () => onChange({ ...filter, source: "all" }),
     },
+    filter.createdBy !== "all" && {
+      key: "createdBy",
+      label: CREATED_BY_LABELS[filter.createdBy],
+      clear: () => onChange({ ...filter, createdBy: "all" }),
+    },
+    filter.planOnly !== "all" && {
+      key: "planOnly",
+      label: PLAN_ONLY_LABELS[filter.planOnly],
+      clear: () => onChange({ ...filter, planOnly: "all" }),
+    },
   ]);
 }
 
@@ -104,6 +126,10 @@ interface WorkoutFilterBarProps {
   resultCount: number;
   /** Let the pill row bleed to the page edge on mobile (off inside modals with different padding). */
   bleed?: boolean;
+  /** Show the "Created by" filter (needs the viewer passed to applyWorkoutFilter). */
+  showCreatedBy?: boolean;
+  /** Admins: show the plan-only filter. */
+  showPlanOnly?: boolean;
 }
 
 export function WorkoutFilterBar({
@@ -115,6 +141,8 @@ export function WorkoutFilterBar({
   panelId,
   resultCount,
   bleed = true,
+  showCreatedBy = false,
+  showPlanOnly = false,
 }: WorkoutFilterBarProps) {
   function setType(type: WorkoutType | "all") {
     onChange({ ...filter, type, runType: "all", strengthType: "all", crossTrainType: "all" });
@@ -168,6 +196,24 @@ export function WorkoutFilterBar({
               {hasUnsourced && <option value={NO_SOURCE_SENTINEL}>No source</option>}
             </FilterSelect>
           )}
+          {showCreatedBy && (
+            <FilterSelect label="Created by" value={filter.createdBy} onChange={(v) => onChange({ ...filter, createdBy: v as CreatedByFilter })}>
+              <option value="all">Anyone</option>
+              <option value="mine">{CREATED_BY_LABELS.mine}</option>
+              <option value="site">{CREATED_BY_LABELS.site}</option>
+            </FilterSelect>
+          )}
+          {showPlanOnly && (
+            <FilterSelect
+              label="Plan only"
+              value={filter.planOnly}
+              onChange={(v) => onChange({ ...filter, planOnly: v as WorkoutFilter["planOnly"] })}
+            >
+              <option value="all">Any</option>
+              <option value="plan_only">{PLAN_ONLY_LABELS.plan_only}</option>
+              <option value="standalone">{PLAN_ONLY_LABELS.standalone}</option>
+            </FilterSelect>
+          )}
           {!["run", "strength", "cross_train"].includes(filter.type) && (
             <p className="col-span-2 sm:col-span-2 self-end pb-1.5 text-xs text-[var(--muted)]">
               Pick Run, Strength or Cross-train above to filter by its sub-type.
@@ -180,7 +226,9 @@ export function WorkoutFilterBar({
         count={resultCount}
         noun={["workout", "workouts"]}
         filters={active}
-        onClearAll={() => onChange({ ...filter, runType: "all", strengthType: "all", crossTrainType: "all", source: "all" })}
+        onClearAll={() =>
+          onChange({ ...filter, runType: "all", strengthType: "all", crossTrainType: "all", source: "all", createdBy: "all", planOnly: "all" })
+        }
       />
     </div>
   );

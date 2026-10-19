@@ -9,6 +9,8 @@ import { WorkoutTypeBadges } from "@/components/WorkoutTypeBadges";
 import { WorkoutFilterBar, applyWorkoutFilter, workoutActiveFilters, DEFAULT_FILTER, type WorkoutFilter } from "@/components/WorkoutFilterBar";
 import { FiltersButton } from "@/components/FilterControls";
 import { displayDistance } from "@/lib/unitUtils";
+import { PlanOnlyBadge } from "@/components/PlanOnlyBadge";
+import { useViewer } from "@/hooks/useViewer";
 
 interface LibraryPickerModalProps {
   // Plan-linked mode
@@ -38,6 +40,7 @@ export function LibraryPickerModal({
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
+  const viewer = useViewer();
 
   useEffect(() => {
     async function load() {
@@ -69,7 +72,7 @@ export function LibraryPickerModal({
     });
   }
 
-  const filtered = applyWorkoutFilter(workouts, filter).filter((w) => {
+  const filtered = applyWorkoutFilter(workouts, filter, viewer).filter((w) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return w.title.toLowerCase().includes(q) || w.description?.toLowerCase().includes(q);
@@ -132,6 +135,8 @@ export function LibraryPickerModal({
             panelId="library-picker-filters"
             resultCount={displayed.length}
             bleed={false}
+            showCreatedBy
+            showPlanOnly={viewer.isAdmin}
           />
         </div>
 
@@ -140,7 +145,7 @@ export function LibraryPickerModal({
 
           {!loading && workouts.length === 0 && (
             <p className="text-sm text-[var(--muted)] text-center py-8">
-              Your library is empty. Create workouts on the Workouts page first.
+              No workouts yet. Create workouts on the Workouts page first.
             </p>
           )}
 
@@ -169,6 +174,7 @@ export function LibraryPickerModal({
                   >
                     <WorkoutTypeBadges type={workout.type} run_type={workout.run_type} strength_type={workout.strength_type} compact />
                     <span className="text-sm font-medium truncate flex-1 min-w-0">{workout.title}</span>
+                    {viewer.isAdmin && workout.plan_only && <PlanOnlyBadge />}
                     {(distanceLabel || durationLabel) && (
                       <div className="flex-shrink-0 text-right">
                         {distanceLabel && <p className="text-xs font-medium leading-tight">{distanceLabel}</p>}

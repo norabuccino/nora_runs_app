@@ -8,6 +8,8 @@ import { ActiveFilterChips, FilterPanel, FilterSelect, FiltersButton, Pill, Pill
 import type { TrainingPlan, PlanType } from "@/types/database";
 import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, PLAN_TYPE_TEXT_COLORS, DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
+import { CREATED_BY_LABELS, canEditContent, matchesCreatedBy, planOwnershipOf, type CreatedByFilter } from "@/lib/contentOwnership";
+import { useViewer } from "@/hooks/useViewer";
 
 const FILTER_TABS: { value: PlanType | "all"; label: string }[] = [
   { value: "all", label: "All" },
@@ -28,23 +30,19 @@ export default function PlansPage() {
   const [activeFilter, setActiveFilter] = useState<PlanType | "all">("all");
   const [difficultyFilter, setDifficultyFilter] = useState<DifficultyType | "all">("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [createdByFilter, setCreatedByFilter] = useState<CreatedByFilter>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const viewer = useViewer();
+  const isAdmin = viewer.isAdmin;
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
   const [category, setCategory] = useState<PlanType | "all" | null>(null);
 
   useEffect(() => {
     async function load() {
       const supabase = createClient();
-      const [{ data }, { data: { user } }] = await Promise.all([
-        supabase.from("training_plans").select("*").is("source_plan_id", null).order("created_at", { ascending: false }),
-        supabase.auth.getUser(),
-      ]);
+      // RLS returns site plans plus the user's own; personal copies of site plans live on My Plan.
+      const { data } = await supabase.from("training_plans").select("*").is("source_plan_id", null).order("created_at", { ascending: false });
       setPlans(data ?? []);
-      if (user) {
-        const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-        setIsAdmin(profile?.role === "admin");
-      }
       setLoading(false);
     }
     load();
@@ -54,6 +52,7 @@ export default function PlansPage() {
     setActiveFilter(type);
     setDifficultyFilter("all");
     setSourceFilter("all");
+    setCreatedByFilter("all");
     setCategory(type);
   }
 
@@ -62,6 +61,7 @@ export default function PlansPage() {
     setActiveFilter("all");
     setDifficultyFilter("all");
     setSourceFilter("all");
+    setCreatedByFilter("all");
   }
 
   const filtered = plans.filter((p) => {
@@ -71,6 +71,7 @@ export default function PlansPage() {
       if (sourceFilter === "__none__") return !p.source;
       if (p.source !== sourceFilter) return false;
     }
+    if (!matchesCreatedBy(createdByFilter, planOwnershipOf(p, viewer))) return false;
     return true;
   });
 
@@ -82,7 +83,6 @@ export default function PlansPage() {
   const difficultiesInUse = new Set(plans.map((p) => p.difficulty).filter(Boolean)) as Set<DifficultyType>;
   const sourcesInUse = Array.from(new Set(plans.map((p) => p.source).filter(Boolean))) as string[];
   const hasUnsourced = plans.some((p) => !p.source);
-  const hasMoreFilters = difficultiesInUse.size > 0 || sourcesInUse.length > 0 || hasUnsourced;
   const activeFilters = activeFilterList([
     difficultyFilter !== "all" && {
       key: "difficulty",
@@ -94,6 +94,11 @@ export default function PlansPage() {
       label: sourceFilter === "__none__" ? "No source" : sourceFilter,
       clear: () => setSourceFilter("all"),
     },
+    createdByFilter !== "all" && {
+      key: "createdBy",
+      label: CREATED_BY_LABELS[createdByFilter],
+      clear: () => setCreatedByFilter("all"),
+    },
   ]);
 
   return (
@@ -102,17 +107,15 @@ export default function PlansPage() {
         <div>
           <h1 className="text-2xl font-bold">Training Plans</h1>
           <p className="text-sm text-[var(--muted)] mt-1">
-            Your saved training plans.
+            Site plans to follow, plus any you&apos;ve built yourself.
           </p>
         </div>
-        {isAdmin && (
-          <Link
-            href="/plans/new"
-            className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
-          >
-            + New plan
-          </Link>
-        )}
+        <Link
+          href="/plans/new"
+          className="px-4 py-2 rounded-lg bg-[var(--foreground)] text-[var(--background)] text-sm font-medium hover:opacity-90 transition-opacity"
+        >
+          + New plan
+        </Link>
       </div>
 
       {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
@@ -197,20 +200,18 @@ export default function PlansPage() {
             noun={["plan", "plans"]}
             filters={activeFilters}
             leading={
-              hasMoreFilters && (
-                <span className="mr-1.5">
-                  <FiltersButton
-                    open={filtersOpen}
-                    onToggle={() => setFiltersOpen((o) => !o)}
-                    count={activeFilters.length}
-                    controls="plan-filters"
-                  />
-                </span>
-              )
+              <span className="mr-1.5">
+                <FiltersButton
+                  open={filtersOpen}
+                  onToggle={() => setFiltersOpen((o) => !o)}
+                  count={activeFilters.length}
+                  controls="plan-filters"
+                />
+              </span>
             }
           />
 
-          {filtersOpen && hasMoreFilters && (
+          {filtersOpen && (
             <FilterPanel id="plan-filters">
               {difficultiesInUse.size > 0 && (
                 <FilterSelect
@@ -231,6 +232,11 @@ export default function PlansPage() {
                   {hasUnsourced && <option value="__none__">No source</option>}
                 </FilterSelect>
               )}
+              <FilterSelect label="Created by" value={createdByFilter} onChange={(v) => setCreatedByFilter(v as CreatedByFilter)}>
+                <option value="all">Anyone</option>
+                <option value="mine">{CREATED_BY_LABELS.mine}</option>
+                <option value="site">{CREATED_BY_LABELS.site}</option>
+              </FilterSelect>
             </FilterPanel>
           )}
 
@@ -241,7 +247,7 @@ export default function PlansPage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} isAdmin={isAdmin} />
+                <PlanCard key={plan.id} plan={plan} isAdmin={isAdmin} canEdit={canEditContent(plan.user_id, viewer)} />
               ))}
             </div>
           )}

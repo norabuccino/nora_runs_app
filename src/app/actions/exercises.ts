@@ -1,6 +1,8 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { getServerViewer } from "@/lib/contentAccess";
+import { canEditContent } from "@/lib/contentOwnership";
 import { revalidatePath } from "next/cache";
 import type { Exercise } from "@/types/database";
 import { addSources, normalizeSources } from "@/lib/exerciseSources";
@@ -77,8 +79,7 @@ export async function updateExercise(
   const { error } = await supabase
     .from("exercises")
     .update(data)
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
   if (error) throw new Error(error.message);
 
   if (data.name) {
@@ -165,8 +166,7 @@ export async function deleteExercise(
   const { error } = await supabase
     .from("exercises")
     .delete()
-    .eq("id", id)
-    .eq("user_id", user.id);
+    .eq("id", id);
   if (error) throw new Error(error.message);
 
   revalidatePath("/exercises");
@@ -214,8 +214,7 @@ export async function bulkUpdateExercises(
     const { error } = await supabase
       .from("exercises")
       .update(columns)
-      .in("id", ids)
-      .eq("user_id", user.id);
+      .in("id", ids);
     if (error) throw new Error(error.message);
   }
 
@@ -230,8 +229,7 @@ export async function bulkUpdateExercises(
     const { data: rows, error } = await supabase
       .from("exercises")
       .select("id, sources, muscle_groups, equipment")
-      .in("id", ids)
-      .eq("user_id", user.id);
+      .in("id", ids);
     if (error) throw new Error(error.message);
     const results = await Promise.all(
       (rows ?? []).map((row) =>
@@ -243,7 +241,6 @@ export async function bulkUpdateExercises(
             ...(hasEquipmentChange ? { equipment: applyEquipmentChange(row.equipment, equipmentChange) } : {}),
           })
           .eq("id", row.id)
-          .eq("user_id", user.id)
       )
     );
     const failed = results.find((r) => r.error);
@@ -295,18 +292,20 @@ export async function updateExercisesFromImport(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { data: existing, error } = await supabase
-    .from("exercises")
-    .select("id, name")
-    .eq("user_id", user.id);
+  // Only exercises the user can edit: their own, plus site exercises for admins.
+  const [{ data: visible, error }, viewer] = await Promise.all([
+    supabase.from("exercises").select("id, name, user_id"),
+    getServerViewer(supabase, user.id),
+  ]);
   if (error) throw new Error(error.message);
+  const existing = (visible ?? []).filter((e) => canEditContent(e.user_id, viewer));
 
-  const { matched, unmatched } = matchExerciseUpdates(rows, existing ?? []);
+  const { matched, unmatched } = matchExerciseUpdates(rows, existing);
   const toWrite = matched.filter((m) => Object.keys(m.fields).length > 0);
   for (let i = 0; i < toWrite.length; i += 25) {
     const results = await Promise.all(
       toWrite.slice(i, i + 25).map((m) =>
-        supabase.from("exercises").update(m.fields).eq("id", m.id).eq("user_id", user.id)
+        supabase.from("exercises").update(m.fields).eq("id", m.id)
       )
     );
     const failed = results.find((r) => r.error);

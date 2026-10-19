@@ -40,6 +40,10 @@ interface WorkoutLibraryFormProps {
   paces?: RunningPace[];
   onSave: (data: WorkoutLibraryFormData) => Promise<void>;
   onCancel: () => void;
+  /** Admins: show the "Plan only" checkbox. */
+  showPlanOnly?: boolean;
+  /** Editing a site workout the user can't change: saving makes their own copy. */
+  saveAsCopy?: boolean;
 }
 
 export interface WorkoutLibraryFormData {
@@ -60,6 +64,7 @@ export interface WorkoutLibraryFormData {
   continuous_timers: boolean;
   equipment_added: string[];
   equipment_removed: string[];
+  plan_only: boolean;
 }
 
 function blankStep(
@@ -123,7 +128,7 @@ function segmentId(seg: ReturnType<typeof buildSegments>[number]): string {
   return seg.type === "step" ? `step-${seg.index}` : `group-${seg.groupId}`;
 }
 
-export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, onCancel }: WorkoutLibraryFormProps) {
+export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, onCancel, showPlanOnly = false, saveAsCopy = false }: WorkoutLibraryFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [localPaces, setLocalPaces] = useState<RunningPace[]>(paces);
@@ -182,6 +187,8 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
     continuous_timers: existing?.continuous_timers ?? false,
     equipment_added: existing?.equipment_added ?? [],
     equipment_removed: existing?.equipment_removed ?? [],
+    // A personal copy of a site workout is never plan-only.
+    plan_only: saveAsCopy ? false : existing?.plan_only ?? false,
   }));
 
   const isStrength = form.type === "strength";
@@ -569,7 +576,7 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
       <div className="w-full sm:max-w-lg bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90dvh] sm:max-h-[90vh]">
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">{existing ? "Edit" : "New"} workout</h2>
+            <h2 className="font-semibold">{existing && !saveAsCopy ? "Edit" : "New"} workout</h2>
             <button
               onClick={onCancel}
               className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
@@ -577,6 +584,12 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
               ×
             </button>
           </div>
+
+          {saveAsCopy && (
+            <p className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 text-xs text-[var(--muted)]">
+              This is a site workout. Saving creates your own copy to customize — the original stays as it is.
+            </p>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="space-y-1">
@@ -908,6 +921,23 @@ export function WorkoutLibraryForm({ existing, allWorkouts, paces = [], onSave, 
                   value={{ added: form.equipment_added, removed: form.equipment_removed }}
                   onChange={(adj) => setForm((p) => ({ ...p, equipment_added: adj.added, equipment_removed: adj.removed }))}
                 />
+              )}
+
+              {showPlanOnly && (
+                <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={form.plan_only}
+                    onChange={(e) => setForm((p) => ({ ...p, plan_only: e.target.checked }))}
+                    className="mt-0.5 rounded border-[var(--border)] accent-[var(--accent)]"
+                  />
+                  <span>
+                    Plan only
+                    <span className="block text-xs text-[var(--muted)]">
+                      Only used inside plans — hidden from regular users&apos; workout library. Admins still see it.
+                    </span>
+                  </span>
+                </label>
               )}
 
               {/* Continuous timers (strength only) */}

@@ -108,6 +108,16 @@ Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) 
 - **Exercises** (`ExercisesImport`): `parseExerciseList` (`src/lib/exerciseTextImport.ts`; one per line or name + description paragraphs, optional `Type:`/`Equipment:`/`Muscles:`/`Source:`/`Video:` lines; tags/type suggested via `suggestExerciseTags`/`inferExerciseType`); names already in the library are unchecked → `adminImportExercises`.
 - Exercise matching for strength workouts is shared with the workout form's paste via `useExerciseResolver`/`ResolvedExerciseRow` (`src/components/ExerciseResolution.tsx`).
 
+### Site content vs personal content
+
+**Site content** is whatever the site account owns (`profiles.is_site_account` — only `admin@local.dev`). Anything any other account creates — admins included, even through Admin → Import or the plan editor's "Save to library" — is personal to that account. To add site content, log in as `admin@local.dev`. Rules live in RLS (`20261019130000_site_content_and_plan_only.sql`, helpers `is_site_user()`, `can_view_plan()`/`can_edit_plan()`, `can_view_workout()`/`can_edit_workout()`, `site_user_ids()`); the UI mirrors them with `src/lib/contentOwnership.ts` (`ownershipOf`, `planOwnershipOf`, `canEditContent`, `matchesCreatedBy`) fed by `useViewer()` (`src/hooks/useViewer.ts`) client-side or `getServerViewer()`/`canEditPlan()` (`src/lib/contentAccess.ts`) in server actions — server actions rely on RLS rather than `.eq("user_id", user.id)` for edits so admins can edit site content.
+
+- **Who sees what:** everyone sees site exercises (non-private), site workouts and site plans, plus their own. Admins can edit site content; regular users can only edit their own.
+- **Plan-only workouts:** `workouts.plan_only` (admin-set: checkbox in `WorkoutLibraryForm`, bulk edit on `/workouts`) marks site workouts only used inside plans — RLS hides them from regular users; admins see them with a `PlanOnlyBadge` and a Plan only filter (`WorkoutFilterBar` `showPlanOnly`).
+- **Customizing a site workout:** a regular user's "Customize" (Edit) on a site workout opens the form with `saveAsCopy` and saves a new personal workout; the original is untouched. Duplicating a site workout also makes a personal (never plan-only) copy.
+- **Plans:** anyone can create plans (`/plans/new`); non-site plans are private to their creator. Personal copies made by "Add to my plans" count as Site, not "Created by me" (`planOwnershipOf`). `AddToPlanModal` only lists plans the user can edit.
+- **"Created by" filter** (Anyone / Created by me / Site) on Exercises, Workouts (+ `LibraryPickerModal`) and Plans.
+
 ### Adding new protected routes
 
 Extend the `isProtectedRoute` check in `src/middleware.ts` to cover any new route prefix that requires authentication.
@@ -121,13 +131,13 @@ Sixteen tables exist in Supabase (all with RLS enabled):
 | `training_plans` | Plan templates — `type` is one of: `marathon`, `half_marathon`, `5k_10k`, `base_building`, `strength`, `custom`; also has `difficulty` (beginner/intermediate/advanced), `days_per_week`, and `source`/`source_plan_id` (tracks personal copies of shared plans) |
 | `plan_workouts` | Individual workouts within a plan (week + day slots). `type` is one of `run`, `strength`, `rest`, `cross_train`, `bike`, `swim`, `yoga`, `elliptical`; `run_type` covers run variety (easy_run, interval_run, threshold_run, recovery_run, race, long_run, mp_hmp_run); `strength_type` is free text; `day_logic` (`"and"` \| `"or"`) controls whether multiple workouts on the same day/week slot are all required (`and`) or alternatives (`or`); `library_workout_id` links back to the library workout it was copied from |
 | `workout_steps` | Ordered segments within a workout (warm-up, interval, cool-down, strength move). FK to exactly one of `plan_workout_id`, `workout_id`, or `scheduled_workout_id` (enforced by CHECK constraint — never set more than one). Also carries strength-specific fields (`sets`, `reps`, `weight_suggestion`, `both_sides`), `exercise_id` (links to the `exercises` library), `video_url`, `repeat_group_id`/`repeat_count`/`group_name` (interval repeat blocks), and `duration_unit`/`distance_unit` |
-| `workouts` | Standalone workout library — reusable templates not tied to any plan; user-owned with RLS |
+| `workouts` | Standalone workout library — reusable templates not tied to any plan; site workouts are shared, others personal (see [Site content](#site-content-vs-personal-content)); `plan_only` hides a site workout from regular users |
 | `scheduled_workouts` | Ad-hoc, date-based workouts (not tied to a plan week/day) — used for one-off workouts scheduled directly onto the dashboard for a specific `scheduled_date`; same field shape as `plan_workouts`/`workouts` plus `completed_at`; steps attach via `workout_steps.scheduled_workout_id` |
 | `exercises` | User's exercise library (name, description, `video_url`, `exercise_type`, `sources` text[], `muscle_groups` text[], `equipment` text[], `is_private`) — referenced by `workout_steps.exercise_id` for strength workout steps; private exercises are only visible to their creator. Strength progression metadata: `loading_category` (dashboard grouping), `track_load` (whether it gets weight/reps logging), `load_format` (how to interpret a logged weight — total/per-hand/per-side/etc.), `default_increment` (see [Strength progression](#strength-progression)) |
 | `user_plans` | A user's active/past plan assignments with start dates. A user may have one active plan per `training_plans.type` at a time (e.g. one active running plan + one active strength plan simultaneously) |
 | `running_paces` | Named paces (Easy, Tempo, etc.) stored as seconds/mile |
 | `workout_logs` | Completion records and per-instance workout overrides |
-| `profiles` | One row per user; carries `role` (`admin`/`user`) used for admin-gated features |
+| `profiles` | One row per user; carries `role` (`admin`/`user`) used for admin-gated features, and `is_site_account` (true only for `admin@local.dev` — whatever it owns is site content) |
 | `user_settings` | One row per user for personal preferences (currently `band_colors`); users read/write only their own row — kept separate from `profiles`, whose updates are admin-only to protect `role` |
 | `plan_week_notes` | Optional per-week `purpose` text shown on a plan's week view |
 | `app_settings` | Admin-managed key/value JSON settings (e.g. `badge_colors`, `badge_layout`); RLS restricts writes to admins |

@@ -481,6 +481,7 @@ export interface Database {
           continuous_timers: boolean;
           equipment_added: string[];
           equipment_removed: string[];
+          plan_only: boolean;
         };
         Insert: {
           id?: string;
@@ -502,6 +503,7 @@ export interface Database {
           continuous_timers?: boolean;
           equipment_added?: string[];
           equipment_removed?: string[];
+          plan_only?: boolean;
         };
         Update: {
           id?: string;
@@ -523,6 +525,7 @@ export interface Database {
           continuous_timers?: boolean;
           equipment_added?: string[];
           equipment_removed?: string[];
+          plan_only?: boolean;
         };
       };
       user_plans: {
@@ -623,18 +626,21 @@ export interface Database {
           id: string;
           email: string | null;
           role: "admin" | "user";
+          is_site_account: boolean;
           created_at: string;
         };
         Insert: {
           id: string;
           email?: string | null;
           role?: "admin" | "user";
+          is_site_account?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           email?: string | null;
           role?: "admin" | "user";
+          is_site_account?: boolean;
           created_at?: string;
         };
       };
@@ -717,7 +723,12 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      /** The site account(s) — content they own is site content. */
+      site_user_ids: { Args: Record<string, never>; Returns: string[] };
+      /** Own plans, and site plans for admins. */
+      can_edit_plan: { Args: { pid: string }; Returns: boolean };
+    };
     Enums: Record<string, never>;
   };
 }

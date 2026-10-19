@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { canEditPlan } from "@/lib/contentAccess";
 import { revalidatePath } from "next/cache";
 import { createWorkout, updateDayLogic, type WorkoutData } from "./workouts";
 import { addLibraryWorkoutToPlan } from "./workoutLibrary";
@@ -28,8 +29,7 @@ export async function addPlanWorkoutsFromText(planId: string, items: PlanTextImp
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  const { data: plan } = await supabase.from("training_plans").select("id").eq("id", planId).eq("user_id", user.id).single();
-  if (!plan) throw new Error("Plan not found");
+  if (!(await canEditPlan(supabase, planId))) throw new Error("Plan not found");
 
   let added = 0;
   const andSlots = new Set<string>();

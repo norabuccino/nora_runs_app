@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { CREATED_BY_LABELS, canEditContent, matchesCreatedBy, ownershipOf, type CreatedByFilter } from "@/lib/contentOwnership";
+import { useViewer } from "@/hooks/useViewer";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { createExercise, updateExercise, deleteExercise, getExerciseUsage, bulkUpdateExercises } from "@/app/actions/exercises";
@@ -132,6 +134,8 @@ export default function ExercisesPage() {
   const [equipmentFilter, setEquipmentFilter] = useState("all");
   const [noDescriptionOnly, setNoDescriptionOnly] = useState(false);
   const [trackingFilter, setTrackingFilter] = useState<"all" | "tracked" | "untracked">("all");
+  const [createdByFilter, setCreatedByFilter] = useState<CreatedByFilter>("all");
+  const viewer = useViewer();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sort, setSort] = useState<SortKey>("az");
   // null = on the category-picker landing page; set once a category (or "all") is chosen.
@@ -209,6 +213,7 @@ export default function ExercisesPage() {
       clear: () => setTrackingFilter("all"),
     },
     noDescriptionOnly && { key: "nodesc", label: "Missing description", clear: () => setNoDescriptionOnly(false) },
+    createdByFilter !== "all" && { key: "createdBy", label: CREATED_BY_LABELS[createdByFilter], clear: () => setCreatedByFilter("all") },
   ]);
 
   const displayed = applySort(
@@ -221,6 +226,7 @@ export default function ExercisesPage() {
       if (noDescriptionOnly && e.description?.trim()) return false;
       if (trackingFilter === "tracked" && !e.track_load) return false;
       if (trackingFilter === "untracked" && e.track_load) return false;
+      if (!matchesCreatedBy(createdByFilter, ownershipOf(e.user_id, viewer))) return false;
       if (!search.trim()) return true;
       return (
         e.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -289,6 +295,7 @@ export default function ExercisesPage() {
     setEquipmentFilter("all");
     setNoDescriptionOnly(false);
     setTrackingFilter("all");
+    setCreatedByFilter("all");
     setCategory(type);
   }
 
@@ -300,6 +307,7 @@ export default function ExercisesPage() {
     setEquipmentFilter("all");
     setNoDescriptionOnly(false);
     setTrackingFilter("all");
+    setCreatedByFilter("all");
     setSearch("");
   }
 
@@ -540,6 +548,11 @@ export default function ExercisesPage() {
                 <option value="tracked">Tracked</option>
                 <option value="untracked">Not tracked</option>
               </FilterSelect>
+              <FilterSelect label="Created by" value={createdByFilter} onChange={(v) => setCreatedByFilter(v as CreatedByFilter)}>
+                <option value="all">Anyone</option>
+                <option value="mine">{CREATED_BY_LABELS.mine}</option>
+                <option value="site">{CREATED_BY_LABELS.site}</option>
+              </FilterSelect>
               <FilterCheckbox label="Missing description" checked={noDescriptionOnly} onChange={setNoDescriptionOnly} />
             </FilterPanel>
           )}
@@ -589,6 +602,7 @@ export default function ExercisesPage() {
                   onEdit={(e) => { setEditing(e); setSaveError(null); }}
                   onDelete={handleDelete}
                   isPending={isPending}
+                  canEdit={canEditContent(exercise.user_id, viewer)}
                 />
               ))}
             </div>
@@ -605,6 +619,7 @@ export default function ExercisesPage() {
                   onEdit={(e) => { setEditing(e); setSaveError(null); }}
                   onDelete={handleDelete}
                   isPending={isPending}
+                  canEdit={canEditContent(exercise.user_id, viewer)}
                 />
               ))}
             </div>
@@ -628,7 +643,7 @@ export default function ExercisesPage() {
         <ExerciseDetailModal
           exercise={detail}
           onClose={() => setDetail(null)}
-          onEdit={(e) => { setDetail(null); setEditing(e); setSaveError(null); }}
+          onEdit={canEditContent(detail.user_id, viewer) ? (e) => { setDetail(null); setEditing(e); setSaveError(null); } : undefined}
         />
       )}
 
@@ -770,9 +785,11 @@ interface ExerciseCardProps {
   onDetail: (e: Exercise) => void;
   onEdit: (e: Exercise) => void;
   onDelete: (e: Exercise) => void;
+  /** Own exercise, or a site exercise for an admin — otherwise no Edit/Delete. */
+  canEdit: boolean;
 }
 
-function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onToggleSelect, onDetail, onEdit, onDelete }: ExerciseCardProps) {
+function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onToggleSelect, onDetail, onEdit, onDelete, canEdit }: ExerciseCardProps) {
   const typeBadge = exercise.exercise_type ? (
     <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${EXERCISE_TYPE_COLORS[exercise.exercise_type] ?? "bg-gray-100 text-gray-600"}`}>
       {EXERCISE_TYPE_LABELS[exercise.exercise_type] ?? exercise.exercise_type}
@@ -806,21 +823,25 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         {exercise.video_url && (
           <span className="shrink-0 text-xs text-[var(--muted)]" title="Has video">▶</span>
         )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
-          title="Edit"
-          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
-        >
-          ✎
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(exercise); }}
-          disabled={isPending}
-          title="Delete"
-          className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
-        >
-          ×
-        </button>
+        {canEdit && (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
+              title="Edit"
+              className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-[var(--foreground)] text-sm flex items-center justify-center transition-colors"
+            >
+              ✎
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(exercise); }}
+              disabled={isPending}
+              title="Delete"
+              className="flex-shrink-0 w-7 h-7 rounded-lg border border-[var(--border)] text-[var(--muted)] hover:text-red-500 hover:border-red-300 text-sm flex items-center justify-center transition-colors disabled:opacity-50"
+            >
+              ×
+            </button>
+          </>
+        )}
       </div>
     );
   }
@@ -879,6 +900,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
         <p className="text-xs text-[var(--muted)]">{exercise.sources.join(", ")}</p>
       )}
 
+      {canEdit && (
       <div className="flex gap-2 pt-1 mt-auto">
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(exercise); }}
@@ -894,6 +916,7 @@ function ExerciseCard({ exercise, compact, selectMode, selected, isPending, onTo
           Delete
         </button>
       </div>
+      )}
     </div>
   );
 }
