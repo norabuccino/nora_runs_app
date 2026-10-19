@@ -8,6 +8,7 @@ import { STEP_TYPE_LABELS, STROKE_LABELS, BIKE_LOCATION_LABELS, CROSS_TRAIN_TYPE
 import { displayDistance } from "@/lib/unitUtils";
 import { groupSteps, formatStepDuration } from "@/lib/workoutSteps";
 import { StrengthWorkoutPlayer } from "@/components/StrengthWorkoutPlayer";
+import { LogSetsModal } from "@/components/LogSetsModal";
 import { WorkoutEquipmentSummary } from "@/components/WorkoutEquipment";
 
 function StepRow({
@@ -101,6 +102,7 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [treadmillMode, setTreadmillMode] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
+  const [logSetsOpen, setLogSetsOpen] = useState(false);
 
   useEffect(() => {
     async function fetchPaces() {
@@ -223,6 +225,15 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
               ▶ Start Workout
             </button>
           )}
+          {/* Log sets after the fact — only for a real dated occurrence */}
+          {isStrength && sessionDate && !loadingSteps && steps.length > 0 && (
+            <button
+              onClick={() => setLogSetsOpen(true)}
+              className="w-full py-2 rounded-lg border border-[var(--border)] text-sm hover:border-[var(--foreground)] transition-colors"
+            >
+              ✎ Log sets without the player
+            </button>
+          )}
 
           {/* Steps / Exercises */}
           {showSteps && (loadingSteps ? (
@@ -277,6 +288,24 @@ export function PlanWorkoutDetailModal({ workout, onClose, onComplete, sessionDa
           )}
         </div>
       </div>
+
+      {logSetsOpen && sessionDate && (
+        <LogSetsModal
+          workout={workout}
+          steps={steps}
+          sessionSource={
+            source === "scheduled"
+              ? { scheduledWorkoutId: workout.id, sessionDate }
+              : { planWorkoutId: workout.id, sessionDate }
+          }
+          onClose={() => setLogSetsOpen(false)}
+          onSaved={() => {
+            onComplete?.(workout);
+            setLogSetsOpen(false);
+            onClose();
+          }}
+        />
+      )}
 
       {sessionOpen && (
         <StrengthWorkoutPlayer

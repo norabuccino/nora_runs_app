@@ -17,6 +17,8 @@ interface LibraryPickerModalProps {
   dayOfWeek?: number;
   // Ad-hoc mode: provide scheduledDate instead
   scheduledDate?: string;
+  /** Ad-hoc mode: add it as already done (logging a past workout). */
+  markComplete?: boolean;
   onAdded: () => void;
   onCancel: () => void;
 }
@@ -26,6 +28,7 @@ export function LibraryPickerModal({
   weekNumber,
   dayOfWeek,
   scheduledDate,
+  markComplete = false,
   onAdded,
   onCancel,
 }: LibraryPickerModalProps) {
@@ -58,7 +61,7 @@ export function LibraryPickerModal({
   function handleSelect(workout: LibraryWorkoutWithSteps) {
     startTransition(async () => {
       if (scheduledDate) {
-        await createScheduledWorkoutFromLibrary(workout.id, scheduledDate);
+        await createScheduledWorkoutFromLibrary(workout.id, scheduledDate, { completed: markComplete });
       } else {
         await addLibraryWorkoutToPlan(workout.id, planId!, weekNumber!, dayOfWeek!);
       }

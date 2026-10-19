@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sortSetLogs } from "@/lib/strengthProgression";
+import type { SetLogRemoval, SetLogUpsert } from "@/lib/setLogForm";
 import {
   loggedSetCount,
   mergeCompletedWork,
@@ -174,6 +175,71 @@ export async function completeWorkoutSession(sessionId: string): Promise<void> {
     .eq("id", sessionId)
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
+
+  revalidatePath("/progression");
+}
+
+/**
+ * Saves a whole session's sets at once (the "Log sets" sheet, for logging a
+ * workout after the fact): upserts the ticked sets, deletes unticked ones that
+ * had been logged, and marks the session complete if it wasn't already.
+ */
+export async function saveLoggedSets(
+  sessionId: string,
+  upserts: SetLogUpsert[],
+  removals: SetLogRemoval[]
+): Promise<void> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data: session } = await supabase
+    .from("workout_sessions")
+    .select("id, completed_at, workout_session_exercises(id)")
+    .eq("id", sessionId)
+    .eq("user_id", user.id)
+    .single();
+  if (!session) throw new Error("Session not found");
+  const ownIds = new Set(session.workout_session_exercises.map((e) => e.id));
+  if ([...upserts, ...removals].some((s) => !ownIds.has(s.sessionExerciseId))) {
+    throw new Error("Set does not belong to this session");
+  }
+
+  if (upserts.length) {
+    const { error } = await supabase.from("workout_set_logs").upsert(
+      upserts.map((s) => ({
+        session_exercise_id: s.sessionExerciseId,
+        set_number: s.setNumber,
+        side: s.side,
+        weight: s.weight,
+        reps_completed: s.reps_completed,
+        duration_seconds: s.duration_seconds,
+        completed: true,
+      })),
+      { onConflict: "session_exercise_id,set_number,side" }
+    );
+    if (error) throw new Error(error.message);
+  }
+
+  for (const r of removals) {
+    let query = supabase
+      .from("workout_set_logs")
+      .delete()
+      .eq("session_exercise_id", r.sessionExerciseId)
+      .eq("set_number", r.setNumber);
+    query = r.side ? query.eq("side", r.side) : query.is("side", null);
+    const { error } = await query;
+    if (error) throw new Error(error.message);
+  }
+
+  if (!session.completed_at) {
+    const { error } = await supabase
+      .from("workout_sessions")
+      .update({ completed_at: new Date().toISOString() })
+      .eq("id", sessionId)
+      .eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+  }
 
   revalidatePath("/progression");
 }

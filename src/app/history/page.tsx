@@ -9,6 +9,11 @@ import { useUnitPreference } from "@/hooks/useUnitPreference";
 import { monthGridDates, summarizeHistory, type HistoryEntry } from "@/lib/workoutHistory";
 import { fetchWorkoutHistory } from "@/lib/workoutHistoryQuery";
 import { HistoryDayWorkouts } from "@/components/HistoryDayWorkouts";
+import { LibraryPickerModal } from "@/components/LibraryPickerModal";
+import { WorkoutForm, type WorkoutFormData } from "@/components/WorkoutForm";
+import { createScheduledWorkout } from "@/app/actions/scheduledWorkouts";
+import { completedAtForDate } from "@/lib/scheduledWorkout";
+import { formRowsToStepData } from "@/lib/workoutTextBlock";
 
 // Background-only variant of the workout type color, for the small dots used
 // on narrow screens where a titled pill won't fit in a calendar cell.
@@ -28,6 +33,7 @@ export default function HistoryPage() {
   const [byDate, setByDate] = useState<Map<string, HistoryEntry[]>>(new Map());
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [addMode, setAddMode] = useState<"choose" | "from-library" | "from-scratch" | null>(null);
 
   const gridDates = monthGridDates(month.year, month.month);
   const monthPrefix = `${month.year}-${String(month.month + 1).padStart(2, "0")}`;
@@ -65,6 +71,35 @@ export default function HistoryPage() {
     if (now.getFullYear() !== month.year || now.getMonth() !== month.month) setLoading(true);
     setMonth({ year: now.getFullYear(), month: now.getMonth() });
     setSelected(todayISO);
+  }
+
+  // Workouts added to a past day are logged as already done — that's how
+  // history gets backfilled (and feeds /progression's muscle group balance).
+  const addingPast = selected < todayISO;
+
+  async function handleCreateFromScratch(formData: WorkoutFormData) {
+    await createScheduledWorkout({
+      scheduled_date: selected,
+      type: formData.type,
+      run_type: formData.run_type || null,
+      strength_type: formData.strength_type || null,
+      title: formData.title,
+      description: formData.description || null,
+      distance_miles: formData.distance_miles ? parseFloat(formData.distance_miles) : null,
+      distance_unit: formData.distance_unit,
+      pace_type: formData.pace_type || null,
+      duration_minutes: formData.duration_minutes ? parseFloat(formData.duration_minutes) : null,
+      notes: formData.notes || null,
+      steps: formRowsToStepData(formData.steps),
+      bike_location: formData.bike_location || null,
+      cross_train_type: formData.cross_train_type || null,
+      continuous_timers: formData.continuous_timers,
+      equipment_added: formData.equipment_added,
+      equipment_removed: formData.equipment_removed,
+      completed_at: addingPast ? completedAtForDate(selected) : null,
+    });
+    setAddMode(null);
+    await load();
   }
 
   const monthLabel = new Date(month.year, month.month, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
@@ -189,7 +224,12 @@ export default function HistoryPage() {
       </p>
 
       <div className="space-y-3">
-        <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">{selectedLabel}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-sm text-[var(--muted)] uppercase tracking-wide">{selectedLabel}</h2>
+          <button onClick={() => setAddMode("choose")} className="text-sm text-[var(--accent)] hover:underline shrink-0">
+            {addingPast ? "+ Log a past workout" : "+ Add workout"}
+          </button>
+        </div>
         <HistoryDayWorkouts
           entries={selectedEntries}
           paces={paces}
@@ -198,6 +238,68 @@ export default function HistoryPage() {
           emptyText={selected < todayISO ? "No workouts this day." : "Nothing scheduled yet."}
         />
       </div>
+
+      {addMode === "choose" && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+          <div className="w-full sm:max-w-sm bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl p-5 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold">{addingPast ? "Log a past workout" : "Add a workout"}</h2>
+                <p className="text-xs text-[var(--muted)]">
+                  {selectedLabel}
+                  {addingPast && " · saved as done"}
+                </p>
+              </div>
+              <button
+                onClick={() => setAddMode(null)}
+                className="text-[var(--muted)] hover:text-[var(--foreground)] text-xl leading-none"
+              >
+                ×
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setAddMode("from-library")}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-left hover:border-[var(--foreground)] transition-colors"
+              >
+                <p className="font-medium">From workout library</p>
+                <p className="text-xs text-[var(--muted)]">Pick one of your saved workouts</p>
+              </button>
+              <button
+                onClick={() => setAddMode("from-scratch")}
+                className="rounded-lg border border-[var(--border)] bg-[var(--card)] px-4 py-3 text-sm text-left hover:border-[var(--foreground)] transition-colors"
+              >
+                <p className="font-medium">Create from scratch</p>
+                <p className="text-xs text-[var(--muted)]">Build a new workout now</p>
+              </button>
+            </div>
+            {addingPast && (
+              <p className="text-xs text-[var(--muted)]">
+                For a strength workout, open it afterwards and use “Log sets” to record weights and reps.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {addMode === "from-library" && (
+        <LibraryPickerModal
+          scheduledDate={selected}
+          markComplete={addingPast}
+          onAdded={async () => { setAddMode(null); await load(); }}
+          onCancel={() => setAddMode("choose")}
+        />
+      )}
+
+      {addMode === "from-scratch" && (
+        <WorkoutForm
+          scheduledDate={selected}
+          paces={paces}
+          onSave={handleCreateFromScratch}
+          onCancel={() => setAddMode(null)}
+          onBack={() => setAddMode("choose")}
+        />
+      )}
     </div>
   );
 }

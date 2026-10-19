@@ -78,3 +78,11 @@ export function adaptScheduledWorkout(sw: ScheduledWorkout): PlanWorkout {
     equipment_removed: sw.equipment_removed ?? [],
   };
 }
+
+/**
+ * completed_at for a workout logged on a past date — midday UTC, so it reads
+ * as that calendar day across US timezones rather than the moment it was entered.
+ */
+export function completedAtForDate(dateISO: string): string {
+  return `${dateISO}T12:00:00.000Z`;
+}

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { WorkoutType, RunType, ScheduledWorkout } from "@/types/database";
+import { completedAtForDate } from "@/lib/scheduledWorkout";
 
 export interface ScheduledWorkoutStepData {
   step_type: string;
@@ -43,6 +44,8 @@ export interface ScheduledWorkoutData {
   continuous_timers?: boolean;
   equipment_added?: string[];
   equipment_removed?: string[];
+  /** Set when logging a workout that's already been done (e.g. backfilling history). */
+  completed_at?: string | null;
 }
 
 export async function createScheduledWorkout(data: ScheduledWorkoutData): Promise<ScheduledWorkout> {
@@ -74,7 +77,8 @@ export async function createScheduledWorkout(data: ScheduledWorkoutData): Promis
 
 export async function createScheduledWorkoutFromLibrary(
   libraryWorkoutId: string,
-  scheduledDate: string
+  scheduledDate: string,
+  options: { completed?: boolean } = {}
 ): Promise<ScheduledWorkout> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -107,6 +111,7 @@ export async function createScheduledWorkoutFromLibrary(
       continuous_timers: source.continuous_timers ?? false,
       equipment_added: source.equipment_added ?? [],
       equipment_removed: source.equipment_removed ?? [],
+      completed_at: options.completed ? completedAtForDate(scheduledDate) : null,
     })
     .select()
     .single();
@@ -162,6 +167,34 @@ export async function batchUpdateScheduledWorkoutPositions(
   );
 
   revalidatePath("/dashboard");
+}
+
+/**
+ * Moves an ad-hoc workout to another date — including into the past, to
+ * correct history — and keeps its logged strength session on the same date.
+ */
+export async function moveScheduledWorkout(id: string, newDate: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) throw new Error("Invalid date");
+
+  const { error } = await supabase
+    .from("scheduled_workouts")
+    .update({ scheduled_date: newDate })
+    .eq("id", id)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+
+  const { error: sessionError } = await supabase
+    .from("workout_sessions")
+    .update({ session_date: newDate })
+    .eq("scheduled_workout_id", id)
+    .eq("user_id", user.id);
+  if (sessionError) throw new Error(sessionError.message);
+
+  revalidatePath("/dashboard");
+  revalidatePath("/progression");
 }
 
 export async function deleteScheduledWorkout(id: string) {

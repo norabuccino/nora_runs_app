@@ -6,7 +6,12 @@ import type { HistoryEntry } from "@/lib/workoutHistory";
 import { WorkoutCard } from "@/components/WorkoutCard";
 import { PlanWorkoutDetailModal } from "@/components/PlanWorkoutDetailModal";
 import { markWorkoutComplete, unmarkWorkoutComplete, updateWorkoutActualDistance } from "@/app/actions/userPlans";
-import { markScheduledWorkoutComplete, unmarkScheduledWorkoutComplete } from "@/app/actions/scheduledWorkouts";
+import {
+  deleteScheduledWorkout,
+  markScheduledWorkoutComplete,
+  moveScheduledWorkout,
+  unmarkScheduledWorkoutComplete,
+} from "@/app/actions/scheduledWorkouts";
 
 interface HistoryDayWorkoutsProps {
   entries: HistoryEntry[];
@@ -21,10 +26,13 @@ interface HistoryDayWorkoutsProps {
 /**
  * A single day's workouts from the workout history, as dashboard-mode
  * WorkoutCards — past workouts can still be marked done (or undone) after
- * the fact, and clicking one opens the usual detail modal.
+ * the fact, and clicking one opens the usual detail modal. Ad-hoc (scheduled)
+ * workouts can also be moved to another date or deleted, to correct history;
+ * plan workouts stay on the date their plan puts them.
  */
 export function HistoryDayWorkouts({ entries, paces, onChanged, emptyText = "Nothing scheduled.", showPlanName = false }: HistoryDayWorkoutsProps) {
   const [detail, setDetail] = useState<HistoryEntry | null>(null);
+  const [moving, setMoving] = useState<{ key: string; date: string } | null>(null);
   const [, startTransition] = useTransition();
 
   function run(action: () => Promise<unknown>) {
@@ -48,6 +56,16 @@ export function HistoryDayWorkouts({ entries, paces, onChanged, emptyText = "Not
         ? unmarkScheduledWorkoutComplete(entry.workout.id)
         : unmarkWorkoutComplete(entry.userPlanId!, entry.workout.id)
     );
+  }
+
+  function move(entry: HistoryEntry, date: string) {
+    setMoving(null);
+    if (date && date !== entry.date) run(() => moveScheduledWorkout(entry.workout.id, date));
+  }
+
+  function remove(entry: HistoryEntry) {
+    if (!confirm(`Delete "${entry.workout.title}"?`)) return;
+    run(() => deleteScheduledWorkout(entry.workout.id));
   }
 
   if (entries.length === 0) {
@@ -76,6 +94,39 @@ export function HistoryDayWorkouts({ entries, paces, onChanged, emptyText = "Not
             }
             onDetail={() => setDetail(entry)}
           />
+          {entry.source === "scheduled" && (
+            <div className="flex items-center justify-end gap-3 text-xs text-[var(--muted)]">
+              {moving?.key === entry.key ? (
+                <>
+                  <input
+                    type="date"
+                    value={moving.date}
+                    onChange={(e) => setMoving({ key: entry.key, date: e.target.value })}
+                    aria-label="New date"
+                    className="rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-0.5 text-xs text-[var(--foreground)]"
+                  />
+                  <button onClick={() => move(entry, moving.date)} className="text-[var(--accent)] hover:underline">
+                    Move
+                  </button>
+                  <button onClick={() => setMoving(null)} className="hover:text-[var(--foreground)]">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setMoving({ key: entry.key, date: entry.date })}
+                    className="hover:text-[var(--foreground)]"
+                  >
+                    Change date
+                  </button>
+                  <button onClick={() => remove(entry)} className="hover:text-red-500">
+                    Delete
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       ))}
 
