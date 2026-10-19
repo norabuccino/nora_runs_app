@@ -83,7 +83,14 @@ export function bandColorFor(level: number, colors: BandColors | undefined) {
   return key ? BAND_COLOR_OPTIONS.find((c) => c.key === key) ?? null : null;
 }
 
-/** "Medium", or "Medium (red)" once the user has given that level a color. */
+/** The short name for a logged band: its color once the user has given that level one ("Red"), else the level ("Medium"). */
+export function bandLoadName(level: number, colors?: BandColors): string | null {
+  const color = bandColorFor(level, colors);
+  if (color) return color.label;
+  return BAND_LEVELS.find((l) => l.value === level)?.label ?? null;
+}
+
+/** "Medium", or "Medium (red)" once the user has given that level a color — for pickers, where both help. */
 export function bandLevelText(level: number, colors?: BandColors): string | null {
   const name = BAND_LEVELS.find((l) => l.value === level)?.label;
   if (!name) return null;

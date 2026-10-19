@@ -1,5 +1,5 @@
 import type { WorkoutSetLog } from "@/types/database";
-import { BAND_LEVELS, bandColorsForLoad, bandLevelText, type BandColorSets } from "@/lib/bandColors";
+import { BAND_LEVELS, bandColorsForLoad, bandLoadName, type BandColorSets } from "@/lib/bandColors";
 import { LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 
 export { BAND_LEVELS };
@@ -27,8 +27,8 @@ export function loadInputLabel(loadFormat: string | null | undefined): string {
 /**
  * Turns a raw weight number + load format into unambiguous display text —
  * the single place that decides whether "30" means 30 lb total or two
- * 30-lb dumbbells. Pass the user's band colors to name band levels by color too
- * (the set matching the band kind is picked here).
+ * 30-lb dumbbells. Pass the user's band colors to name bands by their color
+ * instead of their level (the set matching the band kind is picked here).
  */
 export function formatLoad(weight: number | null, loadFormat: string | null, bandColors?: BandColorSets): string | null {
   if (weight == null) return loadFormat === "bodyweight" ? "Bodyweight" : null;
@@ -48,7 +48,7 @@ export function formatLoad(weight: number | null, loadFormat: string | null, ban
     case "band":
     case "mini_band": {
       const noun = loadFormat === "mini_band" ? "mini band" : "band";
-      const level = bandLevelText(weight, bandColorsForLoad(bandColors, loadFormat));
+      const level = bandLoadName(weight, bandColorsForLoad(bandColors, loadFormat));
       return level ? `${level} ${noun}` : `${noun[0].toUpperCase()}${noun.slice(1)} level ${weight}`;
     }
     case "assisted":

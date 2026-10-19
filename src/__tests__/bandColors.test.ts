@@ -29,16 +29,17 @@ describe("bandLevelText", () => {
 });
 
 describe("formatLoad with band colors", () => {
-  it("includes the color in band loads", () => {
-    expect(formatLoad(3, "band", { band: { "3": "red" } })).toBe("Medium (red) band");
+  it("names a band by its color when it has one, else by its level", () => {
+    expect(formatLoad(3, "band", { band: { "3": "red" } })).toBe("Red band");
+    expect(formatLoad(2, "band", { band: { "3": "red" } })).toBe("Light band");
     expect(formatLoad(3, "band")).toBe("Medium band");
     expect(formatLoad(30, "per_hand", { band: { "3": "red" } })).toBe("30 lb/hand");
   });
 
   it("uses the mini band colors for mini band loads", () => {
     const sets = { band: { "3": "red" }, mini_band: { "3": "blue" } };
-    expect(formatLoad(3, "mini_band", sets)).toBe("Medium (blue) mini band");
-    expect(formatLoad(3, "band", sets)).toBe("Medium (red) band");
+    expect(formatLoad(3, "mini_band", sets)).toBe("Blue mini band");
+    expect(formatLoad(3, "band", sets)).toBe("Red band");
     expect(formatLoad(3, "mini_band", { band: { "3": "red" } })).toBe("Medium mini band");
     expect(formatLoad(9, "mini_band")).toBe("Mini band level 9");
   });
