@@ -7,6 +7,7 @@ import {
   sortSetLogs,
   formatActualSets,
   loadInputLabel,
+  effectiveLoadFormat,
 } from "@/lib/strengthProgression";
 import type { WorkoutSetLog } from "@/types/database";
 
@@ -291,5 +292,17 @@ describe("band levels", () => {
     const base = { plannedReps: 12, plannedDurationSeconds: null, sets, previousWeight: null, loadFormat: "band" };
     expect(computeRecommendation({ ...base, currentWeight: 3, defaultIncrement: 5 })).toEqual({ status: "increase", suggestedWeight: 4 });
     expect(computeRecommendation({ ...base, currentWeight: 5, defaultIncrement: null })).toEqual({ status: "increase", suggestedWeight: undefined });
+  });
+});
+
+describe("effectiveLoadFormat", () => {
+  it("keeps the format snapshotted at logging time", () => {
+    expect(effectiveLoadFormat("per_hand", "band")).toBe("per_hand");
+  });
+
+  it("falls back to the exercise's current format when the session predates it", () => {
+    expect(effectiveLoadFormat(null, "band")).toBe("band");
+    expect(effectiveLoadFormat(null, null)).toBeNull();
+    expect(effectiveLoadFormat(null, undefined)).toBeNull();
   });
 });

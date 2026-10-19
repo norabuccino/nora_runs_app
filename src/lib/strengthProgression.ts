@@ -3,6 +3,15 @@ import { BAND_LEVELS, bandLevelText, type BandColors } from "@/lib/bandColors";
 
 export { BAND_LEVELS };
 
+/**
+ * How to read a past session's logged loads: the load format snapshotted when
+ * it was logged, or — for sessions logged before the exercise had a load
+ * format (snapshot is null) — the exercise's current one.
+ */
+export function effectiveLoadFormat(snapshot: string | null, current: string | null | undefined): string | null {
+  return snapshot ?? current ?? null;
+}
+
 export function isBandLoad(loadFormat: string | null | undefined): boolean {
   return loadFormat === "band";
 }

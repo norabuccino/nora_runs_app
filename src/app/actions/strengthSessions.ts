@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { sortSetLogs } from "@/lib/strengthProgression";
+import { effectiveLoadFormat, sortSetLogs } from "@/lib/strengthProgression";
 import type { SetLogEdit, SetLogRemoval, SetLogUpsert } from "@/lib/setLogForm";
 import {
   loggedSetCount,
@@ -34,11 +34,15 @@ async function fetchSessionExercises(
 ): Promise<WorkoutSessionExerciseWithSets[]> {
   const { data, error } = await supabase
     .from("workout_session_exercises")
-    .select("*, workout_set_logs(*)")
+    .select("*, workout_set_logs(*), exercises(load_format)")
     .eq("session_id", sessionId)
     .order("step_order");
   if (error) throw new Error(error.message);
-  return (data ?? []) as WorkoutSessionExerciseWithSets[];
+  type Row = WorkoutSessionExerciseWithSets & { exercises: { load_format: string | null } | null };
+  return ((data ?? []) as unknown as Row[]).map(({ exercises, ...row }) => ({
+    ...row,
+    load_format: effectiveLoadFormat(row.load_format, exercises?.load_format),
+  }));
 }
 
 /**
@@ -282,7 +286,7 @@ export interface ExerciseHistoryEntry {
 }
 
 const SESSION_EXERCISE_SELECT =
-  "id, exercise_id, load_format, planned_reps, planned_duration_minutes, workout_sessions!inner(id, session_date, title, completed_at, user_id), workout_set_logs(*)";
+  "id, exercise_id, load_format, planned_reps, planned_duration_minutes, workout_sessions!inner(id, session_date, title, completed_at, user_id), workout_set_logs(*), exercises(load_format)";
 
 type SessionExerciseJoinRow = {
   id: string;
@@ -292,6 +296,7 @@ type SessionExerciseJoinRow = {
   planned_duration_minutes: number | null;
   workout_sessions: { id: string; session_date: string; title: string } | null;
   workout_set_logs: WorkoutSetLog[];
+  exercises: { load_format: string | null } | null;
 };
 
 function toHistoryEntry(row: SessionExerciseJoinRow): ExerciseHistoryEntry {
@@ -299,7 +304,7 @@ function toHistoryEntry(row: SessionExerciseJoinRow): ExerciseHistoryEntry {
     sessionId: row.workout_sessions!.id,
     sessionDate: row.workout_sessions!.session_date,
     workoutTitle: row.workout_sessions!.title,
-    loadFormat: row.load_format,
+    loadFormat: effectiveLoadFormat(row.load_format, row.exercises?.load_format),
     plannedReps: row.planned_reps,
     plannedDurationSeconds: row.planned_duration_minutes != null ? Math.round(row.planned_duration_minutes * 60) : null,
     sets: sortSetLogs(row.workout_set_logs),
