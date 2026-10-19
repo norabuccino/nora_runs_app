@@ -294,6 +294,15 @@ describe("band levels", () => {
     expect(computeRecommendation({ ...base, currentWeight: 3, defaultIncrement: 5 })).toEqual({ status: "increase", suggestedWeight: 4 });
     expect(computeRecommendation({ ...base, currentWeight: 5, defaultIncrement: null })).toEqual({ status: "increase", suggestedWeight: undefined });
   });
+
+  it("treats mini bands like bands", () => {
+    expect(formatLoad(2, "mini_band")).toBe("Light mini band");
+    expect(loadInputLabel("mini_band")).toBe("Band");
+    const sets = [{ set_number: 1, side: null, weight: 2, reps_completed: 12, duration_seconds: null, completed: true }] as WorkoutSetLog[];
+    expect(
+      computeRecommendation({ plannedReps: 12, plannedDurationSeconds: null, sets, previousWeight: null, currentWeight: 2, defaultIncrement: 5, loadFormat: "mini_band" })
+    ).toEqual({ status: "increase", suggestedWeight: 3 });
+  });
 });
 
 describe("effectiveLoadFormat", () => {

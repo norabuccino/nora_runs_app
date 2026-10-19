@@ -1,7 +1,7 @@
 import { LOAD_FORMAT_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { LOAD_FORMAT_GUIDE, LOAD_FORMAT_TIP, type GuideEntry } from "@/lib/loadFormatGuide";
 import { LOADING_CATEGORY_GUIDE } from "@/lib/loadingCategoryGuide";
-import { formatLoad } from "@/lib/strengthProgression";
+import { formatLoad, isBandLoad } from "@/lib/strengthProgression";
 
 /** Cards of guide entries: meaning, when to use it (full view only), and examples. */
 function GuideCards({
@@ -48,7 +48,7 @@ export function LoadFormatGuide({ compact = false }: { compact?: boolean }) {
         labels={LOAD_FORMAT_LABELS}
         compact={compact}
         aside={(key) => {
-          const sample = key === "bodyweight" ? formatLoad(null, key) : formatLoad(key === "band" ? 3 : 25, key);
+          const sample = key === "bodyweight" ? formatLoad(null, key) : formatLoad(isBandLoad(key) ? 3 : 25, key);
           return sample ? `shows as “${sample}”` : null;
         }}
       />

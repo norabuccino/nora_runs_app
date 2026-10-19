@@ -1,7 +1,7 @@
 "use client";
 
 import { isBandLoad } from "@/lib/strengthProgression";
-import { BAND_LEVELS, bandColorFor, bandLevelText } from "@/lib/bandColors";
+import { BAND_LEVELS, bandColorFor, bandColorsForLoad, bandLevelText } from "@/lib/bandColors";
 import { useBandColors } from "@/hooks/useBandColors";
 
 interface LoadInputProps {
@@ -13,9 +13,9 @@ interface LoadInputProps {
   "aria-label"?: string;
 }
 
-/** A small dot in the band's color, for the user's own band set (nothing if that level has no color). */
-export function BandSwatch({ level }: { level: number }) {
-  const colors = useBandColors();
+/** A small dot in the band's color, for the user's own band set of that kind (nothing if that level has no color). */
+export function BandSwatch({ level, loadFormat }: { level: number; loadFormat: string | null }) {
+  const colors = bandColorsForLoad(useBandColors(), loadFormat);
   const color = bandColorFor(level, colors);
   if (!color) return null;
   return (
@@ -33,7 +33,7 @@ export function BandSwatch({ level }: { level: number }) {
  * (pounds or machine assistance).
  */
 export function LoadInput({ loadFormat, value, onChange, className, disabled, "aria-label": ariaLabel }: LoadInputProps) {
-  const colors = useBandColors();
+  const colors = bandColorsForLoad(useBandColors(), loadFormat);
   if (isBandLoad(loadFormat)) {
     return (
       <span className="flex items-center gap-1.5 min-w-0">
@@ -51,7 +51,7 @@ export function LoadInput({ loadFormat, value, onChange, className, disabled, "a
             </option>
           ))}
         </select>
-        {value !== "" && <BandSwatch level={Number(value)} />}
+        {value !== "" && <BandSwatch level={Number(value)} loadFormat={loadFormat} />}
       </span>
     );
   }

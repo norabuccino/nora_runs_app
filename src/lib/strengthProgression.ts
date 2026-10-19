@@ -1,5 +1,5 @@
 import type { WorkoutSetLog } from "@/types/database";
-import { BAND_LEVELS, bandLevelText, type BandColors } from "@/lib/bandColors";
+import { BAND_LEVELS, bandColorsForLoad, bandLevelText, type BandColorSets } from "@/lib/bandColors";
 import { LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 
 export { BAND_LEVELS };
@@ -14,7 +14,7 @@ export function effectiveLoadFormat(snapshot: string | null, current: string | n
 }
 
 export function isBandLoad(loadFormat: string | null | undefined): boolean {
-  return loadFormat === "band";
+  return loadFormat === "band" || loadFormat === "mini_band";
 }
 
 /** Column/field heading for a logged load: a band level, machine assistance, or plain weight. */
@@ -27,9 +27,10 @@ export function loadInputLabel(loadFormat: string | null | undefined): string {
 /**
  * Turns a raw weight number + load format into unambiguous display text —
  * the single place that decides whether "30" means 30 lb total or two
- * 30-lb dumbbells. Pass the user's band colors to name band levels by color too.
+ * 30-lb dumbbells. Pass the user's band colors to name band levels by color too
+ * (the set matching the band kind is picked here).
  */
-export function formatLoad(weight: number | null, loadFormat: string | null, bandColors?: BandColors): string | null {
+export function formatLoad(weight: number | null, loadFormat: string | null, bandColors?: BandColorSets): string | null {
   if (weight == null) return loadFormat === "bodyweight" ? "Bodyweight" : null;
   switch (loadFormat) {
     case "per_hand":
@@ -44,9 +45,11 @@ export function formatLoad(weight: number | null, loadFormat: string | null, ban
       return `${weight} lb (bar total)`;
     case "machine":
       return `${weight} lb (machine)`;
-    case "band": {
-      const level = bandLevelText(weight, bandColors);
-      return level ? `${level} band` : `Band level ${weight}`;
+    case "band":
+    case "mini_band": {
+      const noun = loadFormat === "mini_band" ? "mini band" : "band";
+      const level = bandLevelText(weight, bandColorsForLoad(bandColors, loadFormat));
+      return level ? `${level} ${noun}` : `${noun[0].toUpperCase()}${noun.slice(1)} level ${weight}`;
     }
     case "assisted":
       return `${weight} lb assist`;

@@ -12,9 +12,21 @@ export const BAND_LEVELS: { value: number; label: string }[] = [
 ];
 
 /**
- * Colors resistance bands come in. Each user maps their own band set's colors
- * onto the shared band levels (stored in `user_settings.band_colors`), since
- * one brand's red is another's green.
+ * The two kinds of band, keyed by their load format ("band" is a long
+ * resistance band). Each kind has its own set of colors — a user's mini bands
+ * and resistance bands rarely share a color scheme.
+ */
+export const BAND_KINDS: { key: BandKind; label: string }[] = [
+  { key: "mini_band", label: "Mini bands" },
+  { key: "band", label: "Resistance bands" },
+];
+
+export type BandKind = "mini_band" | "band";
+
+/**
+ * Colors bands come in. Each user maps their own band sets' colors onto the
+ * shared band levels (stored in `user_settings.band_colors`), since one
+ * brand's red is another's green.
  */
 export const BAND_COLOR_OPTIONS: { key: string; label: string; hex: string }[] = [
   { key: "tan", label: "Tan", hex: "#d2b48c" },
@@ -34,6 +46,9 @@ export const BAND_COLOR_OPTIONS: { key: string; label: string; hex: string }[] =
 /** Band level (as a string key, "1"–"5") → color key. Levels without a color are absent. */
 export type BandColors = Record<string, string>;
 
+/** One BandColors per band kind, as stored in `user_settings.band_colors`. Kinds with no colors are absent. */
+export type BandColorSets = Partial<Record<BandKind, BandColors>>;
+
 /** Keeps only known levels and colors — the stored JSON is untyped. */
 export function normalizeBandColors(raw: unknown): BandColors {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -45,6 +60,22 @@ export function normalizeBandColors(raw: unknown): BandColors {
     }
   }
   return result;
+}
+
+/** Keeps only known band kinds, each normalized; drops kinds left with no colors. */
+export function normalizeBandColorSets(raw: unknown): BandColorSets {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const result: BandColorSets = {};
+  for (const { key } of BAND_KINDS) {
+    const colors = normalizeBandColors((raw as Record<string, unknown>)[key]);
+    if (Object.keys(colors).length > 0) result[key] = colors;
+  }
+  return result;
+}
+
+/** The colors for a band load format's kind (undefined for non-band formats or an unset kind). */
+export function bandColorsForLoad(sets: BandColorSets | undefined, loadFormat: string | null | undefined): BandColors | undefined {
+  return loadFormat === "band" || loadFormat === "mini_band" ? sets?.[loadFormat] : undefined;
 }
 
 export function bandColorFor(level: number, colors: BandColors | undefined) {

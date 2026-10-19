@@ -9,6 +9,7 @@ import { EQUIPMENT, EQUIPMENT_LABELS, sortEquipment, toggleEquipment } from "@/l
 import { suggestExerciseTags } from "@/lib/exerciseTagSuggestions";
 import { SourcesInput } from "@/components/SourcesInput";
 import { BandColorsLink } from "@/components/BandColorsModal";
+import { isBandLoad } from "@/lib/strengthProgression";
 
 const inputClass = "w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
 const labelClass = "text-xs text-[var(--muted)]";
@@ -262,7 +263,7 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                     {guideOpen ? "Hide guide" : "Which one?"}
                   </button>
                 </p>
-                {value.load_format === "band" && (
+                {isBandLoad(value.load_format) && (
                   <p className="text-xs">
                     <BandColorsLink />
                   </p>
@@ -271,7 +272,7 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
               </div>
 
               {/* Bands step up one level at a time, so there's no increment to set. */}
-              {value.load_format !== "band" && (
+              {!isBandLoad(value.load_format) && (
               <div className="space-y-1">
                 <label className={labelClass}>Default increment <span className="text-[var(--muted)]">(optional)</span></label>
                 <input

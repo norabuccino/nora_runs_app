@@ -1,28 +1,29 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BAND_COLOR_OPTIONS, BAND_LEVELS, bandColorFor, type BandColors } from "@/lib/bandColors";
+import { BAND_COLOR_OPTIONS, BAND_KINDS, BAND_LEVELS, bandColorFor, type BandColorSets, type BandKind } from "@/lib/bandColors";
 import { saveBandColors } from "@/app/actions/userSettings";
 import { publishBandColors, useBandColors } from "@/hooks/useBandColors";
 
 /**
- * Lets the user say which color their own bands are at each level — it's
- * per user because every band set is colored differently.
+ * Lets the user say which color their own bands are at each level, separately
+ * for mini bands and resistance bands — it's per user because every band set
+ * is colored differently.
  */
 export function BandColorsModal({ onClose }: { onClose: () => void }) {
   const current = useBandColors();
   // null until the user changes something, so colors that finish loading after
   // the modal opens still show (and a save can't wipe them with an empty draft).
-  const [edited, setEdited] = useState<BandColors | null>(null);
+  const [edited, setEdited] = useState<BandColorSets | null>(null);
   const draft = edited ?? current;
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function setLevel(level: number, color: string) {
-    const next = { ...draft };
-    if (color) next[String(level)] = color;
-    else delete next[String(level)];
-    setEdited(next);
+  function setLevel(kind: BandKind, level: number, color: string) {
+    const colors = { ...draft[kind] };
+    if (color) colors[String(level)] = color;
+    else delete colors[String(level)];
+    setEdited({ ...draft, [kind]: colors });
   }
 
   function save() {
@@ -38,7 +39,7 @@ export function BandColorsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
-      <div className="w-full sm:max-w-sm bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl p-5 space-y-4">
+      <div className="w-full sm:max-w-sm max-h-[90vh] overflow-y-auto bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl p-5 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">My band colors</h2>
@@ -49,9 +50,11 @@ export function BandColorsModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="space-y-2">
+        {BAND_KINDS.map((kind) => (
+        <div key={kind.key} className="space-y-2">
+          <h3 className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">{kind.label}</h3>
           {BAND_LEVELS.map((level) => {
-            const color = bandColorFor(level.value, draft);
+            const color = bandColorFor(level.value, draft[kind.key]);
             return (
               <label key={level.value} className="flex items-center gap-3 text-sm">
                 <span className="w-24 shrink-0">{level.label}</span>
@@ -60,8 +63,8 @@ export function BandColorsModal({ onClose }: { onClose: () => void }) {
                   style={{ backgroundColor: color?.hex ?? "transparent" }}
                 />
                 <select
-                  value={draft[String(level.value)] ?? ""}
-                  onChange={(e) => setLevel(level.value, e.target.value)}
+                  value={draft[kind.key]?.[String(level.value)] ?? ""}
+                  onChange={(e) => setLevel(kind.key, level.value, e.target.value)}
                   className="flex-1 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--card)] px-2 py-1.5 text-sm"
                 >
                   <option value="">No color</option>
@@ -73,6 +76,7 @@ export function BandColorsModal({ onClose }: { onClose: () => void }) {
             );
           })}
         </div>
+        ))}
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 

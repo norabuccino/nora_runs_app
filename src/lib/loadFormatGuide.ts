@@ -66,9 +66,15 @@ export const LOAD_FORMAT_GUIDE: GuideEntry[] = [
   },
   {
     key: "band",
-    meaning: "The band is the resistance — pick its level (Extra light, Light, Medium, Heavy, Extra heavy) instead of a weight.",
-    whenToUse: "Exercises where a band, not a weight, provides the load.",
-    examples: "Mini band hip work, clamshells, monster walks, Paloff press, banded rotations",
+    meaning: "A long resistance band is the resistance — pick its level (Extra light, Light, Medium, Heavy, Extra heavy) instead of a weight.",
+    whenToUse: "Exercises using a long or tube band, often anchored or held. Its colors are set separately from mini bands.",
+    examples: "Paloff press, banded external rotation, banded marches, banded hamstring curls",
+  },
+  {
+    key: "mini_band",
+    meaning: "A mini (loop) band is the resistance — pick its level instead of a weight.",
+    whenToUse: "Exercises with a small loop band around the legs. Its colors are set separately from resistance bands.",
+    examples: "Monster walks, clamshells, fire hydrants, mini band kickbacks",
   },
   {
     key: "other",

@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { getExerciseHistory, updateLoggedSets, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad, formatActualSets, loadInputLabel } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, formatActualSets, isBandLoad, loadInputLabel } from "@/lib/strengthProgression";
 import { LoadInput } from "@/components/LoadInput";
 import { BandColorsLink } from "@/components/BandColorsModal";
 import { useBandColors } from "@/hooks/useBandColors";
@@ -306,7 +306,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
               <div className="flex items-center justify-between">
                 <p className="text-xs font-medium text-[var(--muted)] uppercase tracking-wide">
                   Strength history
-                  {exercise.load_format === "band" && (
+                  {isBandLoad(exercise.load_format) && (
                     <span className="normal-case tracking-normal font-normal ml-2">
                       <BandColorsLink />
                     </span>

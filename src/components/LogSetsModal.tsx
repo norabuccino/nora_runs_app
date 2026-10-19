@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import type { PlanWorkout, WorkoutStep } from "@/types/database";
 import { getOrCreateWorkoutSession, saveLoggedSets } from "@/app/actions/strengthSessions";
 import { buildSetLogForm, setLogChanges, updateSetLogRow, type SetLogExercise } from "@/lib/setLogForm";
-import { loadInputLabel } from "@/lib/strengthProgression";
+import { isBandLoad, loadInputLabel } from "@/lib/strengthProgression";
 import { LoadInput } from "@/components/LoadInput";
 import { BandColorsLink } from "@/components/BandColorsModal";
 import { LOAD_FORMAT_LABELS, parseDateLocal } from "@/lib/paceUtils";
@@ -102,7 +102,7 @@ export function LogSetsModal({ workout, steps, sessionSource, onClose, onSaved }
                 {ex.loadFormat && (
                   <p className="text-xs text-[var(--muted)]">
                     {LOAD_FORMAT_LABELS[ex.loadFormat] ?? ex.loadFormat}
-                    {ex.loadFormat === "band" && (
+                    {isBandLoad(ex.loadFormat) && (
                       <>
                         {" · "}
                         <BandColorsLink />
