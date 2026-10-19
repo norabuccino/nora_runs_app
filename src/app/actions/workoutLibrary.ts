@@ -5,6 +5,12 @@ import { revalidatePath } from "next/cache";
 import type { WorkoutType, RunType } from "@/types/database";
 import type { WorkoutStepData } from "./workouts";
 
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
 export interface LibraryWorkoutData {
   type: WorkoutType;
   run_type?: RunType | null;
@@ -76,7 +82,7 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
     .eq("library_workout_id", id);
 
   if (linked?.length) {
-    await supabase
+    const { error: linkedError } = await supabase
       .from("plan_workouts")
       .update({
         type: workoutRow.type,
@@ -96,13 +102,21 @@ export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData)
         equipment_removed: workoutRow.equipment_removed ?? [],
       })
       .eq("library_workout_id", id);
+    if (linkedError) throw new Error(linkedError.message);
 
+    // Batched rather than per plan workout: common workouts (e.g. "45 Minutes
+    // Easy") are linked into 100+ plan slots, and two round trips each made
+    // saving take many seconds.
     if (steps !== undefined) {
-      for (const pw of linked) {
-        await supabase.from("workout_steps").delete().eq("plan_workout_id", pw.id);
+      for (const ids of chunk(linked.map((pw) => pw.id), 200)) {
+        const { error: deleteError } = await supabase.from("workout_steps").delete().in("plan_workout_id", ids);
+        if (deleteError) throw new Error(deleteError.message);
         if (steps.length) {
-          const stepsToInsert = steps.map((s, i) => ({ ...s, plan_workout_id: pw.id, workout_id: null, step_order: i }));
-          await supabase.from("workout_steps").insert(stepsToInsert);
+          const stepsToInsert = ids.flatMap((planWorkoutId) =>
+            steps.map((s, i) => ({ ...s, plan_workout_id: planWorkoutId, workout_id: null, step_order: i }))
+          );
+          const { error: insertError } = await supabase.from("workout_steps").insert(stepsToInsert);
+          if (insertError) throw new Error(insertError.message);
         }
       }
     }
