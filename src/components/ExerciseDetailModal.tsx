@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
 import { getExerciseHistory, updateLoggedSets, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad, formatActualSets, isAssistedLoad } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, formatActualSets, loadInputLabel } from "@/lib/strengthProgression";
+import { LoadInput } from "@/components/LoadInput";
 import { setLogDrafts, setLogEdits, type SetLogDraft } from "@/lib/setLogForm";
 
 interface LibraryUsage {
@@ -52,7 +53,7 @@ function SessionSetsEditor({ entry, onSaved, onCancel }: { entry: ExerciseHistor
     <div className="px-3 pb-3 space-y-1.5">
       <div className="grid grid-cols-[4rem_1fr_1fr] gap-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
         <span>Set</span>
-        <span className="text-center">{isAssistedLoad(entry.loadFormat) ? "Assist (lb)" : "Weight (lb)"}</span>
+        <span className="text-center">{loadInputLabel(entry.loadFormat)}</span>
         <span className="text-center">{showReps ? "Reps" : showSeconds ? "Seconds" : ""}</span>
       </div>
       {entry.sets.map((s) => (
@@ -61,13 +62,10 @@ function SessionSetsEditor({ entry, onSaved, onCancel }: { entry: ExerciseHistor
             Set {s.set_number}
             {s.side && ` ${s.side === "left" ? "L" : "R"}`}
           </span>
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="any"
+          <LoadInput
+            loadFormat={entry.loadFormat}
             value={drafts[s.id]?.weight ?? ""}
-            onChange={(e) => set(s.id, "weight", e.target.value)}
+            onChange={(v) => set(s.id, "weight", v)}
             aria-label={`Set ${s.set_number} weight`}
             className={setInputClass}
           />

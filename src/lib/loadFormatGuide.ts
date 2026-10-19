@@ -66,7 +66,7 @@ export const LOAD_FORMAT_GUIDE: GuideEntry[] = [
   },
   {
     key: "band",
-    meaning: "The band is the resistance — log the band level.",
+    meaning: "The band is the resistance — pick its level (Extra light, Light, Medium, Heavy, Extra heavy) instead of a weight.",
     whenToUse: "Exercises where a band, not a weight, provides the load.",
     examples: "Mini band hip work, clamshells, monster walks, Paloff press, banded rotations",
   },

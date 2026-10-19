@@ -19,7 +19,8 @@ import {
   getLastPerformances,
   type ExerciseHistoryEntry,
 } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad, formatActualSets } from "@/lib/strengthProgression";
+import { formatLoad, deriveCurrentLoad, formatActualSets, isBandLoad, loadInputLabel } from "@/lib/strengthProgression";
+import { LoadInput } from "@/components/LoadInput";
 import { WorkoutOutline } from "@/components/WorkoutOutline";
 
 const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
@@ -656,15 +657,13 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
             {isWeighted && (
               <label className="flex flex-col items-center gap-1">
                 <span className="text-xs text-[var(--muted)]">
-                  {sessionExercise?.load_format === "assisted" ? "Assist (lb)" : "Weight"}
+                  {loadInputLabel(sessionExercise?.load_format)}
                 </span>
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.5"
+                <LoadInput
+                  loadFormat={sessionExercise?.load_format ?? null}
                   value={weightInput}
-                  onChange={(e) => setWeightInput(e.target.value)}
-                  className="w-24 text-center text-lg rounded-lg border border-[var(--border)] bg-[var(--background)] py-1.5"
+                  onChange={setWeightInput}
+                  className={`${isBandLoad(sessionExercise?.load_format) ? "w-36" : "w-24"} text-center text-lg rounded-lg border border-[var(--border)] bg-[var(--background)] py-1.5`}
                 />
               </label>
             )}

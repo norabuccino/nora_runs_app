@@ -1,6 +1,30 @@
 import type { WorkoutSetLog } from "@/types/database";
 
 /**
+ * Band resistance is logged as an ordered level (stored in `weight`) and shown
+ * by name — bands are light/medium/heavy, not pounds, and brands disagree on
+ * colors. Keeping it numeric lets trends and "go up a band" still work.
+ */
+export const BAND_LEVELS: { value: number; label: string }[] = [
+  { value: 1, label: "Extra light" },
+  { value: 2, label: "Light" },
+  { value: 3, label: "Medium" },
+  { value: 4, label: "Heavy" },
+  { value: 5, label: "Extra heavy" },
+];
+
+export function isBandLoad(loadFormat: string | null | undefined): boolean {
+  return loadFormat === "band";
+}
+
+/** Column/field heading for a logged load: a band level, machine assistance, or plain weight. */
+export function loadInputLabel(loadFormat: string | null | undefined): string {
+  if (isBandLoad(loadFormat)) return "Band";
+  if (isAssistedLoad(loadFormat)) return "Assist (lb)";
+  return "Weight (lb)";
+}
+
+/**
  * Turns a raw weight number + load format into unambiguous display text —
  * the single place that decides whether "30" means 30 lb total or two
  * 30-lb dumbbells.
@@ -20,8 +44,10 @@ export function formatLoad(weight: number | null, loadFormat: string | null): st
       return `${weight} lb (bar total)`;
     case "machine":
       return `${weight} lb (machine)`;
-    case "band":
-      return `Band level ${weight}`;
+    case "band": {
+      const level = BAND_LEVELS.find((l) => l.value === weight);
+      return level ? `${level.label} band` : `Band level ${weight}`;
+    }
     case "assisted":
       return `${weight} lb assist`;
     case "total":
@@ -134,8 +160,12 @@ export function computeRecommendation({
     return {
       status: "increase",
       // "increase" = make it harder: for an assisted machine that means less assistance (never below 0).
-      suggestedWeight:
-        defaultIncrement == null
+      // For a band it's always the next band up (none past the heaviest), whatever the increment.
+      suggestedWeight: isBandLoad(loadFormat)
+        ? currentWeight < BAND_LEVELS[BAND_LEVELS.length - 1].value
+          ? currentWeight + 1
+          : undefined
+        : defaultIncrement == null
           ? undefined
           : isAssistedLoad(loadFormat)
           ? Math.max(0, currentWeight - defaultIncrement)

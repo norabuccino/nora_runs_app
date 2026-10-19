@@ -6,6 +6,7 @@ import {
   computeRecommendation,
   sortSetLogs,
   formatActualSets,
+  loadInputLabel,
 } from "@/lib/strengthProgression";
 import type { WorkoutSetLog } from "@/types/database";
 
@@ -268,5 +269,27 @@ describe("formatActualSets", () => {
 
   it("returns null when nothing was recorded", () => {
     expect(formatActualSets([makeSet({})])).toBeNull();
+  });
+});
+
+describe("band levels", () => {
+  it("formats band levels by name", () => {
+    expect(formatLoad(1, "band")).toBe("Extra light band");
+    expect(formatLoad(3, "band")).toBe("Medium band");
+    expect(formatLoad(7, "band")).toBe("Band level 7");
+  });
+
+  it("labels the load field by format", () => {
+    expect(loadInputLabel("band")).toBe("Band");
+    expect(loadInputLabel("assisted")).toBe("Assist (lb)");
+    expect(loadInputLabel("per_hand")).toBe("Weight (lb)");
+    expect(loadInputLabel(null)).toBe("Weight (lb)");
+  });
+
+  it("suggests the next band up, ignoring the increment, and nothing past the heaviest", () => {
+    const sets = [{ set_number: 1, side: null, weight: 3, reps_completed: 12, duration_seconds: null, completed: true }] as WorkoutSetLog[];
+    const base = { plannedReps: 12, plannedDurationSeconds: null, sets, previousWeight: null, loadFormat: "band" };
+    expect(computeRecommendation({ ...base, currentWeight: 3, defaultIncrement: 5 })).toEqual({ status: "increase", suggestedWeight: 4 });
+    expect(computeRecommendation({ ...base, currentWeight: 5, defaultIncrement: null })).toEqual({ status: "increase", suggestedWeight: undefined });
   });
 });

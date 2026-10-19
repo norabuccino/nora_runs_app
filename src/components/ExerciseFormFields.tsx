@@ -264,6 +264,8 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                 {guideOpen && <LoadFormatGuide compact />}
               </div>
 
+              {/* Bands step up one level at a time, so there's no increment to set. */}
+              {value.load_format !== "band" && (
               <div className="space-y-1">
                 <label className={labelClass}>Default increment <span className="text-[var(--muted)]">(optional)</span></label>
                 <input
@@ -276,6 +278,7 @@ export function ExerciseFormFields({ value, onChange, sourceSuggestions, autoFoc
                   className={inputClass}
                 />
               </div>
+              )}
             </div>
           )}
         </>

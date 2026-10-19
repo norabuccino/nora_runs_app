@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import type { PlanWorkout, WorkoutStep } from "@/types/database";
 import { getOrCreateWorkoutSession, saveLoggedSets } from "@/app/actions/strengthSessions";
 import { buildSetLogForm, setLogChanges, updateSetLogRow, type SetLogExercise } from "@/lib/setLogForm";
-import { isAssistedLoad } from "@/lib/strengthProgression";
+import { loadInputLabel } from "@/lib/strengthProgression";
+import { LoadInput } from "@/components/LoadInput";
 import { LOAD_FORMAT_LABELS, parseDateLocal } from "@/lib/paceUtils";
 
 interface LogSetsModalProps {
@@ -104,7 +105,7 @@ export function LogSetsModal({ workout, steps, sessionSource, onClose, onSaved }
               <div className="px-3 py-2 space-y-1.5">
                 <div className="grid grid-cols-[4.5rem_1fr_1fr_1.5rem] gap-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
                   <span>Set</span>
-                  <span className="text-center">{ex.weighted ? (isAssistedLoad(ex.loadFormat) ? "Assist (lb)" : "Weight (lb)") : ""}</span>
+                  <span className="text-center">{ex.weighted ? loadInputLabel(ex.loadFormat) : ""}</span>
                   <span className="text-center">{ex.repsBased ? "Reps" : ex.timed ? "Seconds" : ""}</span>
                   <span />
                 </div>
@@ -118,13 +119,10 @@ export function LogSetsModal({ workout, steps, sessionSource, onClose, onSaved }
                       {row.side && ` ${row.side === "left" ? "L" : "R"}`}
                     </span>
                     {ex.weighted ? (
-                      <input
-                        type="number"
-                        inputMode="decimal"
-                        min={0}
-                        step="any"
+                      <LoadInput
+                        loadFormat={ex.loadFormat}
                         value={row.weight}
-                        onChange={(e) => update(i, j, "weight", e.target.value)}
+                        onChange={(v) => update(i, j, "weight", v)}
                         disabled={!row.done}
                         aria-label={`Set ${row.setNumber} weight`}
                         className={inputClass}
