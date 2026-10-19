@@ -9,14 +9,9 @@ import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
 import { BandColorsLink } from "@/components/BandColorsModal";
 import { useBandColors } from "@/hooks/useBandColors";
 import { MuscleGroupBalance } from "@/components/MuscleGroupBalance";
+import { SuggestionLegend } from "@/components/ProgressionGuide";
+import { SUGGESTION_INDICATORS } from "@/lib/progressionGuide";
 import type { Exercise } from "@/types/database";
-
-const RECOMMENDATION_LABELS: Record<string, string> = {
-  hold: "Hold",
-  increase: "Increase",
-  build_reps: "Build reps",
-  none: "—",
-};
 
 const TREND_ICONS: Record<string, string> = { up: "↑", down: "↓", same: "→" };
 const TREND_COLORS: Record<string, string> = {
@@ -148,12 +143,14 @@ export default function ProgressionPage() {
                         loadFormat,
                       })
                     : { status: "none" as const };
-                  const suggestion =
-                    rec.status === "increase" && rec.suggestedWeight != null
-                      ? `${assisted ? "Reduce to" : "Increase to"} ${formatLoad(rec.suggestedWeight, loadFormat, bandColors)}`
-                      : rec.status === "increase" && assisted
-                      ? "Reduce assist"
-                      : RECOMMENDATION_LABELS[rec.status];
+                  const indicator = SUGGESTION_INDICATORS[rec.status];
+                  const suggestedLoad =
+                    rec.status === "increase" && rec.suggestedWeight != null ? formatLoad(rec.suggestedWeight, loadFormat, bandColors) : null;
+                  const suggestionTitle = suggestedLoad
+                    ? `${assisted ? "Reduce to" : "Increase to"} ${suggestedLoad}`
+                    : rec.status === "increase" && assisted
+                    ? "Reduce assist"
+                    : indicator.label;
 
                   return (
                     <tr
@@ -168,7 +165,10 @@ export default function ProgressionPage() {
                       <td className={`px-3 py-2 whitespace-nowrap font-medium ${trend ? TREND_COLORS[trend] : "text-[var(--muted)]"}`}>
                         {trend ? TREND_ICONS[trend] : "—"}
                       </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">{suggestion}</td>
+                      <td className="px-3 py-2 whitespace-nowrap" title={suggestionTitle}>
+                        <span className={`font-medium ${indicator.color}`}>{indicator.icon}</span>
+                        {suggestedLoad && <span className="ml-1 text-[var(--muted)]">{suggestedLoad}</span>}
+                      </td>
                     </tr>
                   );
                 })}
@@ -176,6 +176,7 @@ export default function ProgressionPage() {
               ))}
             </table>
           </div>
+          <SuggestionLegend />
         </div>
       )}
 

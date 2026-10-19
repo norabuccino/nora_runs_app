@@ -321,6 +321,7 @@ Users can toggle a global mi/km display preference from the nav (`Nav.tsx`). `us
 | `DeleteExerciseModal` | Shown when deleting an exercise used in workouts — lists where it's used and offers to replace it with another library exercise (optionally moving its logged history) |
 | `SourcesInput` | Chip-style multi-value input for exercise sources (Enter/comma adds, × removes, suggests existing sources) |
 | `LoadFormatGuide` / `LoadingCategoryGuide` | Cheat sheets of every load format and loading category (meaning, when to use, examples; text in `src/lib/loadFormatGuide.ts` / `src/lib/loadingCategoryGuide.ts` — add an entry when adding a `LOAD_FORMAT_LABELS` / `LOADING_CATEGORY_LABELS` key, a test enforces it). Shown on `/reference` (Nav: "Reference", a home for reference material) and behind "Which one?" under the exercise form's Loading category / Load format fields |
+| `ProgressionGuide` / `SuggestionLegend` | How `/progression` derives loads, trend and suggestions (text + suggestion icons in `src/lib/progressionGuide.ts` — keep in step with `computeTrend`/`computeRecommendation`). Full guide on `/reference#progression`; the legend sits under the progression table |
 | `MuscleGroupBalance` | Muscle group balance section on `/progression` (see Strength progression above) |
 | `BadgeColorEditor` | Admin UI (`/admin/badge-colors`) for customizing workout/run-type badge colors and layout |
 | `PaceCalculator` | Pace calculation utility UI |

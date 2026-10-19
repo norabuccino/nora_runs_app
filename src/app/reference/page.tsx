@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LoadFormatGuide, LoadingCategoryGuide } from "@/components/LoadFormatGuide";
+import { ProgressionGuide } from "@/components/ProgressionGuide";
 
 export default function ReferencePage() {
   return (
@@ -30,6 +31,18 @@ export default function ReferencePage() {
           </p>
         </div>
         <LoadingCategoryGuide />
+      </section>
+
+      <section id="progression" className="space-y-3 scroll-mt-20">
+        <div>
+          <h2 className="font-semibold">Progression suggestions</h2>
+          <p className="text-sm text-[var(--muted)] mt-0.5">
+            How the{" "}
+            <Link href="/progression" className="text-[var(--accent)] hover:underline">Progression</Link> table works out
+            each exercise&apos;s loads, trend and suggestion.
+          </p>
+        </div>
+        <ProgressionGuide />
       </section>
     </div>
   );
