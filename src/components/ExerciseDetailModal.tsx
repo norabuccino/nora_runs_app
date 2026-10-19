@@ -2,12 +2,13 @@
 
 import { MUSCLE_GROUP_LABELS, sortMuscleGroups } from "@/lib/muscleGroups";
 import { EQUIPMENT_LABELS, sortEquipment } from "@/lib/equipment";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Exercise } from "@/types/database";
 import { EXERCISE_TYPE_LABELS, EXERCISE_TYPE_COLORS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
-import { getExerciseHistory, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
-import { formatLoad, deriveCurrentLoad, formatActualSets } from "@/lib/strengthProgression";
+import { getExerciseHistory, updateLoggedSets, type ExerciseHistoryEntry } from "@/app/actions/strengthSessions";
+import { formatLoad, deriveCurrentLoad, formatActualSets, isAssistedLoad } from "@/lib/strengthProgression";
+import { setLogDrafts, setLogEdits, type SetLogDraft } from "@/lib/setLogForm";
 
 interface LibraryUsage {
   workout_id: string;
@@ -19,6 +20,83 @@ interface PlanUsage {
   plan_name: string;
   workout_title: string;
   count: number;
+}
+
+const setInputClass =
+  "w-full min-w-0 rounded-md border border-[var(--border)] bg-[var(--card)] px-2 py-1 text-xs text-center focus:outline-none focus:border-[var(--accent)]";
+
+/** Inline editor for one past session's logged sets of this exercise. */
+function SessionSetsEditor({ entry, onSaved, onCancel }: { entry: ExerciseHistoryEntry; onSaved: () => void; onCancel: () => void }) {
+  const [drafts, setDrafts] = useState<Record<string, SetLogDraft>>(() => setLogDrafts(entry.sets));
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const showReps = entry.plannedReps != null || entry.sets.some((s) => s.reps_completed != null);
+  const showSeconds = !showReps && (entry.plannedDurationSeconds != null || entry.sets.some((s) => s.duration_seconds != null));
+
+  function set(id: string, field: keyof SetLogDraft, value: string) {
+    setDrafts((d) => ({ ...d, [id]: { ...d[id], [field]: value } }));
+  }
+
+  function save() {
+    startTransition(async () => {
+      try {
+        await updateLoggedSets(setLogEdits(entry.sets, drafts));
+        onSaved();
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    });
+  }
+
+  return (
+    <div className="px-3 pb-3 space-y-1.5">
+      <div className="grid grid-cols-[4rem_1fr_1fr] gap-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+        <span>Set</span>
+        <span className="text-center">{isAssistedLoad(entry.loadFormat) ? "Assist (lb)" : "Weight (lb)"}</span>
+        <span className="text-center">{showReps ? "Reps" : showSeconds ? "Seconds" : ""}</span>
+      </div>
+      {entry.sets.map((s) => (
+        <div key={s.id} className="grid grid-cols-[4rem_1fr_1fr] gap-2 items-center">
+          <span className="text-xs text-[var(--muted)]">
+            Set {s.set_number}
+            {s.side && ` ${s.side === "left" ? "L" : "R"}`}
+          </span>
+          <input
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            value={drafts[s.id]?.weight ?? ""}
+            onChange={(e) => set(s.id, "weight", e.target.value)}
+            aria-label={`Set ${s.set_number} weight`}
+            className={setInputClass}
+          />
+          {showReps || showSeconds ? (
+            <input
+              type="number"
+              inputMode="numeric"
+              min={0}
+              value={drafts[s.id]?.[showReps ? "reps" : "seconds"] ?? ""}
+              onChange={(e) => set(s.id, showReps ? "reps" : "seconds", e.target.value)}
+              aria-label={`Set ${s.set_number} ${showReps ? "reps" : "seconds"}`}
+              className={setInputClass}
+            />
+          ) : (
+            <span />
+          )}
+        </div>
+      ))}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex justify-end gap-3 pt-1 text-xs">
+        <button onClick={onCancel} className="text-[var(--muted)] hover:text-[var(--foreground)]">
+          Cancel
+        </button>
+        <button onClick={save} disabled={isPending} className="font-medium text-[var(--accent)] hover:underline disabled:opacity-50">
+          {isPending ? "Saving…" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface ExerciseDetailModalProps {
@@ -35,6 +113,8 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
   const [loading, setLoading] = useState(true);
   const [history, setHistory] = useState<ExerciseHistoryEntry[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(exercise.track_load);
+  const [editingSession, setEditingSession] = useState<string | null>(null);
+  const [historyVersion, setHistoryVersion] = useState(0); // bumped after an edit to refetch
 
   useEffect(() => {
     if (!exercise.track_load) return;
@@ -47,7 +127,7 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
       }
     });
     return () => { cancelled = true; };
-  }, [exercise.id, exercise.track_load]);
+  }, [exercise.id, exercise.track_load, historyVersion]);
 
   useEffect(() => {
     async function fetchUsage() {
@@ -240,13 +320,34 @@ export function ExerciseDetailModal({ exercise, onClose, onEdit, onSelect }: Exe
                     const load = deriveCurrentLoad(entry.sets);
                     const loadLabel = load != null ? formatLoad(load, entry.loadFormat) : null;
                     const actual = formatActualSets(entry.sets);
+                    const editing = editingSession === entry.sessionId;
                     return (
-                      <div key={entry.sessionId} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-                        <div className="min-w-0">
-                          <p className="font-medium">{entry.sessionDate} · {entry.workoutTitle}</p>
-                          {actual && <p className="text-[var(--muted)] mt-0.5">{actual}</p>}
-                        </div>
-                        {loadLabel && <span className="font-medium shrink-0">{loadLabel}</span>}
+                      <div key={entry.sessionId} className={editing ? "bg-[var(--card)]" : ""}>
+                        <button
+                          onClick={() => setEditingSession(editing ? null : entry.sessionId)}
+                          disabled={entry.sets.length === 0}
+                          title={entry.sets.length ? "Edit the logged sets" : undefined}
+                          className="w-full flex items-center justify-between gap-3 px-3 py-2 text-xs text-left hover:bg-[var(--card)] transition-colors disabled:hover:bg-transparent"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium">{entry.sessionDate} · {entry.workoutTitle}</p>
+                            {actual && <p className="text-[var(--muted)] mt-0.5">{actual}</p>}
+                          </div>
+                          <span className="flex items-center gap-2 shrink-0">
+                            {loadLabel && <span className="font-medium">{loadLabel}</span>}
+                            {entry.sets.length > 0 && <span className="text-[var(--muted)]">{editing ? "▴" : "✎"}</span>}
+                          </span>
+                        </button>
+                        {editing && (
+                          <SessionSetsEditor
+                            entry={entry}
+                            onCancel={() => setEditingSession(null)}
+                            onSaved={() => {
+                              setEditingSession(null);
+                              setHistoryVersion((v) => v + 1);
+                            }}
+                          />
+                        )}
                       </div>
                     );
                   })}

@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { sortSetLogs } from "@/lib/strengthProgression";
-import type { SetLogRemoval, SetLogUpsert } from "@/lib/setLogForm";
+import type { SetLogEdit, SetLogRemoval, SetLogUpsert } from "@/lib/setLogForm";
 import {
   loggedSetCount,
   mergeCompletedWork,
@@ -238,6 +238,33 @@ export async function saveLoggedSets(
       .update({ completed_at: new Date().toISOString() })
       .eq("id", sessionId)
       .eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/progression");
+}
+
+/** Corrects already-logged sets (weight/reps/time) — edited from an exercise's strength history. */
+export async function updateLoggedSets(edits: SetLogEdit[]): Promise<void> {
+  if (edits.length === 0) return;
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const ids = edits.map((e) => e.id);
+  const { data: owned, error: ownedError } = await supabase
+    .from("workout_set_logs")
+    .select("id, workout_session_exercises!inner(workout_sessions!inner(user_id))")
+    .in("id", ids)
+    .eq("workout_session_exercises.workout_sessions.user_id", user.id);
+  if (ownedError) throw new Error(ownedError.message);
+  if ((owned ?? []).length !== new Set(ids).size) throw new Error("Set not found");
+
+  for (const e of edits) {
+    const { error } = await supabase
+      .from("workout_set_logs")
+      .update({ weight: e.weight, reps_completed: e.reps_completed, duration_seconds: e.duration_seconds })
+      .eq("id", e.id);
     if (error) throw new Error(error.message);
   }
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildSetLogForm, setLogChanges, updateSetLogRow } from "@/lib/setLogForm";
+import { buildSetLogForm, setLogChanges, setLogDrafts, setLogEdits, updateSetLogRow } from "@/lib/setLogForm";
 import { completedAtForDate } from "@/lib/scheduledWorkout";
 import type { WorkoutStep, WorkoutSessionExerciseWithSets, WorkoutSetLog } from "@/types/database";
 
@@ -121,5 +121,26 @@ describe("setLogChanges", () => {
 describe("completedAtForDate", () => {
   it("is midday UTC on that date", () => {
     expect(completedAtForDate("2026-03-04")).toBe("2026-03-04T12:00:00.000Z");
+  });
+});
+
+describe("setLogEdits", () => {
+  const sets = [
+    { id: "s1", weight: 40, reps_completed: 10, duration_seconds: null },
+    { id: "s2", weight: 40, reps_completed: 8, duration_seconds: null },
+  ];
+
+  it("returns nothing when no values changed", () => {
+    expect(setLogEdits(sets, setLogDrafts(sets))).toEqual([]);
+  });
+
+  it("returns only changed sets, with cleared fields as null", () => {
+    const drafts = setLogDrafts(sets);
+    drafts.s2 = { ...drafts.s2, weight: "45" };
+    drafts.s1 = { ...drafts.s1, reps: "" };
+    expect(setLogEdits(sets, drafts)).toEqual([
+      { id: "s1", weight: 40, reps_completed: null, duration_seconds: null },
+      { id: "s2", weight: 45, reps_completed: 8, duration_seconds: null },
+    ]);
   });
 });

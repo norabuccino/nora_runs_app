@@ -145,3 +145,51 @@ export function setLogChanges(form: SetLogExercise[]): { upserts: SetLogUpsert[]
   return { upserts, removals };
 }
 
+
+/** Editable text for one already-logged set (editing a past session from the exercise's strength history). */
+export interface SetLogDraft {
+  weight: string;
+  reps: string;
+  seconds: string;
+}
+
+type LoggedSet = { id: string; weight: number | null; reps_completed: number | null; duration_seconds: number | null };
+
+export function setLogDrafts(sets: LoggedSet[]): Record<string, SetLogDraft> {
+  return Object.fromEntries(
+    sets.map((s) => [
+      s.id,
+      {
+        weight: s.weight != null ? String(s.weight) : "",
+        reps: s.reps_completed != null ? String(s.reps_completed) : "",
+        seconds: s.duration_seconds != null ? String(s.duration_seconds) : "",
+      },
+    ])
+  );
+}
+
+export interface SetLogEdit {
+  id: string;
+  weight: number | null;
+  reps_completed: number | null;
+  duration_seconds: number | null;
+}
+
+/** Only the sets whose values actually changed; a cleared field saves as null. */
+export function setLogEdits(sets: LoggedSet[], drafts: Record<string, SetLogDraft>): SetLogEdit[] {
+  const edits: SetLogEdit[] = [];
+  for (const s of sets) {
+    const d = drafts[s.id];
+    if (!d) continue;
+    const edit = {
+      id: s.id,
+      weight: parseNumber(d.weight, parseFloat),
+      reps_completed: parseNumber(d.reps, (v) => parseInt(v, 10)),
+      duration_seconds: parseNumber(d.seconds, (v) => parseInt(v, 10)),
+    };
+    if (edit.weight !== s.weight || edit.reps_completed !== s.reps_completed || edit.duration_seconds !== s.duration_seconds) {
+      edits.push(edit);
+    }
+  }
+  return edits;
+}
