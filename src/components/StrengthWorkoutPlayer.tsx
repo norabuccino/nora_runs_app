@@ -23,6 +23,19 @@ import { formatLoad, deriveCurrentLoad, formatActualSets, isBandLoad, loadInputL
 import { LoadInput } from "@/components/LoadInput";
 import { useBandColors } from "@/hooks/useBandColors";
 import { WorkoutOutline } from "@/components/WorkoutOutline";
+import type { OutlineItem } from "@/lib/workoutSteps";
+import {
+  canMoveCurrentExerciseToEnd,
+  initialQueue,
+  isValidQueue,
+  jumpToBeat,
+  moveCurrentExerciseToEnd,
+  remainingCounts,
+  restoreSkipped,
+  skipCurrentExercise,
+  skipCurrentSet,
+  type SessionQueue,
+} from "@/lib/sessionQueue";
 
 const RESUME_MAX_AGE_MS = 12 * 60 * 60 * 1000; // don't resume an untracked session older than this
 
@@ -30,30 +43,40 @@ function storageKey(workoutId: string) {
   return `strength-session:${workoutId}`;
 }
 
-function loadSavedBeatIndex(workoutId: string, beatCount: number): number {
+/** A tracked session's skips/reorders, keyed by session id (its position comes from the logged sets). */
+function sessionQueueKey(sessionId: string) {
+  return `strength-session-queue:${sessionId}`;
+}
+
+/** A saved running order (and position) — null if missing, stale, or for a different set of beats. */
+function loadSavedQueue(key: string, beatCount: number): SessionQueue | null {
   try {
-    const raw = localStorage.getItem(storageKey(workoutId));
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw) as { beatIndex: number; savedAt: number };
-    if (Date.now() - parsed.savedAt > RESUME_MAX_AGE_MS) return 0;
-    if (!Number.isInteger(parsed.beatIndex) || parsed.beatIndex < 0 || parsed.beatIndex >= beatCount) return 0;
-    return parsed.beatIndex;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { queue?: unknown; beatIndex?: number; savedAt: number };
+    if (Date.now() - parsed.savedAt > RESUME_MAX_AGE_MS) return null;
+    if (isValidQueue(parsed.queue, beatCount)) return parsed.queue;
+    // Saved before skipping/reordering existed: just a beat index.
+    if (Number.isInteger(parsed.beatIndex) && parsed.beatIndex! >= 0 && parsed.beatIndex! < beatCount) {
+      return initialQueue(beatCount, parsed.beatIndex);
+    }
+    return null;
   } catch {
-    return 0;
+    return null;
   }
 }
 
-function saveBeatIndex(workoutId: string, beatIndex: number) {
+function saveQueue(key: string, queue: SessionQueue) {
   try {
-    localStorage.setItem(storageKey(workoutId), JSON.stringify({ beatIndex, savedAt: Date.now() }));
+    localStorage.setItem(key, JSON.stringify({ queue, savedAt: Date.now() }));
   } catch {
     // localStorage unavailable (private browsing, etc.) — session just won't resume
   }
 }
 
-function clearSavedSession(workoutId: string) {
+function clearSaved(key: string) {
   try {
-    localStorage.removeItem(storageKey(workoutId));
+    localStorage.removeItem(key);
   } catch {
     // ignore
   }
@@ -72,23 +95,25 @@ function logMatchesBeat(log: { set_number: number; side: string | null }, beat: 
 }
 
 /**
- * DB-driven resume position: the first beat whose exercise is tracked but
- * doesn't yet have a logged set for its slot (and side). Falls back to the start if
- * nothing in the workout is trackable, or the end if everything already is.
+ * DB-driven resume position in the running order: the first beat whose exercise
+ * is tracked but doesn't yet have a logged set for its slot (and side). Falls back
+ * to the start if nothing in the workout is trackable, or the end if everything already is.
  */
-function findResumeIndex(
+function findResumePosition(
   beats: SessionBeat[],
+  order: number[],
   sessionExerciseByStepId: Map<string, WorkoutSessionExerciseWithSets>
 ): number {
   let hadLoggable = false;
-  for (let i = 0; i < beats.length; i++) {
-    const se = sessionExerciseByStepId.get(beats[i].step.id);
+  for (let p = 0; p < order.length; p++) {
+    const beat = beats[order[p]];
+    const se = sessionExerciseByStepId.get(beat.step.id);
     if (!se) continue;
     hadLoggable = true;
-    const logged = se.workout_set_logs.some((l) => logMatchesBeat(l, beats[i]) && l.completed);
-    if (!logged) return i;
+    const logged = se.workout_set_logs.some((l) => logMatchesBeat(l, beat) && l.completed);
+    if (!logged) return p;
   }
-  return hadLoggable ? Math.max(0, beats.length - 1) : 0;
+  return hadLoggable ? Math.max(0, order.length - 1) : 0;
 }
 
 // One AudioContext for the whole player. Browsers (notably iOS Safari) keep a
@@ -272,6 +297,18 @@ function Overlay({ children, onExit }: { children: React.ReactNode; onExit?: () 
   );
 }
 
+function AdjustOption({ label, detail, onClick }: { label: string; detail: string | null; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-xl px-3 py-2.5 hover:bg-[var(--card)] transition-colors"
+    >
+      <span className="block text-sm font-medium">{label}</span>
+      {detail && <span className="block text-xs text-[var(--muted)]">{detail}</span>}
+    </button>
+  );
+}
+
 export type SessionSource =
   | { planWorkoutId: string; sessionDate: string }
   | { scheduledWorkoutId: string; sessionDate: string };
@@ -299,7 +336,14 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const [session, setSession] = useState<WorkoutSession | null>(null);
   const [sessionExercises, setSessionExercises] = useState<WorkoutSessionExerciseWithSets[]>([]);
   const [lastPerf, setLastPerf] = useState<Record<string, ExerciseHistoryEntry>>({});
-  const [beatIndex, setBeatIndex] = useState(() => (tracked ? 0 : loadSavedBeatIndex(workout.id, beats.length)));
+  // The running order — adjustable mid-workout (skip a set, skip an exercise, move one to the end).
+  const [queue, setQueue] = useState<SessionQueue>(() =>
+    tracked ? initialQueue(beats.length) : loadSavedQueue(storageKey(workout.id), beats.length) ?? initialQueue(beats.length)
+  );
+  const beatIndex = queue.order[queue.position] ?? 0;
+  const [adjustOpen, setAdjustOpen] = useState(false);
+  // One-step undo for the last skip/move, shown briefly as a toast.
+  const [undo, setUndo] = useState<{ label: string; queue: SessionQueue } | null>(null);
   const [finished, setFinished] = useState(false);
   const [weightInput, setWeightInput] = useState("");
   const bandColors = useBandColors();
@@ -331,7 +375,9 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
       if (cancelled) return;
       setLastPerf(perf);
       const stepMap = new Map(result.exercises.filter((e) => e.source_workout_step_id).map((e) => [e.source_workout_step_id!, e]));
-      setBeatIndex(findResumeIndex(beats, stepMap));
+      const saved = loadSavedQueue(sessionQueueKey(result.session.id), beats.length);
+      const order = saved?.order ?? initialQueue(beats.length).order;
+      setQueue({ order, skipped: saved?.skipped ?? [], position: findResumePosition(beats, order, stepMap) });
       setLoadingSession(false);
     })();
     return () => { cancelled = true; };
@@ -340,8 +386,16 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   }, []);
 
   useEffect(() => {
-    if (!tracked && !finished) saveBeatIndex(workout.id, beatIndex);
-  }, [workout.id, beatIndex, finished, tracked]);
+    if (finished || loadingSession) return;
+    if (!tracked) saveQueue(storageKey(workout.id), queue);
+    else if (session) saveQueue(sessionQueueKey(session.id), queue);
+  }, [workout.id, queue, finished, tracked, session, loadingSession]);
+
+  useEffect(() => {
+    if (!undo) return;
+    const id = setTimeout(() => setUndo(null), 6000);
+    return () => clearTimeout(id);
+  }, [undo]);
 
   const sessionExerciseByStepId = useMemo(
     () => new Map(sessionExercises.filter((e) => e.source_workout_step_id).map((e) => [e.source_workout_step_id!, e])),
@@ -401,7 +455,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   }
 
   const beat = beats[beatIndex];
-  const isLast = beatIndex === beats.length - 1;
+  const isLast = queue.position >= queue.order.length - 1;
   const sessionExercise = sessionExerciseByStepId.get(beat.step.id) ?? null;
   const isWeighted = sessionExercise != null && sessionExercise.load_format != null;
   const hasReps = beat.step.reps != null;
@@ -430,18 +484,44 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     });
   }
 
+  function finishWorkout() {
+    if (session) {
+      void completeWorkoutSession(session.id).catch(() => {});
+      clearSaved(sessionQueueKey(session.id));
+    }
+    if (!tracked) clearSaved(storageKey(workout.id));
+    setFinished(true);
+  }
+
   function advance() {
     logCurrentBeat();
+    setUndo(null); // undo would also rewind past this set
     if (isLast) {
-      if (session) {
-        void completeWorkoutSession(session.id).catch(() => {});
-      }
-      if (!tracked) clearSavedSession(workout.id);
-      setFinished(true);
+      finishWorkout();
     } else {
-      if (continuous) setAutoStartBeat(beatIndex + 1);
-      setBeatIndex(beatIndex + 1);
+      if (continuous) setAutoStartBeat(queue.order[queue.position + 1]);
+      setQueue({ ...queue, position: queue.position + 1 });
     }
+  }
+
+  /** Apply a skip/move from the adjust sheet; finishes the workout if nothing is left. */
+  function adjust(next: SessionQueue, label: string) {
+    setAdjustOpen(false);
+    setAutoStartBeat(null);
+    if (next.position >= next.order.length) {
+      setQueue(next);
+      finishWorkout();
+      return;
+    }
+    setUndo({ label, queue });
+    setQueue(next);
+  }
+
+  function undoAdjust() {
+    if (!undo) return;
+    setAutoStartBeat(null);
+    setQueue(undo.queue);
+    setUndo(null);
   }
 
   /** Continuous mode: the current timer ran out — move straight on, and announce it. */
@@ -453,12 +533,18 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
   function goBack() {
     setAutoStartBeat(null);
-    setBeatIndex((i) => Math.max(0, i - 1));
+    setQueue((q) => ({ ...q, position: Math.max(0, q.position - 1) }));
   }
 
-  function jumpTo(index: number) {
+  function selectOutlineItem(item: OutlineItem) {
     setAutoStartBeat(null);
-    setBeatIndex(index);
+    setUndo(null);
+    if (item.remainingBeats === 0 && item.skippedBeats > 0) {
+      setQueue((q) => restoreSkipped(beats, q, item.step));
+    } else if (item.jumpBeat != null) {
+      const target = item.jumpBeat;
+      setQueue((q) => jumpToBeat(q, target));
+    }
     setOutlineOpen(false);
   }
 
@@ -470,7 +556,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
 
   function handleExit() {
     if (!confirm("End this workout session? Your progress will be lost.")) return;
-    if (!tracked) clearSavedSession(workout.id);
+    if (!tracked) clearSaved(storageKey(workout.id));
     onExit();
   }
 
@@ -484,7 +570,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
     ? `Set ${beat.setNumber} of ${beat.totalSets}`
     : null;
 
-  const nextBeat = !isLast ? beats[beatIndex + 1] : null;
+  const nextBeat = !isLast ? beats[queue.order[queue.position + 1]] : null;
   const nextIsSameExercise = nextBeat != null && nextBeat.step.id === beat.step.id;
   const nextIsOtherSide = nextIsSameExercise && nextBeat.side != null && beatSetNumber(nextBeat) === beatSetNumber(beat);
   const nextRepsLabel = nextBeat?.step.reps
@@ -497,7 +583,18 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
   const nextDetail = [nextRepsLabel || nextDurationLabel, nextWeight].filter(Boolean).join(" · ");
 
   const isRest = isRestStep(beat.step);
-  const outline = buildWorkoutOutline(steps, beats, beatIndex);
+  const outline = buildWorkoutOutline(steps, beats, queue);
+  const exerciseName = beat.step.label || "Exercise";
+  const remaining = remainingCounts(beats, queue);
+  const canMoveToEnd = canMoveCurrentExerciseToEnd(beats, queue);
+  const setNoun = beat.isSuperset ? "round" : "set";
+  const skipSetLabel = isRest ? "Skip this rest" : `Skip this ${setNoun}`;
+  const skipSetDetail = isRest
+    ? null
+    : progressLabel
+    ? `${progressLabel}${beat.side ? " (both sides)" : ""} won't be logged`
+    : "It won't be logged";
+  const setsWord = (n: number) => `${n} ${setNoun}${n === 1 ? "" : "s"}`;
   // In continuous mode a timed beat moves on by itself, so a stray tap on the
   // screen shouldn't skip it — the Next button still works.
   const tapToAdvance = !(continuous && isTimed);
@@ -538,12 +635,12 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
             )}
           </p>
           <p key={beatIndex} className="text-sm font-semibold animate-[beat-enter_0.25s_ease-out]">
-            Step {beatIndex + 1} of {beats.length}
+            Step {queue.position + 1} of {queue.order.length}
           </p>
           <div className="mt-1 h-1.5 w-40 max-w-[40vw] rounded-full bg-[var(--border)] overflow-hidden">
             <div
               className="h-full bg-[var(--accent)] transition-all duration-300"
-              style={{ width: `${((beatIndex + 1) / beats.length) * 100}%` }}
+              style={{ width: `${((queue.position + 1) / queue.order.length) * 100}%` }}
             />
           </div>
         </div>
@@ -592,7 +689,7 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3">
-              <WorkoutOutline outline={outline} onJump={jumpTo} />
+              <WorkoutOutline outline={outline} onSelect={selectOutlineItem} />
             </div>
           </aside>
         </div>
@@ -728,23 +825,79 @@ export function StrengthWorkoutPlayer({ workout, steps, sessionSource, onExit, o
       <aside className="hidden lg:flex w-80 shrink-0 flex-col border-l border-[var(--border)]">
         <p className="px-4 pt-3 pb-1 text-xs font-medium text-[var(--muted)] uppercase tracking-wide">Full workout</p>
         <div className="flex-1 overflow-y-auto px-3 pb-3">
-          <WorkoutOutline outline={outline} onJump={jumpTo} />
+          <WorkoutOutline outline={outline} onSelect={selectOutlineItem} />
         </div>
       </aside>
       </div>
+
+      {/* Adjust sheet: skip a set, skip the exercise, or move it to the end */}
+      {adjustOpen && (
+        <div className="absolute inset-0 z-30 flex items-end sm:items-center justify-center bg-black/40" onClick={() => setAdjustOpen(false)}>
+          <div
+            role="dialog"
+            aria-label="Adjust workout"
+            className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-[var(--background)] border border-[var(--border)] p-3 pb-5 animate-[beat-enter_0.2s_ease-out]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="px-2 pt-1 pb-2 text-xs font-medium text-[var(--muted)] uppercase tracking-wide truncate">
+              {exerciseName}
+            </p>
+            <div className="flex flex-col gap-1">
+              <AdjustOption
+                label={skipSetLabel}
+                detail={skipSetDetail}
+                onClick={() => adjust(skipCurrentSet(beats, queue), isRest ? "Skipped rest" : `Skipped ${setNoun} — ${exerciseName}`)}
+              />
+              {remaining.step > remaining.set && (
+                <AdjustOption
+                  label={`Skip ${exerciseName}`}
+                  detail={`Skip the remaining ${setsWord(remaining.stepSets)}`}
+                  onClick={() => adjust(skipCurrentExercise(beats, queue), `Skipped ${exerciseName}`)}
+                />
+              )}
+              {canMoveToEnd && (
+                <AdjustOption
+                  label="Move to end of workout"
+                  detail={`Do the remaining ${setsWord(remaining.stepSets)} after everything else`}
+                  onClick={() => adjust(moveCurrentExerciseToEnd(beats, queue), `Moved ${exerciseName} to the end`)}
+                />
+              )}
+            </div>
+            <button
+              onClick={() => setAdjustOpen(false)}
+              className="mt-2 w-full py-2 text-sm text-[var(--muted)] hover:text-[var(--foreground)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Undo toast for the last skip/move */}
+      {undo && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 max-w-[90vw] rounded-full bg-[var(--foreground)] text-[var(--background)] pl-4 pr-2 py-1.5 text-sm shadow-lg">
+          <span className="truncate">{undo.label}</span>
+          <button onClick={undoAdjust} className="shrink-0 px-2 py-0.5 rounded-full font-semibold text-[var(--accent)] hover:opacity-80">
+            Undo
+          </button>
+        </div>
+      )}
 
       {/* Footer nav */}
       <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border)]">
         <button
           onClick={goBack}
-          disabled={beatIndex === 0}
+          disabled={queue.position === 0}
           className="text-sm text-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-30 transition-colors"
         >
           ‹ Back
         </button>
-        <span className="text-xs text-[var(--muted)]">
-          {beatIndex + 1} / {beats.length}
-        </span>
+        <button
+          onClick={() => setAdjustOpen(true)}
+          className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-sm text-[var(--muted)] hover:text-[var(--foreground)] hover:bg-[var(--card)] transition-colors"
+        >
+          Skip / move…
+        </button>
         <button
           onClick={advance}
           className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 transition-opacity"

@@ -1,4 +1,5 @@
 import type { WorkoutStep } from "@/types/database";
+import type { SessionQueue } from "@/lib/sessionQueue";
 
 /**
  * Groups a flat, ordered list of workout steps into standalone steps and
@@ -183,13 +184,20 @@ export function buildSessionBeats(steps: WorkoutStep[]): SessionBeat[] {
   return beats;
 }
 
-export type OutlineStatus = "done" | "current" | "upcoming";
+export type OutlineStatus = "done" | "current" | "upcoming" | "skipped";
 
 export interface OutlineItem {
   step: WorkoutStep;
-  /** Indices into the session's beats that belong to this step, in order. */
+  /** Indices into the session's beats that belong to this step, in plan order. */
   beatIndices: number[];
   completedBeats: number;
+  /** Beats of this step skipped during the session. */
+  skippedBeats: number;
+  /** Beats still to do (current included). */
+  remainingBeats: number;
+  /** Where tapping the step jumps: its next beat still to do, else its first done beat. */
+  jumpBeat: number | null;
+  /** Fully skipped (nothing done, nothing left) → "skipped"; otherwise done/current/upcoming. */
   status: OutlineStatus;
 }
 
@@ -204,9 +212,23 @@ export interface OutlineSection {
 /**
  * The whole workout as a list of sections (standalone exercises, supersets,
  * named groups) for the session player's overview sidebar, with each step's
- * progress relative to the current beat. Beats before `beatIndex` count as done.
+ * progress relative to the current position. `progress` is either a beat index
+ * (beats before it count as done) or the player's adjusted `SessionQueue`
+ * (beats before its position are done, skipped beats are neither done nor left).
  */
-export function buildWorkoutOutline(steps: WorkoutStep[], beats: SessionBeat[], beatIndex: number): OutlineSection[] {
+export function buildWorkoutOutline(
+  steps: WorkoutStep[],
+  beats: SessionBeat[],
+  progress: number | SessionQueue
+): OutlineSection[] {
+  const queue: SessionQueue =
+    typeof progress === "number"
+      ? { order: beats.map((_, i) => i), position: progress, skipped: [] }
+      : progress;
+  const posOf = new Map(queue.order.map((beatIndex, p) => [beatIndex, p]));
+  const skipped = new Set(queue.skipped);
+  const currentBeat = queue.order[queue.position];
+
   const beatsByStep = new Map<WorkoutStep, number[]>();
   beats.forEach((beat, i) => {
     const list = beatsByStep.get(beat.step);
@@ -216,13 +238,27 @@ export function buildWorkoutOutline(steps: WorkoutStep[], beats: SessionBeat[], 
 
   const item = (step: WorkoutStep): OutlineItem => {
     const beatIndices = beatsByStep.get(step) ?? [];
-    const completedBeats = beatIndices.filter((i) => i < beatIndex).length;
-    const status: OutlineStatus = beatIndices.includes(beatIndex)
-      ? "current"
-      : beatIndices.length > 0 && completedBeats === beatIndices.length
-      ? "done"
-      : "upcoming";
-    return { step, beatIndices, completedBeats, status };
+    const queued = beatIndices.filter((i) => posOf.has(i)).sort((a, b) => posOf.get(a)! - posOf.get(b)!);
+    const done = queued.filter((i) => posOf.get(i)! < queue.position);
+    const remaining = queued.filter((i) => posOf.get(i)! >= queue.position);
+    const skippedBeats = beatIndices.filter((i) => skipped.has(i)).length;
+    const status: OutlineStatus =
+      currentBeat != null && beatIndices.includes(currentBeat)
+        ? "current"
+        : remaining.length > 0
+        ? "upcoming"
+        : done.length === 0 && skippedBeats > 0
+        ? "skipped"
+        : "done";
+    return {
+      step,
+      beatIndices,
+      completedBeats: done.length,
+      skippedBeats,
+      remainingBeats: remaining.length,
+      jumpBeat: remaining[0] ?? done[0] ?? null,
+      status,
+    };
   };
 
   return groupSteps(steps).map((segment) => {

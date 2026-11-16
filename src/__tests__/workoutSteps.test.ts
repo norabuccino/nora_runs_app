@@ -308,3 +308,31 @@ describe("buildWorkoutOutline", () => {
     expect([outline[0].title, outline[0].isSuperset, outline[0].rounds]).toEqual(["Warm Up", false, null]);
   });
 });
+
+describe("buildWorkoutOutline with an adjusted session queue", () => {
+  const a = makeStep({ id: "a", sets: 2 });
+  const b = makeStep({ id: "b", sets: 2 });
+  const steps = [a, b];
+  const beats = buildSessionBeats(steps); // a1 a2 b1 b2
+
+  it("marks a fully skipped step as skipped, with nothing left", () => {
+    const outline = buildWorkoutOutline(steps, beats, { order: [2, 3], position: 0, skipped: [0, 1] });
+    const [ia, ib] = outline.map((s) => s.items[0]);
+    expect([ia.status, ia.skippedBeats, ia.remainingBeats, ia.completedBeats]).toEqual(["skipped", 2, 0, 0]);
+    expect(ib.status).toBe("current");
+  });
+
+  it("follows the reordered queue for done/upcoming and the jump target", () => {
+    // a moved to the end after b: b1 b2 a1 a2, currently on b2
+    const outline = buildWorkoutOutline(steps, beats, { order: [2, 3, 0, 1], position: 1, skipped: [] });
+    const [ia, ib] = outline.map((s) => s.items[0]);
+    expect([ia.status, ia.jumpBeat, ia.completedBeats]).toEqual(["upcoming", 0, 0]);
+    expect([ib.status, ib.completedBeats, ib.jumpBeat]).toEqual(["current", 1, 3]);
+  });
+
+  it("counts a partly skipped step as done", () => {
+    const outline = buildWorkoutOutline(steps, beats, { order: [0, 2, 3], position: 1, skipped: [1] });
+    const ia = outline[0].items[0];
+    expect([ia.status, ia.completedBeats, ia.skippedBeats, ia.jumpBeat]).toEqual(["done", 1, 1, 0]);
+  });
+});

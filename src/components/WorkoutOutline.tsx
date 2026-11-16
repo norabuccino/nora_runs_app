@@ -12,12 +12,15 @@ function itemDetail(item: OutlineItem, inSuperset: boolean): string {
 
 interface WorkoutOutlineProps {
   outline: OutlineSection[];
-  /** Jump the session to a beat (the step's next unfinished beat). */
-  onJump: (beatIndex: number) => void;
+  /** A step was tapped: jump to it, or bring it back if it was skipped. */
+  onSelect: (item: OutlineItem) => void;
 }
 
-/** Overview of the whole workout for the session player: done steps crossed out, current one highlighted. */
-export function WorkoutOutline({ outline, onJump }: WorkoutOutlineProps) {
+/**
+ * Overview of the whole workout for the session player: done steps crossed out,
+ * current one highlighted, skipped ones marked (tap to bring them back).
+ */
+export function WorkoutOutline({ outline, onSelect }: WorkoutOutlineProps) {
   const currentRef = useRef<HTMLButtonElement>(null);
   const currentKey = outline.flatMap((s) => s.items).findIndex((i) => i.status === "current");
 
@@ -44,21 +47,22 @@ export function WorkoutOutline({ outline, onJump }: WorkoutOutlineProps) {
             {section.items.map((item, ii) => {
               const done = item.status === "done";
               const current = item.status === "current";
+              const skipped = item.status === "skipped";
               const rest = isRestStep(item.step);
               const detail = itemDetail(item, section.isSuperset);
-              // Beats before the current one are done, so completedBeats is a prefix: jump to the next unfinished beat.
-              const target = item.beatIndices[item.completedBeats] ?? item.beatIndices[0];
-              const showProgress = item.beatIndices.length > 1 && item.completedBeats > 0 && !done;
+              const canRestore = item.remainingBeats === 0 && item.skippedBeats > 0;
+              const showProgress = item.beatIndices.length > 1 && item.completedBeats > 0 && !done && !canRestore;
               return (
                 <li key={ii}>
                   <button
                     ref={current ? currentRef : undefined}
                     type="button"
-                    onClick={() => target != null && onJump(target)}
+                    onClick={() => onSelect(item)}
                     aria-current={current ? "step" : undefined}
+                    title={canRestore ? "Tap to bring back what was skipped" : undefined}
                     className={`w-full flex items-start gap-2 rounded-md px-1.5 py-1 text-left transition-colors ${
                       current ? "bg-[var(--accent)]/15" : "hover:bg-[var(--card)]"
-                    } ${done ? "opacity-50" : ""}`}
+                    } ${done || skipped ? "opacity-50" : ""}`}
                   >
                     <span
                       className={`mt-0.5 w-4 shrink-0 text-center text-xs ${
@@ -66,17 +70,23 @@ export function WorkoutOutline({ outline, onJump }: WorkoutOutlineProps) {
                       }`}
                       aria-hidden
                     >
-                      {done ? "✓" : current ? "▶" : "•"}
+                      {skipped ? "⤼" : done ? "✓" : current ? "▶" : "•"}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span
-                        className={`block text-sm leading-snug ${done ? "line-through" : ""} ${
+                        className={`block text-sm leading-snug ${done || skipped ? "line-through" : ""} ${
                           current ? "font-semibold" : ""
                         } ${rest ? "text-emerald-600 dark:text-emerald-400" : ""}`}
                       >
                         {item.step.label || "Exercise"}
                       </span>
                       {detail && <span className="block text-xs text-[var(--muted)]">{detail}</span>}
+                      {canRestore && (
+                        <span className="block text-[11px] text-[var(--muted)]">
+                          {skipped ? "Skipped" : "Partly skipped"}{" "}
+                          · <span className="text-[var(--accent)]">tap to bring back</span>
+                        </span>
+                      )}
                     </span>
                     {showProgress && (
                       <span className="mt-0.5 shrink-0 text-[11px] text-[var(--muted)]">
