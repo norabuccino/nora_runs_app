@@ -5,6 +5,20 @@ import { convertDistance, type DistanceUnit } from "@/lib/unitUtils";
 
 /** Week-over-week increase (percent) above which a week is flagged — the "10% rule". */
 export const MILEAGE_JUMP_PCT = 10;
+/** Increase (percent) above which a flagged jump is large rather than moderate. */
+export const MILEAGE_LARGE_JUMP_PCT = 15;
+/** How many weeks back (including the previous one) a "rebound" is measured against. */
+export const REBOUND_LOOKBACK_WEEKS = 3;
+
+/**
+ * How a week's mileage compares to the weeks before it:
+ * - "moderate": up more than MILEAGE_JUMP_PCT (and at most MILEAGE_LARGE_JUMP_PCT) from the previous week
+ * - "large": up more than MILEAGE_LARGE_JUMP_PCT from the previous week
+ * - "rebound": up more than MILEAGE_JUMP_PCT from the previous week, but no more than
+ *   MILEAGE_JUMP_PCT above the highest of the last REBOUND_LOOKBACK_WEEKS weeks —
+ *   e.g. returning to normal after a cutback week
+ */
+export type MileageJump = "none" | "moderate" | "large" | "rebound";
 
 /** Key for completed runs with no run type set. */
 export const OTHER_RUN = "other";
@@ -47,8 +61,9 @@ export interface WeekMileage {
   plannedByType: Record<string, number>;
   /** Percent change of completed + planned vs the previous week's, or null when the previous week had no mileage. */
   changePct: number | null;
-  /** True when the week rose more than MILEAGE_JUMP_PCT over the previous one. */
-  bigJump: boolean;
+  jump: MileageJump;
+  /** Highest week in the REBOUND_LOOKBACK_WEEKS before this one — what a rebound is measured against. */
+  recentPeak: number;
 }
 
 /** Miles a completed run counts for: logged actual distance, else the planned distance. */
@@ -101,8 +116,9 @@ function plannedRunsForDay(entries: HistoryEntry[]): HistoryEntry[] {
 
 /**
  * Totals completed run mileage per Monday-first week, broken down by run type.
- * `firstWeek` is a Monday; one extra week before it is read (when present in
- * `entriesByDate`) so the first week shown still gets a week-over-week change.
+ * `firstWeek` is a Monday; earlier weeks are read too (when present in
+ * `entriesByDate`) so the first week shown still gets a week-over-week change
+ * (REBOUND_LOOKBACK_WEEKS before it, for the rebound check).
  * With `today`, runs on or after it that aren't completed yet count as planned
  * mileage, and the week-over-week change compares completed + planned.
  */
@@ -113,8 +129,9 @@ export function buildWeeklyMileage(
   today?: string
 ): WeekMileage[] {
   const weeks: WeekMileage[] = [];
-  let previousTotal = 0;
-  for (let i = -1; i < weekCount; i++) {
+  // Combined (completed + planned) totals of the weeks read so far, oldest first.
+  const history: number[] = [];
+  for (let i = -REBOUND_LOOKBACK_WEEKS; i < weekCount; i++) {
     const weekStart = addDays(firstWeek, i * 7);
     const byType: Record<string, number> = {};
     const plannedByType: Record<string, number> = {};
@@ -141,12 +158,20 @@ export function buildWeeklyMileage(
     }
     const combined = total + planned;
     if (i >= 0) {
+      const previousTotal = history[history.length - 1] ?? 0;
+      const recentPeak = Math.max(0, ...history.slice(-REBOUND_LOOKBACK_WEEKS));
       const changePct = weekOverWeekIncreasePct({ low: previousTotal, high: previousTotal }, { low: combined, high: combined });
-      weeks.push({ weekStart, total, byType, planned, plannedByType, changePct, bigJump: changePct != null && changePct > MILEAGE_JUMP_PCT });
+      weeks.push({ weekStart, total, byType, planned, plannedByType, changePct, jump: classifyJump(changePct, combined, recentPeak), recentPeak });
     }
-    previousTotal = combined;
+    history.push(combined);
   }
   return weeks;
+}
+
+export function classifyJump(changePct: number | null, total: number, recentPeak: number): MileageJump {
+  if (changePct == null || changePct <= MILEAGE_JUMP_PCT) return "none";
+  if (total <= recentPeak * (1 + MILEAGE_JUMP_PCT / 100)) return "rebound";
+  return changePct > MILEAGE_LARGE_JUMP_PCT ? "large" : "moderate";
 }
 
 /** Drops weeks after `lastPastWeek` from the end until one has planned mileage. */

@@ -4,6 +4,7 @@ import type { HistoryEntry } from "@/lib/workoutHistory";
 import {
   OTHER_RUN,
   buildWeeklyMileage,
+  classifyJump,
   completedRunMiles,
   niceAxis,
   plannedRunMiles,
@@ -76,7 +77,7 @@ describe("buildWeeklyMileage", () => {
       "2026-11-02",
       4
     );
-    expect(weeks.map((w) => w.bigJump)).toEqual([false, true, false, false]);
+    expect(weeks.map((w) => w.jump)).toEqual(["none", "moderate", "none", "none"]);
     expect(weeks[0].changePct).toBeCloseTo(10);
     expect(weeks[1].changePct).toBeCloseTo(13.64, 1);
     // Zero-mileage week before: no baseline, no flag.
@@ -86,13 +87,47 @@ describe("buildWeeklyMileage", () => {
   it("doesn't flag a week after a zero week", () => {
     const weeks = buildWeeklyMileage(byDate([entry("2026-11-09", { distance_miles: 10 })]), "2026-11-02", 2);
     expect(weeks[1].changePct).toBeNull();
-    expect(weeks[1].bigJump).toBe(false);
+    expect(weeks[1].jump).toBe("none");
   });
 });
 
 function planEntry(date: string, extra: Partial<PlanWorkout> = {}, completed = false, userPlanId = "up1"): HistoryEntry {
   return { ...entry(date, extra, completed ? { completed_at: `${date}T12:00:00Z` } : null), source: "plan", userPlanId };
 }
+
+describe("jump levels", () => {
+  it("classifies by the increase over the previous week", () => {
+    expect(classifyJump(null, 10, 0)).toBe("none");
+    expect(classifyJump(10, 22, 20)).toBe("none");
+    expect(classifyJump(12, 22.4, 20)).toBe("moderate");
+    expect(classifyJump(15, 23, 20)).toBe("moderate");
+    expect(classifyJump(16, 23.2, 20)).toBe("large");
+  });
+
+  it("calls a jump back to within 10% of the recent high a rebound", () => {
+    expect(classifyJump(40, 21, 20)).toBe("rebound");
+    expect(classifyJump(40, 22, 20)).toBe("rebound");
+    expect(classifyJump(40, 22.5, 20)).toBe("large");
+  });
+
+  it("measures rebounds against the highest of the last 3 weeks", () => {
+    const weeks = buildWeeklyMileage(
+      byDate([
+        entry("2026-10-12", { distance_miles: 30 }), // 4 weeks before — outside the lookback
+        entry("2026-10-19", { distance_miles: 20 }),
+        entry("2026-10-26", { distance_miles: 21 }),
+        entry("2026-11-02", { distance_miles: 14 }), // cutback
+        entry("2026-11-09", { distance_miles: 22 }), // +57%, but within 10% of 21
+        entry("2026-11-16", { distance_miles: 14 }), // cutback
+        entry("2026-11-23", { distance_miles: 26 }), // +86%, 18% above 22
+      ]),
+      "2026-11-02",
+      4
+    );
+    expect(weeks.map((w) => w.jump)).toEqual(["none", "rebound", "none", "large"]);
+    expect(weeks[1].recentPeak).toBe(21);
+  });
+});
 
 describe("planned mileage", () => {
   const today = "2026-11-12"; // Thursday
@@ -134,7 +169,7 @@ describe("planned mileage", () => {
       3,
       today
     );
-    expect(weeks.map((w) => w.bigJump)).toEqual([false, true, false]);
+    expect(weeks.map((w) => w.jump)).toEqual(["none", "moderate", "none"]);
     expect(weeks[1].changePct).toBeCloseTo(15);
   });
 

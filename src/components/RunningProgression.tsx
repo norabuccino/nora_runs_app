@@ -8,12 +8,15 @@ import { convertDistance } from "@/lib/unitUtils";
 import { useUnitPreference } from "@/hooks/useUnitPreference";
 import {
   MILEAGE_JUMP_PCT,
+  MILEAGE_LARGE_JUMP_PCT,
+  REBOUND_LOOKBACK_WEEKS,
   buildWeeklyMileage,
   niceAxis,
   runSeriesColor,
   runSeriesLabel,
   seriesInWeeks,
   trimEmptyFutureWeeks,
+  type MileageJump,
   type WeekMileage,
 } from "@/lib/runningProgression";
 
@@ -40,14 +43,39 @@ function plannedFill(color: string): string {
   return `repeating-linear-gradient(-45deg, ${color} 0 3px, color-mix(in srgb, ${color} 25%, transparent) 3px 6px)`;
 }
 
-function JumpFlag({ className = "" }: { className?: string }) {
+const JUMP_FLAGS: Record<Exclude<MileageJump, "none">, { icon: string; className: string; text: string; description: string }> = {
+  moderate: {
+    icon: "!",
+    className: "bg-amber-400 text-black",
+    text: "text-amber-600 dark:text-amber-400",
+    description: `Up ${MILEAGE_JUMP_PCT}–${MILEAGE_LARGE_JUMP_PCT}% from the previous week`,
+  },
+  large: {
+    icon: "!",
+    className: "bg-red-500 text-white",
+    text: "text-red-500",
+    description: `Up more than ${MILEAGE_LARGE_JUMP_PCT}% from the previous week`,
+  },
+  rebound: {
+    icon: "?",
+    className: "bg-white text-blue-600 border border-blue-500",
+    text: "text-blue-600 dark:text-blue-400",
+    description: `Up more than ${MILEAGE_JUMP_PCT}% from the previous week, but within ${MILEAGE_JUMP_PCT}% of the highest of the last ${REBOUND_LOOKBACK_WEEKS} weeks`,
+  },
+};
+
+const jumpText = (jump: MileageJump) => (jump === "none" ? "text-[var(--muted)]" : `${JUMP_FLAGS[jump].text} font-medium`);
+
+function JumpFlag({ jump, className = "" }: { jump: MileageJump; className?: string }) {
+  if (jump === "none") return null;
+  const flag = JUMP_FLAGS[jump];
   return (
     <span
-      title={`Up more than ${MILEAGE_JUMP_PCT}% from the previous week`}
-      aria-label={`Up more than ${MILEAGE_JUMP_PCT}% from the previous week`}
-      className={`inline-flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold leading-none text-white ${className}`}
+      title={flag.description}
+      aria-label={flag.description}
+      className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none ${flag.className} ${className}`}
     >
-      !
+      {flag.icon}
     </span>
   );
 }
@@ -65,9 +93,9 @@ export function RunningProgression() {
 
   useEffect(() => {
     const firstWeek = addDays(thisWeek, -(MAX_WEEKS - 1) * 7);
-    // One extra week before the range so the first week shown still has a change %.
+    // Weeks before the range so the first weeks shown still get a change % and rebound check.
     // Reads ahead too, for the optional upcoming planned weeks.
-    fetchWorkoutHistory(addDays(firstWeek, -7), addDays(thisWeek, MAX_WEEKS * 7 - 1))
+    fetchWorkoutHistory(addDays(firstWeek, -7 * REBOUND_LOOKBACK_WEEKS), addDays(thisWeek, MAX_WEEKS * 7 - 1))
       .then(setEntries)
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load running history"));
   }, [thisWeek]);
@@ -90,7 +118,7 @@ export function RunningProgression() {
   const pastWeeks = weeks.filter((w) => w.weekStart <= thisWeek);
   const totalMiles = pastWeeks.reduce((sum, w) => sum + w.total, 0);
   const plannedMiles = weeks.reduce((sum, w) => sum + w.planned, 0);
-  const jumps = weeks.filter((w) => w.bigJump).length;
+  const jumps = weeks.filter((w) => w.jump === "moderate" || w.jump === "large").length;
   const current = weeks.find((w) => w.weekStart === thisWeek);
   const activeWeek = active != null ? weeks[active] : null;
 
@@ -106,9 +134,13 @@ export function RunningProgression() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="font-semibold">Weekly mileage</h2>
-            <p className="text-xs text-[var(--muted)] mt-0.5 flex items-center gap-1">
-              <JumpFlag /> marks a week up more than {MILEAGE_JUMP_PCT}% from the week before.
-            </p>
+            <ul className="mt-1 space-y-0.5 text-xs text-[var(--muted)]">
+              {(["moderate", "large", "rebound"] as const).map((jump) => (
+                <li key={jump} className="flex items-center gap-1.5">
+                  <JumpFlag jump={jump} /> {JUMP_FLAGS[jump].description}
+                </li>
+              ))}
+            </ul>
           </div>
           <div className="flex flex-wrap items-center gap-3">
           <label className="inline-flex items-center gap-1.5 text-sm">
@@ -245,14 +277,14 @@ export function RunningProgression() {
                         <td className="px-3 py-1.5 whitespace-nowrap">
                           <span className="inline-flex items-center gap-1.5">
                             {formatShortDate(w.weekStart)}
-                            {w.bigJump && <JumpFlag />}
+                            <JumpFlag jump={w.jump} />
                           </span>
                         </td>
                         <td className="px-3 py-1.5 text-right whitespace-nowrap font-medium tabular-nums">
                           {fmt(w.total + w.planned)}
                           {w.planned > 0 && <span className="block text-xs font-normal text-[var(--muted)]">{fmt(w.planned)} planned</span>}
                         </td>
-                        <td className={`px-3 py-1.5 text-right whitespace-nowrap tabular-nums ${w.bigJump ? "text-red-500 font-medium" : "text-[var(--muted)]"}`}>
+                        <td className={`px-3 py-1.5 text-right whitespace-nowrap tabular-nums ${jumpText(w.jump)}`}>
                           {formatChange(w.changePct)}
                         </td>
                         <td className="px-3 py-1.5 text-xs text-[var(--muted)]">
@@ -324,9 +356,9 @@ function WeekBar({
           }}
         />
       ))}
-      {week.bigJump && (
+      {week.jump !== "none" && (
         <span className="flex shrink-0 justify-center pb-0.5">
-          <JumpFlag />
+          <JumpFlag jump={week.jump} />
         </span>
       )}
     </button>
@@ -363,11 +395,14 @@ function WeekTooltip({
       </p>
       <p className="mt-1 flex items-baseline justify-between gap-2">
         <span className="whitespace-nowrap text-base font-semibold tabular-nums">{fmt(week.total + week.planned)}</span>
-        <span className={`inline-flex items-center gap-1 whitespace-nowrap tabular-nums ${week.bigJump ? "text-red-500 font-medium" : "text-[var(--muted)]"}`}>
-          {week.bigJump && <JumpFlag />}
+        <span className={`inline-flex items-center gap-1 whitespace-nowrap tabular-nums ${jumpText(week.jump)}`}>
+          <JumpFlag jump={week.jump} />
           {week.changePct == null ? "no prior week" : `${formatChange(week.changePct)} vs prior week`}
         </span>
       </p>
+      {week.jump === "rebound" && (
+        <p className="text-[var(--muted)] tabular-nums">Back near your recent high of {fmt(week.recentPeak)}</p>
+      )}
       {week.planned > 0 && (
         <p className="text-[var(--muted)] tabular-nums">
           {week.total > 0 ? `${fmt(week.total)} done · ` : ""}{fmt(week.planned)} planned
