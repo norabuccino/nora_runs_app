@@ -1,191 +1,51 @@
 "use client";
 
-import { collectSources, hasSource } from "@/lib/exerciseSources";
 import { useEffect, useState } from "react";
-import { getProgressionDashboard, type ProgressionRow } from "@/app/actions/strengthSessions";
-import { EXERCISE_TYPE_LABELS, LOADING_CATEGORY_LABELS } from "@/lib/paceUtils";
-import { formatLoad, deriveCurrentLoad, computeTrend, computeRecommendation, formatActualSets, isAssistedLoad, groupByLoadingCategory } from "@/lib/strengthProgression";
-import { ExerciseDetailModal } from "@/components/ExerciseDetailModal";
-import { BandColorsLink } from "@/components/BandColorsModal";
-import { useBandColors } from "@/hooks/useBandColors";
-import { MuscleGroupBalance } from "@/components/MuscleGroupBalance";
-import { SuggestionLegend } from "@/components/ProgressionGuide";
-import { SUGGESTION_INDICATORS } from "@/lib/progressionGuide";
-import type { Exercise } from "@/types/database";
+import { StrengthProgression } from "@/components/StrengthProgression";
+import { RunningProgression } from "@/components/RunningProgression";
 
-const TREND_ICONS: Record<string, string> = { up: "↑", down: "↓", same: "→" };
-const TREND_COLORS: Record<string, string> = {
-  up: "text-green-600 dark:text-green-400",
-  down: "text-red-500 dark:text-red-400",
-  same: "text-[var(--muted)]",
-};
+type View = "strength" | "running";
 
-const selectClass =
-  "rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)]";
+const VIEW_KEY = "progressionView";
 
 export default function ProgressionPage() {
-  const [rows, setRows] = useState<ProgressionRow[]>([]);
-  const bandColors = useBandColors();
-  const [loading, setLoading] = useState(true);
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [detail, setDetail] = useState<Exercise | null>(null);
+  const [view, setView] = useState<View>("strength");
 
-  function load() {
-    getProgressionDashboard().then((data) => {
-      setRows(data);
-      setLoading(false);
-    });
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIEW_KEY) === "running") setView("running");
+    } catch {}
+  }, []);
+
+  function choose(next: View) {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {}
   }
 
-  useEffect(() => { load(); }, []);
-
-  const availableSources = collectSources(rows.map((r) => r.exercise));
-  const availableCategories = Array.from(new Set(rows.map((r) => r.exercise.loading_category).filter(Boolean))) as string[];
-  const availableTypes = Array.from(new Set(rows.map((r) => r.exercise.exercise_type).filter(Boolean))) as string[];
-
-  const displayed = rows.filter((r) => {
-    if (categoryFilter !== "all" && r.exercise.loading_category !== categoryFilter) return false;
-    if (typeFilter !== "all" && r.exercise.exercise_type !== typeFilter) return false;
-    if (sourceFilter !== "all" && !hasSource(r.exercise.sources, sourceFilter)) return false;
-    return true;
-  });
-  const groups = groupByLoadingCategory(displayed, (r) => r.exercise.loading_category);
-
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">Strength Progression</h1>
-          <p className="text-sm text-[var(--muted)] mt-1">
-            Derived from your completed workouts — what you&apos;re using now, and how it&apos;s trending.
-          </p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold">Progression</h1>
+        <div role="tablist" className="inline-flex rounded-lg border border-[var(--border)] p-0.5 text-sm">
+          {(["strength", "running"] as const).map((v) => (
+            <button
+              key={v}
+              role="tab"
+              aria-selected={view === v}
+              onClick={() => choose(v)}
+              className={`rounded-md px-4 py-1.5 font-medium transition-colors ${
+                view === v ? "bg-[var(--accent)] text-white" : "text-[var(--muted)] hover:text-[var(--foreground)]"
+              }`}
+            >
+              {v === "strength" ? "Strength" : "Running"}
+            </button>
+          ))}
         </div>
-        <BandColorsLink className="text-sm mt-1" />
       </div>
 
-      <MuscleGroupBalance />
-
-      {loading && <p className="text-sm text-[var(--muted)]">Loading…</p>}
-
-      {!loading && rows.length === 0 && (
-        <div className="text-center py-16 space-y-3">
-          <p className="text-[var(--muted)]">No tracked strength history yet.</p>
-          <p className="text-sm text-[var(--muted)]">
-            Exercises appear here once you&apos;ve logged them in a workout session. Turn on weight tracking for an exercise in
-            your Exercise Library, then use Start Workout to log it.
-          </p>
-        </div>
-      )}
-
-      {!loading && rows.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap gap-2">
-            <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} className={selectClass}>
-              <option value="all">All categories</option>
-              {availableCategories.map((val) => (
-                <option key={val} value={val}>{LOADING_CATEGORY_LABELS[val] ?? val}</option>
-              ))}
-            </select>
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className={selectClass}>
-              <option value="all">All exercise types</option>
-              {availableTypes.map((val) => (
-                <option key={val} value={val}>{EXERCISE_TYPE_LABELS[val] ?? val}</option>
-              ))}
-            </select>
-            {availableSources.length > 0 && (
-              <select value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className={selectClass}>
-                <option value="all">All sources</option>
-                {availableSources.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
-          </div>
-
-          <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-[var(--card)] text-[var(--muted)] text-xs uppercase tracking-wide">
-                  <th className="px-3 py-2 text-left font-medium">Exercise</th>
-                  <th className="px-3 py-2 text-left font-medium">Current load</th>
-                  <th className="px-3 py-2 text-left font-medium">Last performance</th>
-                  <th className="px-3 py-2 text-left font-medium">Previous load</th>
-                  <th className="px-3 py-2 text-left font-medium">Trend</th>
-                  <th className="px-3 py-2 text-left font-medium">Suggestion</th>
-                </tr>
-              </thead>
-              {groups.map((group) => (
-              <tbody key={group.category ?? "none"} className="divide-y divide-[var(--border)] border-t border-[var(--border)]">
-                <tr className="bg-[var(--card)]">
-                  <th colSpan={6} className="px-3 py-1.5 text-left text-xs font-semibold text-[var(--muted)]">
-                    {group.label}
-                  </th>
-                </tr>
-                {group.items.map((row) => {
-                  const currentLoad = deriveCurrentLoad(row.latest?.sets ?? null);
-                  const previousLoad = deriveCurrentLoad(row.previous?.sets ?? null);
-                  const loadFormat = row.latest?.loadFormat ?? null;
-                  const assisted = isAssistedLoad(loadFormat);
-                  // Switching to/from assisted flips what the numbers mean, so there's no trend across it.
-                  const trend =
-                    assisted === isAssistedLoad(row.previous?.loadFormat) ? computeTrend(currentLoad, previousLoad, loadFormat) : null;
-                  const currentLoadLabel = currentLoad != null ? formatLoad(currentLoad, row.latest?.loadFormat ?? null, bandColors) : null;
-                  const previousLoadLabel = previousLoad != null ? formatLoad(previousLoad, row.previous?.loadFormat ?? null, bandColors) : null;
-                  const actual = row.latest ? formatActualSets(row.latest.sets) : null;
-                  const rec = row.latest
-                    ? computeRecommendation({
-                        plannedReps: row.latest.plannedReps,
-                        plannedDurationSeconds: row.latest.plannedDurationSeconds,
-                        sets: row.latest.sets,
-                        currentWeight: currentLoad,
-                        previousWeight: previousLoad,
-                        defaultIncrement: row.exercise.default_increment,
-                        loadFormat,
-                      })
-                    : { status: "none" as const };
-                  const indicator = SUGGESTION_INDICATORS[rec.status];
-                  const suggestedLoad =
-                    rec.status === "increase" && rec.suggestedWeight != null ? formatLoad(rec.suggestedWeight, loadFormat, bandColors) : null;
-                  const suggestionTitle = suggestedLoad
-                    ? `${assisted ? "Reduce to" : "Increase to"} ${suggestedLoad}`
-                    : rec.status === "increase" && assisted
-                    ? "Reduce assist"
-                    : indicator.label;
-
-                  return (
-                    <tr
-                      key={row.exercise.id}
-                      onClick={() => setDetail(row.exercise)}
-                      className="cursor-pointer hover:bg-[var(--card)] transition-colors"
-                    >
-                      <td className="px-3 py-2 font-medium whitespace-nowrap">{row.exercise.name}</td>
-                      <td className="px-3 py-2 whitespace-nowrap font-medium">{currentLoadLabel ?? "—"}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">{actual ?? "—"}</td>
-                      <td className="px-3 py-2 whitespace-nowrap text-[var(--muted)]">{previousLoadLabel ?? "—"}</td>
-                      <td className={`px-3 py-2 whitespace-nowrap font-medium ${trend ? TREND_COLORS[trend] : "text-[var(--muted)]"}`}>
-                        {trend ? TREND_ICONS[trend] : "—"}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap" title={suggestionTitle}>
-                        <span className={`font-medium ${indicator.color}`}>{indicator.icon}</span>
-                        {suggestedLoad && <span className="ml-1 text-[var(--muted)]">{suggestedLoad}</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              ))}
-            </table>
-          </div>
-          <SuggestionLegend />
-        </div>
-      )}
-
-      {detail && (
-        <ExerciseDetailModal
-          exercise={detail}
-          onClose={() => { setDetail(null); load(); }}
-        />
-      )}
+      {view === "strength" ? <StrengthProgression /> : <RunningProgression />}
     </div>
   );
 }

@@ -9,6 +9,17 @@
   --border: #e5e7eb;
   --muted: #6b7280;
   --accent: #3b82f6;
+
+  /* Categorical chart series (fixed order; validated for colour-vision deficiency) */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #eda100;
+  --chart-series-5: #e87ba4;
+  --chart-series-6: #008300;
+  --chart-series-7: #6250d6;
+  --chart-series-8: #e34948;
+  --chart-series-other: #a3a29c;
 }
 
 .dark {
@@ -18,6 +29,16 @@
   --border: #1f2937;
   --muted: #9ca3af;
   --accent: #60a5fa;
+
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-series-4: #c98500;
+  --chart-series-5: #d55181;
+  --chart-series-6: #008300;
+  --chart-series-7: #9085e9;
+  --chart-series-8: #e66767;
+  --chart-series-other: #6b6a65;
 }
 
 body {
