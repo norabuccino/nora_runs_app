@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchWorkoutHistory } from "@/lib/workoutHistoryQuery";
 import { addDays, type HistoryEntry } from "@/lib/workoutHistory";
-import { mondayOfWeek } from "@/lib/paceUtils";
+import { formatDateLocal, mondayOfWeek } from "@/lib/paceUtils";
 import { convertDistance } from "@/lib/unitUtils";
 import { useUnitPreference } from "@/hooks/useUnitPreference";
 import {
@@ -13,6 +13,7 @@ import {
   runSeriesColor,
   runSeriesLabel,
   seriesInWeeks,
+  trimEmptyFutureWeeks,
   type WeekMileage,
 } from "@/lib/runningProgression";
 
@@ -34,6 +35,11 @@ function formatChange(pct: number | null): string {
   return `${rounded > 0 ? "+" : ""}${rounded}%`;
 }
 
+/** Striped fill for planned (not yet run) mileage, in the run type's colour. */
+function plannedFill(color: string): string {
+  return `repeating-linear-gradient(-45deg, ${color} 0 3px, color-mix(in srgb, ${color} 25%, transparent) 3px 6px)`;
+}
+
 function JumpFlag({ className = "" }: { className?: string }) {
   return (
     <span
@@ -52,39 +58,48 @@ export function RunningProgression() {
   const [error, setError] = useState<string | null>(null);
   const [rangeWeeks, setRangeWeeks] = useState<number>(12);
   const [active, setActive] = useState<number | null>(null);
+  const [showPlanned, setShowPlanned] = useState(false);
 
   const thisWeek = mondayOfWeek(new Date());
+  const today = formatDateLocal(new Date());
 
   useEffect(() => {
     const firstWeek = addDays(thisWeek, -(MAX_WEEKS - 1) * 7);
     // One extra week before the range so the first week shown still has a change %.
-    fetchWorkoutHistory(addDays(firstWeek, -7), addDays(thisWeek, 6))
+    // Reads ahead too, for the optional upcoming planned weeks.
+    fetchWorkoutHistory(addDays(firstWeek, -7), addDays(thisWeek, MAX_WEEKS * 7 - 1))
       .then(setEntries)
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load running history"));
   }, [thisWeek]);
 
-  const weeks = useMemo(
-    () => (entries ? buildWeeklyMileage(entries, addDays(thisWeek, -(rangeWeeks - 1) * 7), rangeWeeks) : []),
-    [entries, thisWeek, rangeWeeks]
-  );
+  const weeks = useMemo(() => {
+    if (!entries) return [];
+    const firstWeek = addDays(thisWeek, -(rangeWeeks - 1) * 7);
+    if (!showPlanned) return buildWeeklyMileage(entries, firstWeek, rangeWeeks);
+    return trimEmptyFutureWeeks(buildWeeklyMileage(entries, firstWeek, rangeWeeks + MAX_WEEKS, today), thisWeek);
+  }, [entries, thisWeek, today, rangeWeeks, showPlanned]);
 
   const dist = (miles: number) => convertDistance(miles, "mi", unit);
   const fmt = (miles: number) => `${parseFloat(dist(miles).toFixed(1))} ${unit}`;
 
   const series = seriesInWeeks(weeks);
-  const axis = niceAxis(Math.max(0, ...weeks.map((w) => dist(w.total))));
+  const axis = niceAxis(Math.max(0, ...weeks.map((w) => dist(w.total + w.planned))));
   const ticks = Array.from({ length: Math.round(axis.max / axis.step) + 1 }, (_, i) => i * axis.step);
-  const labelEvery = rangeWeeks <= 12 ? 1 : rangeWeeks <= 26 ? 2 : 4;
+  const labelEvery = weeks.length <= 16 ? 1 : weeks.length <= 32 ? 2 : 4;
 
-  const totalMiles = weeks.reduce((sum, w) => sum + w.total, 0);
+  const pastWeeks = weeks.filter((w) => w.weekStart <= thisWeek);
+  const totalMiles = pastWeeks.reduce((sum, w) => sum + w.total, 0);
+  const plannedMiles = weeks.reduce((sum, w) => sum + w.planned, 0);
   const jumps = weeks.filter((w) => w.bigJump).length;
-  const current = weeks[weeks.length - 1];
+  const current = weeks.find((w) => w.weekStart === thisWeek);
   const activeWeek = active != null ? weeks[active] : null;
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-[var(--muted)]">
         Completed runs from your plans and logged workouts — logged distance when you entered one, otherwise the planned distance.
+        {showPlanned &&
+          " Striped bars are upcoming runs from your active plans and schedule; on a plan day with alternative workouts, the longest run counts."}
       </p>
 
       <section className="space-y-4 rounded-xl border border-[var(--border)] p-4">
@@ -95,6 +110,16 @@ export function RunningProgression() {
               <JumpFlag /> marks a week up more than {MILEAGE_JUMP_PCT}% from the week before.
             </p>
           </div>
+          <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex items-center gap-1.5 text-sm">
+            <input
+              type="checkbox"
+              checked={showPlanned}
+              onChange={(e) => { setShowPlanned(e.target.checked); setActive(null); }}
+              className="accent-[var(--accent)]"
+            />
+            Show upcoming planned weeks
+          </label>
           <select
             value={rangeWeeks}
             onChange={(e) => { setRangeWeeks(Number(e.target.value)); setActive(null); }}
@@ -102,22 +127,31 @@ export function RunningProgression() {
           >
             {RANGES.map((r) => <option key={r.weeks} value={r.weeks}>{r.label}</option>)}
           </select>
+          </div>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
         {!error && !entries && <p className="text-sm text-[var(--muted)]">Loading…</p>}
 
-        {entries && totalMiles === 0 && (
+        {entries && totalMiles + plannedMiles === 0 && (
           <p className="text-sm text-[var(--muted)] py-4">
-            No completed runs in this period. Mark runs complete on Today or History, or pick a longer range.
+            No {showPlanned ? "completed or upcoming" : "completed"} runs in this period. Mark runs complete on Today or History, or pick a longer range.
           </p>
         )}
 
-        {entries && totalMiles > 0 && (
+        {entries && showPlanned && plannedMiles === 0 && totalMiles > 0 && (
+          <p className="text-xs text-[var(--muted)]">No upcoming planned runs in your active plans or schedule.</p>
+        )}
+
+        {entries && totalMiles + plannedMiles > 0 && (
           <>
             <div className="grid grid-cols-3 gap-3">
-              <Stat label="This week" value={fmt(current?.total ?? 0)} />
-              <Stat label="Weekly average" value={fmt(totalMiles / weeks.length)} />
+              <Stat
+                label="This week"
+                value={fmt(current?.total ?? 0)}
+                sub={showPlanned && current?.planned ? `+ ${fmt(current.planned)} planned` : undefined}
+              />
+              <Stat label="Weekly average" value={fmt(totalMiles / Math.max(1, pastWeeks.length))} />
               <Stat label={`Jumps over ${MILEAGE_JUMP_PCT}%`} value={String(jumps)} />
             </div>
 
@@ -128,6 +162,12 @@ export function RunningProgression() {
                   {runSeriesLabel(key)}
                 </span>
               ))}
+              {showPlanned && plannedMiles > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="h-2.5 w-2.5 rounded-sm" style={{ background: plannedFill("var(--muted)") }} />
+                  Planned
+                </span>
+              )}
             </div>
 
             <div className="relative pt-2">
@@ -169,8 +209,14 @@ export function RunningProgression() {
                     <div className="flex gap-[2px] pt-1 text-[10px] text-[var(--muted)]">
                       {weeks.map((w, i) => (
                         <div key={w.weekStart} className="relative flex-1 h-4">
-                          {(weeks.length - 1 - i) % labelEvery === 0 && (
-                            <span className="absolute left-1/2 -translate-x-1/2 whitespace-nowrap">{formatShortDate(w.weekStart)}</span>
+                          {Math.abs(weeks.indexOf(current!) - i) % labelEvery === 0 && (
+                            <span
+                              className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap ${
+                                w.weekStart === thisWeek ? "font-semibold text-[var(--foreground)]" : ""
+                              }`}
+                            >
+                              {formatShortDate(w.weekStart)}
+                            </span>
                           )}
                         </div>
                       ))}
@@ -202,12 +248,18 @@ export function RunningProgression() {
                             {w.bigJump && <JumpFlag />}
                           </span>
                         </td>
-                        <td className="px-3 py-1.5 text-right whitespace-nowrap font-medium tabular-nums">{fmt(w.total)}</td>
+                        <td className="px-3 py-1.5 text-right whitespace-nowrap font-medium tabular-nums">
+                          {fmt(w.total + w.planned)}
+                          {w.planned > 0 && <span className="block text-xs font-normal text-[var(--muted)]">{fmt(w.planned)} planned</span>}
+                        </td>
                         <td className={`px-3 py-1.5 text-right whitespace-nowrap tabular-nums ${w.bigJump ? "text-red-500 font-medium" : "text-[var(--muted)]"}`}>
                           {formatChange(w.changePct)}
                         </td>
                         <td className="px-3 py-1.5 text-xs text-[var(--muted)]">
-                          {series.filter((k) => w.byType[k]).map((k) => `${runSeriesLabel(k)} ${fmt(w.byType[k])}`).join(" · ") || "—"}
+                          {series
+                            .filter((k) => w.byType[k] || w.plannedByType[k])
+                            .map((k) => `${runSeriesLabel(k)} ${fmt((w.byType[k] ?? 0) + (w.plannedByType[k] ?? 0))}`)
+                            .join(" · ") || "—"}
                         </td>
                       </tr>
                     ))}
@@ -222,11 +274,12 @@ export function RunningProgression() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-lg bg-[var(--card)] px-3 py-2">
       <p className="text-xs text-[var(--muted)]">{label}</p>
       <p className="text-lg font-semibold tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-[var(--muted)] tabular-nums">{sub}</p>}
     </div>
   );
 }
@@ -246,7 +299,11 @@ function WeekBar({
   onActivate: () => void;
   onToggle: () => void;
 }) {
-  const segments = series.filter((k) => (week.byType[k] ?? 0) > 0);
+  // Completed mileage at the bottom, planned stacked on top.
+  const segments = [
+    ...series.filter((k) => (week.byType[k] ?? 0) > 0).map((k) => ({ key: k, miles: week.byType[k], planned: false })),
+    ...series.filter((k) => (week.plannedByType[k] ?? 0) > 0).map((k) => ({ key: k, miles: week.plannedByType[k], planned: true })),
+  ];
   return (
     // The whole column is the hit target, not just the bar.
     <button
@@ -257,11 +314,14 @@ function WeekBar({
       aria-label={`Week of ${formatShortDate(week.weekStart)}`}
       className="relative flex h-full min-w-0 flex-1 flex-col-reverse items-center gap-[2px] focus:outline-none"
     >
-      {segments.map((k, i) => (
+      {segments.map((seg, i) => (
         <span
-          key={k}
+          key={`${seg.planned ? "planned" : "done"}:${seg.key}`}
           className={`block w-full max-w-12 shrink-0 transition-opacity ${i === segments.length - 1 ? "rounded-t" : ""} ${dimmed ? "opacity-40" : ""}`}
-          style={{ height: Math.max(1, scale(week.byType[k]) - 2), background: runSeriesColor(k) }}
+          style={{
+            height: Math.max(1, scale(seg.miles) - 2),
+            background: seg.planned ? plannedFill(runSeriesColor(seg.key)) : runSeriesColor(seg.key),
+          }}
         />
       ))}
       {week.bigJump && (
@@ -291,6 +351,7 @@ function WeekTooltip({
   // Anchor over the hovered column, flipping alignment near the edges so it stays on screen.
   const center = ((index + 0.5) / count) * 100;
   const align = center < 30 ? "translate-x-0" : center > 70 ? "-translate-x-full" : "-translate-x-1/2";
+  const types = series.filter((k) => week.byType[k] || week.plannedByType[k]);
   return (
     <div
       className={`pointer-events-none absolute -top-2 z-10 w-60 -translate-y-full rounded-lg border border-[var(--border)] bg-[var(--background)] p-2.5 text-xs shadow-lg ${align}`}
@@ -301,21 +362,29 @@ function WeekTooltip({
         {isCurrent && <span className="font-normal text-[var(--muted)]"> · this week</span>}
       </p>
       <p className="mt-1 flex items-baseline justify-between gap-2">
-        <span className="whitespace-nowrap text-base font-semibold tabular-nums">{fmt(week.total)}</span>
+        <span className="whitespace-nowrap text-base font-semibold tabular-nums">{fmt(week.total + week.planned)}</span>
         <span className={`inline-flex items-center gap-1 whitespace-nowrap tabular-nums ${week.bigJump ? "text-red-500 font-medium" : "text-[var(--muted)]"}`}>
           {week.bigJump && <JumpFlag />}
           {week.changePct == null ? "no prior week" : `${formatChange(week.changePct)} vs prior week`}
         </span>
       </p>
-      {series.filter((k) => week.byType[k]).length > 0 && (
+      {week.planned > 0 && (
+        <p className="text-[var(--muted)] tabular-nums">
+          {week.total > 0 ? `${fmt(week.total)} done · ` : ""}{fmt(week.planned)} planned
+        </p>
+      )}
+      {types.length > 0 && (
         <ul className="mt-1.5 space-y-0.5">
-          {series.filter((k) => week.byType[k]).map((k) => (
+          {types.map((k) => (
             <li key={k} className="flex items-center justify-between gap-2">
               <span className="inline-flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-sm" style={{ background: runSeriesColor(k) }} />
+                <span
+                  className="h-2 w-2 rounded-sm"
+                  style={{ background: week.byType[k] ? runSeriesColor(k) : plannedFill(runSeriesColor(k)) }}
+                />
                 {runSeriesLabel(k)}
               </span>
-              <span className="tabular-nums">{fmt(week.byType[k])}</span>
+              <span className="tabular-nums">{fmt((week.byType[k] ?? 0) + (week.plannedByType[k] ?? 0))}</span>
             </li>
           ))}
         </ul>

@@ -6,8 +6,10 @@ import {
   buildWeeklyMileage,
   completedRunMiles,
   niceAxis,
+  plannedRunMiles,
   runSeriesColor,
   seriesInWeeks,
+  trimEmptyFutureWeeks,
 } from "@/lib/runningProgression";
 
 let n = 0;
@@ -85,6 +87,111 @@ describe("buildWeeklyMileage", () => {
     const weeks = buildWeeklyMileage(byDate([entry("2026-11-09", { distance_miles: 10 })]), "2026-11-02", 2);
     expect(weeks[1].changePct).toBeNull();
     expect(weeks[1].bigJump).toBe(false);
+  });
+});
+
+function planEntry(date: string, extra: Partial<PlanWorkout> = {}, completed = false, userPlanId = "up1"): HistoryEntry {
+  return { ...entry(date, extra, completed ? { completed_at: `${date}T12:00:00Z` } : null), source: "plan", userPlanId };
+}
+
+describe("planned mileage", () => {
+  const today = "2026-11-12"; // Thursday
+
+  it("counts upcoming uncompleted runs from today on, not missed ones", () => {
+    const weeks = buildWeeklyMileage(
+      byDate([
+        entry("2026-11-10", { distance_miles: 4 }), // done
+        entry("2026-11-11", { distance_miles: 3 }, null), // missed — not counted
+        entry("2026-11-12", { distance_miles: 5 }, null), // today, planned
+        entry("2026-11-15", { run_type: "long_run", distance_miles: 10 }, null),
+        entry("2026-11-16", { distance_miles: 6 }, null), // next week
+        entry("2026-11-17", { type: "strength", distance_miles: null }, null),
+      ]),
+      "2026-11-09",
+      2,
+      today
+    );
+    expect(weeks[0].total).toBe(4);
+    expect(weeks[0].planned).toBe(15);
+    expect(weeks[0].plannedByType).toEqual({ easy_run: 5, long_run: 10 });
+    expect(weeks[1].planned).toBe(6);
+  });
+
+  it("ignores planned runs without `today`", () => {
+    const weeks = buildWeeklyMileage(byDate([entry("2026-11-16", { distance_miles: 6 }, null)]), "2026-11-16", 1);
+    expect(weeks[0].planned).toBe(0);
+  });
+
+  it("flags planned jumps against completed + planned of the week before", () => {
+    const weeks = buildWeeklyMileage(
+      byDate([
+        entry("2026-11-10", { distance_miles: 10 }),
+        entry("2026-11-14", { distance_miles: 10 }, null), // this week: 20 total
+        entry("2026-11-17", { distance_miles: 23 }, null), // +15%
+        entry("2026-11-24", { distance_miles: 24 }, null), // +4%
+      ]),
+      "2026-11-09",
+      3,
+      today
+    );
+    expect(weeks.map((w) => w.bigJump)).toEqual([false, true, false]);
+    expect(weeks[1].changePct).toBeCloseTo(15);
+  });
+
+  it("counts only the longest run on an OR plan day, all runs on an AND day", () => {
+    const orWeeks = buildWeeklyMileage(
+      byDate([
+        planEntry("2026-11-16", { distance_miles: 5, sort_order: 0, day_logic: "or" }),
+        planEntry("2026-11-16", { distance_miles: 8, sort_order: 1, day_logic: "or" }),
+      ]),
+      "2026-11-16",
+      1,
+      today
+    );
+    expect(orWeeks[0].planned).toBe(8);
+    const andWeeks = buildWeeklyMileage(
+      byDate([
+        planEntry("2026-11-16", { distance_miles: 5, sort_order: 0, day_logic: "and" }),
+        planEntry("2026-11-16", { distance_miles: 3, sort_order: 1, day_logic: "and" }),
+      ]),
+      "2026-11-16",
+      1,
+      today
+    );
+    expect(andWeeks[0].planned).toBe(8);
+  });
+
+  it("drops an OR day's planned alternatives once one is completed", () => {
+    const weeks = buildWeeklyMileage(
+      byDate([
+        planEntry("2026-11-12", { type: "cross_train", distance_miles: null, sort_order: 0, day_logic: "or" }, true),
+        planEntry("2026-11-12", { distance_miles: 6, sort_order: 1, day_logic: "or" }),
+      ]),
+      "2026-11-09",
+      1,
+      today
+    );
+    expect(weeks[0].planned).toBe(0);
+  });
+
+  it("plannedRunMiles is zero for completed runs", () => {
+    expect(plannedRunMiles(entry("2026-11-16", { distance_miles: 6 }))).toBe(0);
+    expect(plannedRunMiles(entry("2026-11-16", { distance_miles: 6 }, null))).toBe(6);
+  });
+
+  it("trims empty future weeks off the end only", () => {
+    const weeks = buildWeeklyMileage(
+      byDate([entry("2026-11-10", { distance_miles: 4 }), entry("2026-11-23", { distance_miles: 6 }, null)]),
+      "2026-11-02",
+      6,
+      today
+    );
+    expect(trimEmptyFutureWeeks(weeks, "2026-11-09").map((w) => w.weekStart)).toEqual([
+      "2026-11-02",
+      "2026-11-09",
+      "2026-11-16",
+      "2026-11-23",
+    ]);
   });
 });
 
