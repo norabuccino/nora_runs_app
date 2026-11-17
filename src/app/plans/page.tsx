@@ -247,7 +247,13 @@ export default function PlansPage() {
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filtered.map((plan) => (
-                <PlanCard key={plan.id} plan={plan} isAdmin={isAdmin} canEdit={canEditContent(plan.user_id, viewer)} />
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  isAdmin={isAdmin}
+                  canEdit={canEditContent(plan.user_id, viewer)}
+                  onDeleted={(planId) => setPlans((ps) => ps.filter((p) => p.id !== planId))}
+                />
               ))}
             </div>
           )}

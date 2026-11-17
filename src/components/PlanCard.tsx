@@ -1,23 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { TrainingPlan } from "@/types/database";
 import { PLAN_TYPE_LABELS, PLAN_TYPE_COLORS, DIFFICULTY_LABELS, DIFFICULTY_COLORS } from "@/lib/paceUtils";
 import { assignPlan } from "@/app/actions/userPlans";
 import { duplicatePlan } from "@/app/actions/plans";
+import { DeletePlanModal } from "@/components/DeletePlanModal";
 
 const needsDaySetup = (plan: TrainingPlan) => plan.type === "strength" && !!plan.days_per_week;
 
 interface PlanCardProps {
   plan: TrainingPlan;
   isAdmin?: boolean;
-  /** Own plan, or a site plan for an admin. */
+  /** Own plan, or a site plan for an admin — also who can delete it. */
   canEdit?: boolean;
+  /** Called after the plan is deleted from the card, to drop it from the list. */
+  onDeleted?: (id: string) => void;
 }
 
-export function PlanCard({ plan, isAdmin = false, canEdit = false }: PlanCardProps) {
+export function PlanCard({ plan, isAdmin = false, canEdit = false, onDeleted }: PlanCardProps) {
   const [isPending, startTransition] = useTransition();
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   function handleAdd() {
     const today = new Date().toISOString().split("T")[0];
@@ -87,6 +91,15 @@ export function PlanCard({ plan, isAdmin = false, canEdit = false }: PlanCardPro
             </button>
           </>
         )}
+        {canEdit && (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors"
+            title="Delete this plan"
+          >
+            Delete
+          </button>
+        )}
         {needsDaySetup(plan) ? (
           <Link
             href={`/plans/${plan.id}`}
@@ -104,6 +117,18 @@ export function PlanCard({ plan, isAdmin = false, canEdit = false }: PlanCardPro
           </button>
         )}
       </div>
+      {confirmingDelete && (
+        <DeletePlanModal
+          planId={plan.id}
+          planName={plan.name}
+          isAdmin={isAdmin}
+          onCancel={() => setConfirmingDelete(false)}
+          onDeleted={() => {
+            setConfirmingDelete(false);
+            onDeleted?.(plan.id);
+          }}
+        />
+      )}
     </div>
   );
 }
