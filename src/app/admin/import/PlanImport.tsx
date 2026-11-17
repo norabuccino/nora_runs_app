@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
-import type { RunningPace, WorkoutType } from "@/types/database";
+import type { WorkoutType } from "@/types/database";
 import { adminImportPlan } from "@/app/actions/adminImport";
 import type { PlanTextImportItem } from "@/app/actions/planTextImport";
 import { parsePlanMeta, parsePlanText, PLAN_DAY_SHORT } from "@/lib/planTextImport";
@@ -38,21 +37,12 @@ Mon/Thu: Easy 5 miles`;
 /** A whole plan from text: details, weeks, days, and each day's workout as a library name, a quick name, or written out in full. */
 export function PlanImport() {
   const [text, setText] = useState("");
-  const [paces, setPaces] = useState<RunningPace[]>([]);
   const [typeOverrides, setTypeOverrides] = useState<Record<string, WorkoutType>>({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<{ planId: string; added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const exerciseResolver = useExerciseResolver();
-  const { library, isKnownWorkout, resolve, choose } = usePlanWorkoutChoices();
-
-  useEffect(() => {
-    createClient()
-      .from("running_paces")
-      .select("*")
-      .order("created_at")
-      .then(({ data }) => setPaces(data ?? []));
-  }, []);
+  const { library, paces, isKnownWorkout, resolve, choose } = usePlanWorkoutChoices();
   const paceNames = useMemo(() => paces.map((p) => p.name), [paces]);
 
   const { meta, rest } = useMemo(() => parsePlanMeta(text), [text]);

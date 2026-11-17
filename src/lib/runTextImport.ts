@@ -16,6 +16,9 @@
 //   - Pace: "at 3K pace", "@ threshold", "easy", "MP", "@ 6:45" — matched to the
 //     user's named paces (custom M:SS kept as-is). Unknown paces go to notes.
 //   - Swim: strokes (free, back, breast, fly), "on 1:45" send-off, "15s rest".
+//   - Shorthand: "2M" = 2 miles, "w/u" / "c/d", "(3:00 rest)" / "(jog recovery)"
+//     after a repeat = its recovery, "MP + 45-60 sec/mile" offsets go to notes,
+//     bare "800 @ 10K" = meters.
 // Leftover meaningful words (strides, hills…) become the step's notes.
 
 import type { WorkoutStepFormRow } from "@/components/WorkoutForm";
@@ -78,7 +81,12 @@ const FILLER = new Set(
 
 function normalizeText(text: string): string {
   return text
+    .replace(/(?<![\d.])(\d+(?:\.\d+)?)\s?M\b/g, "$1 mi") // capital M is miles in plan shorthand ("2M w/u")
     .toLowerCase()
+    .replace(/\bw\/u\b/g, "warmup")
+    .replace(/\bc\/d\b/g, "cooldown")
+    // "(3:00 rest)" / "(downhill jog recovery)" → "with …", read as the repeat's recovery
+    .replace(/\s*\(([^)]*\b(?:rest|recovery|recover|jog|walk|float)\b[^)]*)\)/g, " with $1")
     .replace(/[–—]/g, "-")
     .replace(/\b(warm|cool)[\s-]+(ups?|downs?)\b/g, "$1$2")
     .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)\b/g, (w) => WORD_NUMBERS[w])
@@ -186,6 +194,13 @@ export function parseRunText(text: string, { sport, paceNames }: RunParseOptions
     const sets = r.take(/\b(\d+)\s*(?:sets?|rounds?|times|series|blocks?)(?:\s*of)?\b|\b(\d+)\s*[x×]\s*(?=\()/);
     if (sets) info.sets = parseInt(sets[1] ?? sets[2], 10);
 
+    // "MP + 45-60 sec/mile" — an offset from the pace, kept as a note (and not read as a 60 sec step).
+    const offset = r.take(/([+-])\s*(\d+(?:\s*-\s*\d+)?)\s*(?:sec|secs|seconds|s)\s*(?:\/|per)\s*(mi|miles?|km)\b/);
+    const offsetNote = offset ? `${offset[1]}${offset[2].replace(/\s+/g, "")} sec/${offset[3].startsWith("k") ? "km" : "mi"}` : null;
+
+    // "800 @ 10K" — a bare run distance before a pace is meters (read before the pace takes the "@").
+    const bareMeters = sport === "run" ? r.take(/(?<![\d.x×:])\b(\d{3,5})\b(?=\s*(?:@|\bat\b))/) : null;
+
     const pace = sport === "run" ? readPace(r) : null; // swims have no running paces
 
     let stroke: string | null = null;
@@ -213,6 +228,10 @@ export function parseRunText(text: string, { sport, paceNames }: RunParseOptions
       unit = unitFor(repWord[3], sport);
     }
 
+    if (distance == null && durationSeconds == null && bareMeters) {
+      distance = parseInt(bareMeters[1], 10);
+      unit = "m";
+    }
     if (distance == null && durationSeconds == null) {
       const d = r.take(new RegExp(String.raw`\b(\d+(?:\.\d+)?)\s*${UNIT}\b`));
       if (d) {
@@ -245,6 +264,9 @@ export function parseRunText(text: string, { sport, paceNames }: RunParseOptions
       if (rec.step) {
         if (rec.betweenSets) info.betweenSets = true;
         info.withRecovery = { ...rec.step, stepType: "recovery" };
+      } else if (rec.role === "recovery" || /\bjog\b/.test(withText)) {
+        // "with downhill jog recovery" — no amount, but still a recovery step.
+        info.withRecovery = { stepType: "recovery", distance: null, unit: null, durationSeconds: null, pace: null, stroke: null, notes: withText.trim() };
       }
     }
 
@@ -253,7 +275,7 @@ export function parseRunText(text: string, { sport, paceNames }: RunParseOptions
     }
 
     const unknown = pace?.startsWith("?") ? pace.slice(1) : null;
-    const notes = [unknown ? `${unknown} pace` : null, r.leftover()].filter(Boolean).join(" · ") || null;
+    const notes = [unknown ? `${unknown} pace` : null, offsetNote, r.leftover()].filter(Boolean).join(" · ") || null;
     info.step = {
       stepType: info.role ?? (info.reps != null || inRepeat ? "interval" : "main"),
       distance,

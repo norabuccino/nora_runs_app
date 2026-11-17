@@ -5,10 +5,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
+import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
+import { planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
 import { RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
-import type { WorkoutType } from "@/types/database";
+import type { RunningPace, WorkoutType } from "@/types/database";
 
 export type LibraryWorkout = { id: string; title: string; type: string };
 export type PlanWorkoutChoice = { kind: "library"; id: string; title: string } | { kind: "new"; type?: WorkoutType } | { kind: "skip" };
@@ -29,17 +30,27 @@ export function weeksLabel(weeks: number[]): string {
   return contiguous ? `Weeks ${weeks[0]}–${weeks[weeks.length - 1]}` : `Weeks ${weeks.join(", ")}`;
 }
 
-/** Loads the workout library and tracks one decision per distinct workout name. Exact title matches default to the library copy. */
+/**
+ * Loads the workout library (and the user's paces, for steps of structured runs) and tracks one
+ * decision per distinct workout name. Exact title matches default to the library copy.
+ */
 export function usePlanWorkoutChoices() {
   const [library, setLibrary] = useState<LibraryWorkout[]>([]);
+  const [paces, setPaces] = useState<RunningPace[]>([]);
   const [choices, setChoices] = useState<Record<string, PlanWorkoutChoice>>({});
 
   useEffect(() => {
-    createClient()
+    const supabase = createClient();
+    supabase
       .from("workouts")
       .select("id, title, type")
       .order("title")
       .then(({ data }) => setLibrary(data ?? []));
+    supabase
+      .from("running_paces")
+      .select("*")
+      .order("created_at")
+      .then(({ data }) => setPaces(data ?? []));
   }, []);
 
   const knownTitles = useMemo(() => new Set(library.map((w) => normalizeExerciseName(w.title))), [library]);
@@ -48,10 +59,11 @@ export function usePlanWorkoutChoices() {
 
   function resolve(typed: string): ResolvedPlanWorkout {
     const key = normalizeExerciseName(typed);
-    const match = matchExercise(typed, named);
+    // "w/ strides & drills" is left out of matching (it becomes the new workout's notes).
+    const match = matchExercise(splitAddOns(typed).core, named);
     const choice: PlanWorkoutChoice =
       choices[key] ?? (match.exercise ? { kind: "library", id: match.exercise.id, title: match.exercise.title } : { kind: "new" });
-    const guess = workoutFromText(typed);
+    const guess = withRunSteps(workoutFromText(typed), paces);
     const newWorkout: NewWorkoutFromText =
       choice.kind === "new" && choice.type && choice.type !== guess.type
         ? {
@@ -59,6 +71,7 @@ export function usePlanWorkoutChoices() {
             type: choice.type,
             run_type: choice.type === "run" ? guess.run_type : null,
             strength_type: choice.type === "strength" ? guess.strength_type : null,
+            steps: choice.type === "run" ? guess.steps : undefined,
           }
         : guess;
     return { key, choice, match, newWorkout };
@@ -66,9 +79,24 @@ export function usePlanWorkoutChoices() {
 
   return {
     library,
+    paces,
     isKnownWorkout,
     resolve,
     choose: (key: string, choice: PlanWorkoutChoice) => setChoices((p) => ({ ...p, [key]: choice })),
+  };
+}
+
+/** A structured run ("2M w/u; 8x400m …; 2M c/d") gets its steps, and distance/time from them. */
+function withRunSteps(w: NewWorkoutFromText, paces: RunningPace[]): NewWorkoutFromText {
+  if (w.type !== "run") return w;
+  const parsed = planRunSteps(splitAddOns(w.title).core, paces);
+  if (!parsed) return w;
+  return {
+    ...w,
+    steps: parsed.steps,
+    distance_miles: parsed.miles || w.distance_miles,
+    distance_unit: parsed.miles ? "mi" : w.distance_unit,
+    duration_minutes: parsed.minutes || w.duration_minutes,
   };
 }
 
@@ -79,6 +107,8 @@ function describeNew(w: NewWorkoutFromText): string {
     w.strength_type ? STRENGTH_TYPE_LABELS[w.strength_type] : null,
     w.distance_miles != null ? `${w.distance_miles} ${w.distance_unit}` : null,
     w.duration_minutes != null ? `${w.duration_minutes} min` : null,
+    w.steps?.length ? `${w.steps.length} steps` : null,
+    w.notes,
   ]
     .filter(Boolean)
     .join(" · ");

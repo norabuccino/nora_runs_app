@@ -215,3 +215,22 @@ export function buildWorkoutPayload(
     steps: formRowsToStepData(rows),
   };
 }
+
+/**
+ * Steps for a run written on one line of a pasted plan ("2M w/u; 8x400m at 10K
+ * (jog recovery); 2M c/d"), with its totals. Only for a structured session — one
+ * with a repeat or a warm-up/cool-down — so "Easy 5 miles" or "16 mile progression
+ * run; if racing, stop at 8 miles" stay quick workouts without steps.
+ */
+export function planRunSteps(
+  text: string,
+  paces: { name: string; pace_seconds_per_mile: number }[]
+): { steps: StepData[]; miles: number; minutes: number } | null {
+  const { blocks } = parseRunText(text, { sport: "run", paceNames: paces.map((p) => p.name) });
+  const structured = blocks.some(
+    (b) => b.kind === "repeat" || b.step.stepType === "warmup" || b.step.stepType === "cooldown"
+  );
+  if (!structured || blocks.length < 2) return null;
+  const rows = toRunFormSteps(blocks, { startGroupId: 1, defaultUnit: "mi" });
+  return { steps: formRowsToStepData(rows), ...runTotals(rows, paces) };
+}

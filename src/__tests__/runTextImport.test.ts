@@ -84,3 +84,32 @@ describe("toRunFormSteps", () => {
     ]);
   });
 });
+
+describe("plan shorthand", () => {
+  const describeAll = (text: string) =>
+    run(text).blocks.map((b) =>
+      b.kind === "repeat" ? `${b.count}x [${b.steps.map((s) => describeRunStep(s)).join(" | ")}]` : describeRunStep(b.step)
+    );
+
+  it("reads 2M as miles, w/u and c/d, and a parenthesized recovery", () => {
+    expect(describeAll("2M w/u; 2 x 2M @ HMP (3:00 rest); 2M c/d")).toEqual([
+      "Warm-up · 2 mi · @ Easy",
+      "2x [Interval · 2 mi · @ Half Marathon | Recovery · 3 min · @ Recovery]",
+      "Cool-down · 2 mi · @ Easy",
+    ]);
+    expect(describeAll("2M w/u; 4x1M @ 10K pace (2:00 rest); 2M c/d")[1]).toBe(
+      "4x [Interval · 1 mi · @ 10K | Recovery · 2 min · @ Recovery]"
+    );
+  });
+
+  it("keeps a recovery with no amount and reads bare meters before a pace", () => {
+    expect(describeAll("8x400m uphill at 10K effort (downhill jog recovery)")).toEqual([
+      "8x [Interval · 400 m · @ 10K · uphill effort | Recovery · @ Recovery · downhill jog recovery]",
+    ]);
+    expect(describeAll("800 @ 10K")).toEqual(["Run · 800 m · @ 10K"]);
+  });
+
+  it("keeps a pace offset as a note instead of a time", () => {
+    expect(describeAll("14 miles @ MP + 45-60 sec/mile")).toEqual(["Run · 14 mi · @ Marathon · +45-60 sec/mi"]);
+  });
+});

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitBulkWorkouts, detectWorkoutType, parseWorkoutBlock, buildWorkoutPayload, runTotals } from "@/lib/workoutTextBlock";
+import { splitBulkWorkouts, detectWorkoutType, parseWorkoutBlock, buildWorkoutPayload, runTotals, planRunSteps } from "@/lib/workoutTextBlock";
 import { flattenExercises } from "@/lib/workoutTextImport";
 
 const paces = [
@@ -56,5 +56,23 @@ describe("runTotals", () => {
   it("fills distance from time and time from distance with paces", () => {
     const row = (o: object) => ({ step_type: "main", label: "", pace_type: "Easy", duration_minutes: "", duration_unit: "min" as const, distance_miles: "", distance_unit: "mi" as const, notes: "", repeat_group_id: null, repeat_count: 1, exercise_id: "", group_name: "", sets: "", reps: "", weight_suggestion: "", video_url: "", both_sides: false, stroke_style: "", ...o });
     expect(runTotals([row({ distance_miles: "2" }), row({ duration_minutes: "18" })], paces)).toEqual({ miles: 4, minutes: 36 });
+  });
+});
+
+describe("planRunSteps", () => {
+  it("builds steps for a structured one-line run", () => {
+    const out = planRunSteps("2M w/u; 8x400m at 3K (200m jog recovery); 2M c/d", paces);
+    expect(out?.steps.map((s) => [s.step_type, s.distance_miles, s.distance_unit, s.repeat_count])).toEqual([
+      ["warmup", 2, "mi", 1],
+      ["interval", 400, "m", 8],
+      ["recovery", 200, "m", 8],
+      ["cooldown", 2, "mi", 1],
+    ]);
+    expect(out?.miles).toBeGreaterThan(5.9);
+  });
+
+  it("leaves plain runs and conditional notes alone", () => {
+    expect(planRunSteps("Easy 5 miles", paces)).toBeNull();
+    expect(planRunSteps("16 mile progression run (if not racing); if racing, stop at 8 miles", paces)).toBeNull();
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parsePlanText, parsePlanMeta, workoutFromText } from "@/lib/planTextImport";
+import { parsePlanText, parsePlanMeta, splitAddOns, workoutFromText } from "@/lib/planTextImport";
 
 const opts = { totalWeeks: 6, defaultWeek: 1 };
 
@@ -91,5 +91,52 @@ describe("parsePlanMeta", () => {
       description: "Build to a strong half.",
     });
     expect(rest.trim()).toBe("Week 1\nMon: Easy 4");
+  });
+});
+
+describe("plan text with structured runs and add-ons", () => {
+  it("keeps ';' inside a workout and only splits it before another day", () => {
+    const { entries, unparsed } = parsePlanText(
+      "Tuesday: 2M w/u; 8x400m uphill at 10K effort (downhill jog recovery); 2M c/d\nMon: Easy 3; Wed: Easy 4",
+      opts
+    );
+    expect(unparsed).toEqual([]);
+    expect(entries.map((e) => [e.day, e.workouts])).toEqual([
+      [1, ["2M w/u; 8x400m uphill at 10K effort (downhill jog recovery); 2M c/d"]],
+      [0, ["Easy 3"]],
+      [2, ["Easy 4"]],
+    ]);
+  });
+
+  it("reads ' / ' as alternatives and doesn't split '+ strides' or a pace offset", () => {
+    const { entries } = parsePlanText(
+      "Wed: Crosstrain / Yoga / 0-50 min easy w/ strides & drills\nSat: 13-14 miles @ MP + 45-60 sec/mile\nSun: Easy 5 + strides",
+      opts
+    );
+    expect(entries.map((e) => [e.workouts, e.logic])).toEqual([
+      [["Crosstrain", "Yoga", "0-50 min easy w/ strides & drills"], "or"],
+      [["13-14 miles @ MP + 45-60 sec/mile"], "and"],
+      [["Easy 5 + strides"], "and"],
+    ]);
+  });
+
+  it("splitAddOns separates strides & drills from the workout", () => {
+    expect(splitAddOns("45-50 min easy w/ strides & drills")).toEqual({ core: "45-50 min easy", addOns: "Strides & drills" });
+    expect(splitAddOns("Easy 5 + strides")).toEqual({ core: "Easy 5", addOns: "Strides" });
+    expect(splitAddOns("Strides")).toEqual({ core: "Strides", addOns: null });
+    expect(splitAddOns("Tempo 5 miles")).toEqual({ core: "Tempo 5 miles", addOns: null });
+  });
+
+  it("workoutFromText leaves add-ons out of the title and keeps them as notes", () => {
+    expect(workoutFromText("45-50 min easy w/ strides & drills")).toMatchObject({
+      type: "run",
+      run_type: "easy_run",
+      title: "45-50 min easy",
+      duration_minutes: 50,
+      notes: "Strides & drills",
+    });
+    expect(workoutFromText("Brooklyn Half Marathon!")).toMatchObject({ type: "run", run_type: "race" });
+    expect(workoutFromText("8x400m uphill at 10K effort")).toMatchObject({ run_type: "interval_run", distance_miles: null });
+    expect(workoutFromText("2M easy")).toMatchObject({ distance_miles: 2, distance_unit: "mi" });
   });
 });

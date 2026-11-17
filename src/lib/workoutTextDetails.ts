@@ -33,10 +33,10 @@ const RUN_TYPES: [RegExp, RunType][] = [
   [/\blong run\b|\blong\b/, "long_run"],
   [/\b(mp|hmp|marathon pace|half marathon pace|mp\/hmp)\b/, "mp_hmp_run"],
   [/\b(tempo|threshold|lt)\b/, "threshold_run"],
-  [/\b(intervals?|track|repeats?|speed|fartlek|vo2|hills?)\b|\b\d{3}s\b/, "interval_run"],
+  [/\b(intervals?|track|repeats?|speed|fartlek|vo2|hills?|uphill)\b|\b\d{3}s\b|\b\d+\s*[x×]\s*\d/, "interval_run"],
   [/\brecovery\b/, "recovery_run"],
   [/\bboost\b/, "boost_run"],
-  [/\b(race|5k race|10k race)\b/, "race"],
+  [/\b(race|5k race|10k race)\b|\b(half )?marathon\b(?!\s*pace)/, "race"],
   [/\beasy\b/, "easy_run"],
 ];
 

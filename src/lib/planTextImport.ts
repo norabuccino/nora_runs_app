@@ -15,12 +15,17 @@
 //   modal's chosen week is used.
 // - Days: Mon…Sun (Monday = Day 1 — plans count days from their start date, which
 //   is a Monday), or "Day 3" / "D3". Several days: "Mon/Wed/Fri", "Tue & Thu".
-// - Workouts in one slot: "a + b" → both that day (AND), "a or b" → alternatives (OR).
+// - Workouts in one slot: "a + b" → both that day (AND), "a or b" / "a / b" → alternatives (OR).
+// - ";" only separates items when the next part starts with a day ("Mon: x; Tue: y");
+//   otherwise it's part of the workout ("2M w/u; 8x400m at 10K; 2M c/d").
 // - Each workout is a library workout name, or text for a new workout
 //   (`workoutFromText` infers its type, run/strength type, distance and time).
+//   Add-ons like "w/ strides & drills" are left out of matching and kept as notes
+//   (`splitAddOns`).
 
 import { inferRunType, inferStrengthType } from "@/lib/workoutTextDetails";
 import type { RunType, WorkoutType } from "@/types/database";
+import type { StepData } from "@/lib/workoutTextBlock";
 
 export interface PlanTextEntry {
   weeks: number[];
@@ -55,6 +60,38 @@ const DAY_WORDS: [RegExp, number][] = [
 
 const DAY_TOKEN = String.raw`(?:mon(?:day)?|tue(?:s|sday)?|wed(?:s|nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?|day\s*[1-7]|d[1-7])`;
 const DAY_LIST = new RegExp(String.raw`^\s*(${DAY_TOKEN}(?:\s*(?:\/|,|&|\band\b)\s*${DAY_TOKEN})*)\s*(?:[:\-–—.)]\s*|\s+)(.+)$`, "i");
+
+const stripBullet = (s: string) => s.replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "");
+
+/** Splits on ";" only where the next part is another day — elsewhere ";" separates a workout's steps. */
+function splitItems(text: string): string[] {
+  const out: string[] = [];
+  for (const part of text.split(";")) {
+    if (out.length && !DAY_LIST.test(stripBullet(part.trim()))) out[out.length - 1] += `;${part}`;
+    else out.push(part);
+  }
+  return out;
+}
+
+const ADD_ON_ITEM = String.raw`(?:strides|drills|form drills|pick-?ups|hill sprints|accelerations)`;
+const ADD_ON = new RegExp(
+  String.raw`(?:\s+w\/\s*|\s+with\s+|\s*\+\s*|\s*,\s*|\s*&\s*|\s+and\s+)(${ADD_ON_ITEM}(?:\s*(?:&|and|\+|,)\s*${ADD_ON_ITEM})*)\s*$`,
+  "i"
+);
+// "+" that adds strides or a pace offset ("MP + 45-60 sec/mile") — not a second workout.
+const PLUS_SPLIT = new RegExp(String.raw`\s*\+\s*(?!\s*(?:${ADD_ON_ITEM}\b|\d+(?:\s*[-–]\s*\d+)?\s*(?:sec|secs|seconds|s)\b))`, "i");
+
+/**
+ * Separates add-ons written after a workout ("45-50 min easy w/ strides & drills")
+ * from the workout itself, so the workout matches the library and gets the add-ons as notes.
+ */
+export function splitAddOns(text: string): { core: string; addOns: string | null } {
+  const m = text.match(ADD_ON);
+  if (!m || m.index == null || m.index === 0) return { core: text.trim(), addOns: null };
+  const core = text.slice(0, m.index).trim();
+  if (!core) return { core: text.trim(), addOns: null };
+  return { core, addOns: m[1].trim().replace(/^./, (c) => c.toUpperCase()) };
+}
 
 function dayIndex(token: string): number | null {
   const t = token.trim().toLowerCase();
@@ -113,7 +150,7 @@ export function parsePlanText(
   };
 
   const addItem = (item: string) => {
-    const raw = item.trim().replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, "");
+    const raw = stripBullet(item.trim());
     if (!raw) return;
     const m = raw.match(DAY_LIST);
     if (!m) {
@@ -122,13 +159,13 @@ export function parsePlanText(
     }
     const days = [...new Set(m[1].split(/\/|,|&|\band\b/).map(dayIndex).filter((d): d is number => d != null))];
     const dayText = m[2].trim();
-    const or = isKnownWorkout(dayText) ? [dayText] : dayText.split(/\s+or\s+/i).map((s) => s.trim()).filter(Boolean);
+    const or = isKnownWorkout(dayText) ? [dayText] : dayText.split(/\s+or\s+|\s+\/\s+/i).map((s) => s.trim()).filter(Boolean);
     const workouts =
       or.length > 1
         ? or
         : isKnownWorkout(dayText)
         ? [dayText]
-        : dayText.split(/\s*\+\s*/).map((s) => s.trim()).filter(Boolean);
+        : dayText.split(PLUS_SPLIT).map((s) => s.trim()).filter(Boolean);
     const logic: "and" | "or" = or.length > 1 ? "or" : "and";
     const valid = weeks.filter((w) => {
       const ok = w >= 1 && w <= totalWeeks;
@@ -145,7 +182,7 @@ export function parsePlanText(
 
   for (const line of text.split(/\r?\n/)) {
     const header = line.trim() ? parseWeekHeader(line, totalWeeks) : null;
-    const isDayLine = !!line.trim() && DAY_LIST.test(line.trim().replace(/^\s*(?:[-•*·]|\d+[.)])\s+/, ""));
+    const isDayLine = !!line.trim() && DAY_LIST.test(stripBullet(line.trim()));
     if (collectBodies && !header && !isDayLine) {
       if (current.length) body.push(line);
       else if (line.trim()) unparsed.push(line.trim());
@@ -156,10 +193,10 @@ export function parsePlanText(
     current = [];
     if (header) {
       weeks = header.weeks;
-      if (header.rest.trim()) header.rest.split(";").forEach(addItem);
+      if (header.rest.trim()) splitItems(header.rest).forEach(addItem);
       continue;
     }
-    line.split(";").forEach(addItem);
+    splitItems(line).forEach(addItem);
   }
   flushBody();
   return { entries, unparsed, outOfRangeWeeks: [...outOfRange].sort((a, b) => a - b) };
@@ -225,6 +262,10 @@ export interface NewWorkoutFromText {
   distance_miles: number | null;
   distance_unit: "mi" | "km";
   duration_minutes: number | null;
+  /** Add-ons like "Strides & drills". */
+  notes: string | null;
+  /** Steps, for a structured run written on one line (filled in by the plan import from the user's paces). */
+  steps?: StepData[];
 }
 
 const TYPE_RULES: [RegExp, WorkoutType][] = [
@@ -243,10 +284,13 @@ export function inferWorkoutType(text: string): WorkoutType | null {
 }
 
 /** A best guess at a new plan workout from a short description ("Long run 10 miles"). */
-export function workoutFromText(text: string): NewWorkoutFromText {
-  const t = text.toLowerCase();
+export function workoutFromText(typed: string): NewWorkoutFromText {
+  const { core: text, addOns } = splitAddOns(typed);
+  // "2M" is 2 miles in plan shorthand.
+  const t = text.replace(/(?<![\d.])(\d+(?:\.\d+)?)\s?M\b/g, "$1 mi").toLowerCase();
   const type = inferWorkoutType(t) ?? "run";
-  const dist = t.match(/\b(\d+(?:\.\d+)?)\s*(miles?|mi|km|k)\b(?!\s*pace)/);
+  // "@ 10K" / "at 5K effort" is a pace, not a distance.
+  const dist = t.match(/(?<!(?:@|\bat)\s*)\b(\d+(?:\.\d+)?)\s*(miles?|mi|km|k)\b(?!\s*(?:pace|effort))/);
   const mins = t.match(/\b(\d+(?:\.\d+)?)\s*(min|mins|minutes?)\b|\b(\d+(?:\.\d+)?)\s*(hr|hrs|hours?)\b/);
   const title = text.trim().replace(/^./, (c) => c.toUpperCase());
   return {
@@ -257,6 +301,7 @@ export function workoutFromText(text: string): NewWorkoutFromText {
     distance_miles: dist && (type === "run" || type === "bike" || type === "swim") ? parseFloat(dist[1]) : null,
     distance_unit: dist && /^k/.test(dist[2]) ? "km" : "mi",
     duration_minutes: mins ? (mins[1] ? parseFloat(mins[1]) : parseFloat(mins[3]) * 60) : null,
+    notes: addOns,
   };
 }
 

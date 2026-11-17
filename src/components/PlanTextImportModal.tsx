@@ -116,11 +116,15 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
                 </li>
                 <li>
                   Two workouts the same day: <code>Track 200s + Upper body pull</code> (both) or <code>Tempo 5 miles or Bike 45 min</code>{" "}
-                  (pick one).
+                  / <code>Crosstrain / Yoga</code> (pick one).
+                </li>
+                <li>
+                  A run with several steps on one line: <code>2M w/u; 8x400m at 10K (jog recovery); 2M c/d</code> — the new workout gets
+                  those steps. Add-ons like <code>w/ strides &amp; drills</code> are ignored when matching and kept as notes.
                 </li>
                 <li>
                   Names that match your workout library are copied from it; anything else becomes a new workout (type, distance and time
-                  guessed from the text — open it afterwards to add steps).
+                  guessed from the text).
                 </li>
               </ul>
             )}
