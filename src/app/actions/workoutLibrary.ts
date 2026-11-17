@@ -54,6 +54,7 @@ export async function createLibraryWorkout(data: LibraryWorkoutData) {
   }
 
   revalidatePath("/workouts");
+  return workout.id as string;
 }
 
 export async function updateLibraryWorkout(id: string, data: LibraryWorkoutData) {

@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
+import { applyNewWorkoutChoice, type PlanWorkoutChoice } from "@/lib/planWorkoutChoice";
 import { defaultSubType, filterLibrary, subTypeOptions } from "@/lib/libraryPicker";
 import { describeStepData, groupStepData, planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
@@ -20,7 +21,7 @@ export type LibraryWorkout = {
   strength_type: string | null;
   cross_train_type: string | null;
 };
-export type PlanWorkoutChoice = { kind: "library"; id: string; title: string } | { kind: "new"; type?: WorkoutType } | { kind: "skip" };
+export type { PlanWorkoutChoice } from "@/lib/planWorkoutChoice";
 
 export interface ResolvedPlanWorkout {
   key: string;
@@ -28,6 +29,8 @@ export interface ResolvedPlanWorkout {
   match: ExerciseMatch<LibraryWorkout & { name: string }>;
   /** What "new from text" would create. */
   newWorkout: NewWorkoutFromText;
+  /** A new workout is also saved to the workout library (and the plan copies link to it). */
+  saveToLibrary: boolean;
 }
 
 const TYPES: WorkoutType[] = ["run", "strength", "bike", "swim", "cross_train", "rest"];
@@ -46,6 +49,7 @@ export function usePlanWorkoutChoices() {
   const [library, setLibrary] = useState<LibraryWorkout[]>([]);
   const [paces, setPaces] = useState<RunningPace[]>([]);
   const [choices, setChoices] = useState<Record<string, PlanWorkoutChoice>>({});
+  const [saveAllNew, setSaveAllNewState] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -72,17 +76,8 @@ export function usePlanWorkoutChoices() {
     const choice: PlanWorkoutChoice =
       choices[key] ?? (match.exercise ? { kind: "library", id: match.exercise.id, title: match.exercise.title } : { kind: "new" });
     const guess = withRunSteps(workoutFromText(typed), paces);
-    const newWorkout: NewWorkoutFromText =
-      choice.kind === "new" && choice.type && choice.type !== guess.type
-        ? {
-            ...guess,
-            type: choice.type,
-            run_type: choice.type === "run" ? guess.run_type : null,
-            strength_type: choice.type === "strength" ? guess.strength_type : null,
-            steps: choice.type === "run" ? guess.steps : undefined,
-          }
-        : guess;
-    return { key, choice, match, newWorkout };
+    const { newWorkout, saveToLibrary } = applyNewWorkoutChoice(guess, choice, saveAllNew);
+    return { key, choice, match, newWorkout, saveToLibrary };
   }
 
   return {
@@ -91,6 +86,16 @@ export function usePlanWorkoutChoices() {
     isKnownWorkout,
     resolve,
     choose: (key: string, choice: PlanWorkoutChoice) => setChoices((p) => ({ ...p, [key]: choice })),
+    saveAllNew,
+    /** Sets "save to library" for every new workout (clearing per-row choices). */
+    setSaveAllNew: (value: boolean) => {
+      setSaveAllNewState(value);
+      setChoices((p) =>
+        Object.fromEntries(
+          Object.entries(p).map(([k, c]) => [k, c.kind === "new" ? { ...c, saveToLibrary: undefined } : c])
+        )
+      );
+    },
   };
 }
 
@@ -162,17 +167,38 @@ export function PlanWorkoutChoiceRow({
           ) : choice.kind === "skip" ? (
             <span className="text-[var(--muted)] line-through">{typed}</span>
           ) : (
-            <>
-              <span className="text-[var(--muted)]">+</span> <span className="font-medium">{newWorkout.title}</span>
-              <span className="text-xs text-[var(--muted)]"> · new workout · {describeNew(newWorkout)}</span>
-            </>
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[var(--muted)]">+</span>
+                <input
+                  value={choice.kind === "new" && choice.title !== undefined ? choice.title : newWorkout.title}
+                  onChange={(e) => onChoose(key, { ...choice, title: e.target.value })}
+                  onBlur={(e) => !e.target.value.trim() && onChoose(key, { ...choice, title: undefined })}
+                  className="min-w-0 w-64 max-w-full rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-sm font-medium"
+                  aria-label="New workout name"
+                  title="Workout name"
+                />
+              </div>
+              <div className="text-xs text-[var(--muted)]">
+                new workout · {describeNew(newWorkout)}
+                {normalizeExerciseName(newWorkout.title) !== key && <> · typed “{typed}”</>}
+              </div>
+              <label className="flex items-center gap-1.5 text-xs">
+                <input
+                  type="checkbox"
+                  checked={resolved.saveToLibrary}
+                  onChange={(e) => onChoose(key, { ...choice, saveToLibrary: e.target.checked })}
+                />
+                Also save to my workout library
+              </label>
+            </div>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {choice.kind === "new" && (
             <select
               value={newWorkout.type}
-              onChange={(e) => onChoose(key, { kind: "new", type: e.target.value as WorkoutType })}
+              onChange={(e) => onChoose(key, { ...choice, kind: "new", type: e.target.value as WorkoutType })}
               className="rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
               aria-label="Workout type"
             >
@@ -298,5 +324,32 @@ export function PlanWorkoutChoiceRow({
         </div>
       )}
     </li>
+  );
+}
+
+/** "Save all new workouts to my library" — shown above the workout rows when any will be created. */
+export function SaveAllToLibraryToggle({
+  resolved,
+  onChange,
+}: {
+  resolved: ResolvedPlanWorkout[];
+  onChange: (value: boolean) => void;
+}) {
+  const fresh = resolved.filter((r) => r.choice.kind === "new");
+  if (!fresh.length) return null;
+  const saving = fresh.filter((r) => r.saveToLibrary).length;
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+      <input
+        type="checkbox"
+        checked={saving === fresh.length}
+        ref={(el) => {
+          if (el) el.indeterminate = saving > 0 && saving < fresh.length;
+        }}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      Save all {fresh.length} new {fresh.length === 1 ? "workout" : "workouts"} to my workout library
+      {saving > 0 && saving < fresh.length && ` (${saving} selected)`}
+    </label>
   );
 }

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { addPlanWorkoutsFromText, type PlanTextImportItem } from "@/app/actions/planTextImport";
 import { parsePlanText, PLAN_DAY_SHORT } from "@/lib/planTextImport";
-import { PlanWorkoutChoiceRow, usePlanWorkoutChoices, weeksLabel } from "@/components/PlanWorkoutChoices";
+import { PlanWorkoutChoiceRow, SaveAllToLibraryToggle, usePlanWorkoutChoices, weeksLabel } from "@/components/PlanWorkoutChoices";
 import { normalizeExerciseName } from "@/lib/exerciseMatch";
 import { DAY_NAMES } from "@/lib/paceUtils";
 
@@ -31,7 +31,7 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
   const [error, setError] = useState<string | null>(null);
   const [showTips, setShowTips] = useState(false);
 
-  const { library, isKnownWorkout, resolve, choose } = usePlanWorkoutChoices();
+  const { library, isKnownWorkout, resolve, choose, setSaveAllNew } = usePlanWorkoutChoices();
   const parsed = useMemo(
     () => parsePlanText(text, { totalWeeks, defaultWeek, isKnownWorkout }),
     [text, totalWeeks, defaultWeek, isKnownWorkout]
@@ -46,7 +46,7 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
         const r = resolved.get(normalizeExerciseName(typed))!;
         if (r.choice.kind === "skip") return [];
         const logic = e.workouts.length > 1 ? e.logic : "or";
-        return [r.choice.kind === "library" ? { week, day: e.day, libraryWorkoutId: r.choice.id, logic } : { week, day: e.day, workout: r.newWorkout, logic }];
+        return [r.choice.kind === "library" ? { week, day: e.day, libraryWorkoutId: r.choice.id, logic } : { week, day: e.day, workout: r.newWorkout, saveToLibraryKey: r.saveToLibrary ? r.key : undefined, logic }];
       })
     )
   );
@@ -133,6 +133,7 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
           {texts.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Workouts</p>
+              <SaveAllToLibraryToggle resolved={[...resolved.values()]} onChange={setSaveAllNew} />
               <ul className="space-y-1.5">
                 {texts.map(([key, typed]) => (
                   <PlanWorkoutChoiceRow key={key} typed={typed} resolved={resolved.get(key)!} library={library} onChoose={choose} />

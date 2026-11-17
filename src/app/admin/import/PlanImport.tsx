@@ -11,7 +11,7 @@ import { describeParsedExercise, flattenExercises } from "@/lib/workoutTextImpor
 import { describeRunStep } from "@/lib/runTextImport";
 import { normalizeExerciseName } from "@/lib/exerciseMatch";
 import { ResolvedExerciseRow, useExerciseResolver, type ResolvedExercise } from "@/components/ExerciseResolution";
-import { PlanWorkoutChoiceRow, usePlanWorkoutChoices, weeksLabel } from "@/components/PlanWorkoutChoices";
+import { PlanWorkoutChoiceRow, SaveAllToLibraryToggle, usePlanWorkoutChoices, weeksLabel } from "@/components/PlanWorkoutChoices";
 import { DAY_NAMES, DIFFICULTY_LABELS, PLAN_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
 
 const TYPES: WorkoutType[] = ["run", "strength", "swim", "bike", "cross_train", "rest"];
@@ -42,7 +42,7 @@ export function PlanImport() {
   const [done, setDone] = useState<{ planId: string; added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const exerciseResolver = useExerciseResolver();
-  const { library, paces, isKnownWorkout, resolve, choose } = usePlanWorkoutChoices();
+  const { library, paces, isKnownWorkout, resolve, choose, setSaveAllNew } = usePlanWorkoutChoices();
   const paceNames = useMemo(() => paces.map((p) => p.name), [paces]);
 
   const { meta, rest } = useMemo(() => parsePlanMeta(text), [text]);
@@ -93,7 +93,7 @@ export function PlanImport() {
           if (r.choice.kind === "skip") return [];
           return r.choice.kind === "library"
             ? [{ week, day: e.day, libraryWorkoutId: r.choice.id, logic }]
-            : [{ week, day: e.day, workout: r.newWorkout, logic }];
+            : [{ week, day: e.day, workout: r.newWorkout, saveToLibraryKey: r.saveToLibrary ? r.key : undefined, logic }];
         });
       })
     );
@@ -259,6 +259,7 @@ export function PlanImport() {
       {quickNames.length > 0 && (
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Workouts by name</p>
+          <SaveAllToLibraryToggle resolved={[...quickResolved.values()]} onChange={setSaveAllNew} />
           <ul className="space-y-1.5">
             {quickNames.map(([key, typed]) => (
               <PlanWorkoutChoiceRow key={key} typed={typed} resolved={quickResolved.get(key)!} library={library} onChoose={choose} />

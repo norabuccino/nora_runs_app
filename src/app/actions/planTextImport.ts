@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canEditPlan } from "@/lib/contentAccess";
 import { revalidatePath } from "next/cache";
 import { createWorkout, updateDayLogic, type WorkoutData } from "./workouts";
-import { addLibraryWorkoutToPlan } from "./workoutLibrary";
+import { addLibraryWorkoutToPlan, createLibraryWorkout } from "./workoutLibrary";
 
 /** A plan workout to create: a quick one guessed from a name, or one written out in full with steps. */
 export type PlanWorkoutInput = Omit<WorkoutData, "plan_id" | "week_number" | "day_of_week" | "sort_order">;
@@ -17,12 +17,18 @@ export interface PlanTextImportItem {
   libraryWorkoutId?: string;
   /** …or create this new one. */
   workout?: PlanWorkoutInput;
+  /**
+   * Also save the new workout to the library: items sharing a key get one library workout,
+   * which each plan slot then copies (like "Add to plan", so they link back to it).
+   */
+  saveToLibraryKey?: string;
   logic: "and" | "or";
 }
 
 /**
  * Adds the workouts from a pasted plan, in order, after anything already on each
- * day. Library workouts are copied the same way as "Add to plan". Slots written
+ * day. Library workouts are copied the same way as "Add to plan". New workouts
+ * marked `saveToLibraryKey` are created in the library once and copied the same way. Slots written
  * with "+" get AND day logic.
  */
 export async function addPlanWorkoutsFromText(planId: string, items: PlanTextImportItem[]): Promise<{ added: number }> {
@@ -33,8 +39,16 @@ export async function addPlanWorkoutsFromText(planId: string, items: PlanTextImp
 
   let added = 0;
   const andSlots = new Set<string>();
+  const savedToLibrary = new Map<string, string>();
   for (const item of items) {
-    if (item.libraryWorkoutId) {
+    if (item.workout && item.saveToLibraryKey) {
+      let libraryId = savedToLibrary.get(item.saveToLibraryKey);
+      if (!libraryId) {
+        libraryId = await createLibraryWorkout(item.workout);
+        savedToLibrary.set(item.saveToLibraryKey, libraryId);
+      }
+      await addLibraryWorkoutToPlan(libraryId, planId, item.week, item.day);
+    } else if (item.libraryWorkoutId) {
       await addLibraryWorkoutToPlan(item.libraryWorkoutId, planId, item.week, item.day);
     } else if (item.workout) {
       const { count } = await supabase
