@@ -6,12 +6,20 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
+import { defaultSubType, filterLibrary, subTypeOptions } from "@/lib/libraryPicker";
 import { describeStepData, groupStepData, planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
 import { RUN_TYPE_LABELS, STEP_TYPE_LABELS, STRENGTH_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
 import type { RunningPace, WorkoutType } from "@/types/database";
 
-export type LibraryWorkout = { id: string; title: string; type: string };
+export type LibraryWorkout = {
+  id: string;
+  title: string;
+  type: string;
+  run_type: string | null;
+  strength_type: string | null;
+  cross_train_type: string | null;
+};
 export type PlanWorkoutChoice = { kind: "library"; id: string; title: string } | { kind: "new"; type?: WorkoutType } | { kind: "skip" };
 
 export interface ResolvedPlanWorkout {
@@ -43,7 +51,7 @@ export function usePlanWorkoutChoices() {
     const supabase = createClient();
     supabase
       .from("workouts")
-      .select("id, title, type")
+      .select("id, title, type, run_type, strength_type, cross_train_type")
       .order("title")
       .then(({ data }) => setLibrary(data ?? []));
     supabase
@@ -130,6 +138,15 @@ export function PlanWorkoutChoiceRow({
   const { key, choice, match, newWorkout } = resolved;
   const [showSteps, setShowSteps] = useState(false);
   const steps = choice.kind === "new" ? newWorkout.steps ?? [] : [];
+
+  // "Pick from library" only lists workouts of the type being imported, optionally narrowed to a sub-type.
+  const pickType = newWorkout.type;
+  const subOptions = useMemo(() => subTypeOptions(library, pickType), [library, pickType]);
+  const [subFilter, setSubFilter] = useState<{ type: string; sub: string } | null>(null);
+  const sub = subFilter?.type === pickType ? subFilter.sub : defaultSubType(library, pickType, newWorkout);
+  const [showAll, setShowAll] = useState(false);
+  const pickable = showAll ? library : filterLibrary(library, pickType, sub);
+  const typeName = WORKOUT_TYPE_LABELS[pickType] ?? pickType;
   return (
     <li className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 space-y-1">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -166,21 +183,60 @@ export function PlanWorkoutChoiceRow({
               ))}
             </select>
           )}
+          {!showAll && subOptions.length > 0 && (
+            <select
+              value={sub}
+              onChange={(e) => setSubFilter({ type: pickType, sub: e.target.value })}
+              className="max-w-[9rem] rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
+              aria-label={`Filter library by ${typeName.toLowerCase()} type`}
+            >
+              <option value="">All {typeName.toLowerCase()}</option>
+              {subOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             value=""
             onChange={(e) => {
+              if (e.target.value === "__all") return setShowAll(true);
+              if (e.target.value === "__type") return setShowAll(false);
               const w = library.find((l) => l.id === e.target.value);
               if (w) onChoose(key, { kind: "library", id: w.id, title: w.title });
             }}
             className="max-w-[11rem] rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
             aria-label="Pick from library"
           >
-            <option value="">Pick from library…</option>
-            {library.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.title}
-              </option>
-            ))}
+            <option value="">
+              {pickable.length ? `Pick from library (${pickable.length})…` : "No matching library workouts"}
+            </option>
+            {showAll
+              ? [...new Set(library.map((w) => w.type))]
+                  .sort((a, b) => ((TYPES as string[]).indexOf(a) + 1 || 99) - ((TYPES as string[]).indexOf(b) + 1 || 99))
+                  .map((t) => (
+                  <optgroup key={t} label={WORKOUT_TYPE_LABELS[t] ?? t}>
+                    {library
+                      .filter((w) => w.type === t)
+                      .map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.title}
+                        </option>
+                      ))}
+                  </optgroup>
+                ))
+              : pickable.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.title}
+                  </option>
+                ))}
+            <option disabled>──────────</option>
+            {showAll ? (
+              <option value="__type">Only {typeName.toLowerCase()} workouts</option>
+            ) : (
+              <option value="__all">Show all library workouts…</option>
+            )}
           </select>
           {choice.kind !== "new" && (
             <button type="button" onClick={() => onChoose(key, { kind: "new" })} className={btn}>
