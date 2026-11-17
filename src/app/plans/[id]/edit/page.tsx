@@ -24,7 +24,8 @@ import { LibraryPickerModal } from "@/components/LibraryPickerModal";
 import { PlanTextImportModal } from "@/components/PlanTextImportModal";
 import { createWorkout, updateWorkout, deleteWorkout, updateDayLogic, batchUpdateWorkoutPositions, copyWorkoutToDays } from "@/app/actions/workouts";
 import { createLibraryWorkout } from "@/app/actions/workoutLibrary";
-import { updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
+import { deletePlan, updatePlan, upsertWeekPurpose } from "@/app/actions/plans";
+import { useViewer } from "@/hooks/useViewer";
 import { DIFFICULTY_LABELS } from "@/lib/paceUtils";
 import type { DifficultyType } from "@/types/database";
 import { CopyToDaysModal } from "@/components/CopyToDaysModal";
@@ -265,6 +266,9 @@ export default function EditPlanPage() {
   const [planDifficulty, setPlanDifficulty] = useState<DifficultyType | "">("");
   const [planSource, setPlanSource] = useState("");
   const [planSaving, setPlanSaving] = useState(false);
+  const [deletingPlan, setDeletingPlan] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const viewer = useViewer();
 
   async function load() {
     const supabase = createClient();
@@ -306,6 +310,20 @@ export default function EditPlanPage() {
   }
 
   useEffect(() => { load(); }, [id]);
+
+  async function handleDeletePlan() {
+    if (!plan) return;
+    if (!confirm(`Delete "${plan.name}" and all of its workouts? This can't be undone.`)) return;
+    setDeletingPlan(true);
+    setDeleteError(null);
+    const result = await deletePlan(id);
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeletingPlan(false);
+      return;
+    }
+    router.push("/plans");
+  }
 
   async function handleSavePlanMeta() {
     if (!planName.trim()) return;
@@ -504,6 +522,19 @@ export default function EditPlanPage() {
         >
           {planSaving ? "Saving…" : "Save"}
         </button>
+        {viewer.isAdmin && (
+          <div className="border-t border-[var(--border)] pt-3 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-[var(--muted)]">Admin: delete this plan and all of its workouts.</p>
+            <button
+              onClick={handleDeletePlan}
+              disabled={deletingPlan}
+              className="px-4 py-1.5 rounded-lg border border-red-300 text-sm text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/40 disabled:opacity-50 transition-colors"
+            >
+              {deletingPlan ? "Deleting…" : "Delete plan"}
+            </button>
+            {deleteError && <p className="w-full text-xs text-red-600 dark:text-red-400">{deleteError}</p>}
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

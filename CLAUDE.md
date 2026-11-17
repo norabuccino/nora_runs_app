@@ -115,7 +115,7 @@ Sign-out is a POST route at `/auth/signout/route.ts` (not a client-side action) 
 - **Who sees what:** everyone sees site exercises (non-private), site workouts and site plans, plus their own. Admins can edit site content; regular users can only edit their own.
 - **Plan-only workouts:** `workouts.plan_only` (admin-set: checkbox in `WorkoutLibraryForm`, bulk edit on `/workouts`) marks site workouts only used inside plans — RLS hides them from regular users; admins see them with a `PlanOnlyBadge` and a Plan only filter (`WorkoutFilterBar` `showPlanOnly`).
 - **Customizing a site workout:** a regular user's "Customize" (Edit) on a site workout opens the form with `saveAsCopy` and saves a new personal workout; the original is untouched. Duplicating a site workout also makes a personal (never plan-only) copy.
-- **Plans:** anyone can create plans (`/plans/new`); non-site plans are private to their creator. Personal copies made by "Add to my plans" count as Site, not "Created by me" (`planOwnershipOf`). `AddToPlanModal` only lists plans the user can edit.
+- **Plans:** anyone can create plans (`/plans/new`); non-site plans are private to their creator. Only admins can delete a plan ("Delete plan" in the plan editor's details, `deletePlan` re-checks `getIsAdmin()`; RLS limits it to site plans and their own). A plan someone follows can't be deleted — `user_plans.plan_id` has no cascade, which protects their logs/sessions (those cascade from `plan_workouts`). Personal copies made by "Add to my plans" count as Site, not "Created by me" (`planOwnershipOf`). `AddToPlanModal` only lists plans the user can edit.
 - **"Created by" filter** (Anyone / Created by me / Site) on Exercises, Workouts (+ `LibraryPickerModal`) and Plans.
 
 ### Adding new protected routes

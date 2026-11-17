@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PlanType, DifficultyType } from "@/types/database";
+import { getIsAdmin } from "@/lib/profile";
 
 export async function createPlan(data: {
   name: string;
@@ -154,17 +155,27 @@ export async function duplicatePlan(id: string) {
   redirect(`/plans/${newPlan.id}/edit`);
 }
 
-export async function deletePlan(id: string) {
+/**
+ * Deletes a plan and its workouts — admins only (site plans and their own; RLS decides which).
+ * A plan someone is following can't be deleted: `user_plans` has no cascade, which protects their
+ * completion and strength history (those cascade from the plan's workouts).
+ */
+export async function deletePlan(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
+  if (!(await getIsAdmin())) return { error: "Only admins can delete plans." };
 
-  const { error } = await supabase
-    .from("training_plans")
-    .delete()
-    .eq("id", id);
+  const { data, error } = await supabase.from("training_plans").delete().eq("id", id).select("id");
+  if (error) {
+    if (error.code === "23503") {
+      return { error: "Someone is following this plan, so it can't be deleted (it would remove their workout history)." };
+    }
+    return { error: error.message };
+  }
+  if (!data?.length) return { error: "This plan can't be deleted from your account." };
 
-  if (error) throw new Error(error.message);
   revalidatePath("/plans");
-  redirect("/plans");
+  revalidatePath("/my-plan");
+  return {};
 }
