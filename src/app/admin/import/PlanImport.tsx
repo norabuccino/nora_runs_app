@@ -111,11 +111,23 @@ export function PlanImport() {
     }
   }
   const resolvedByKey = new Map(workoutRows.map((r) => [r.key, r.resolved]));
-  // Exercises only need deciding for written-out strength workouts that will be created.
+  // Exercises only need deciding for written-out strength workouts that will be created from the written lines.
+  const fromWritten = (r: ResolvedPlanWorkout) => r.choice.kind === "new" && !r.choice.edited;
   const pendingExercises = workoutRows
-    .filter((r) => r.block && r.resolved.choice.kind === "new")
+    .filter((r) => r.block && fromWritten(r.resolved))
     .flatMap((r) => exerciseRows.get(r.key)!)
     .filter((r) => !r.choice).length;
+
+  /** A written-out workout as it will be saved — null while its exercises still need matching. */
+  function writtenPayload(key: string, title: string): NewWorkoutFromText | null {
+    const resolutions = exerciseRows.get(key)!;
+    if (resolutions.some((x) => !x.choice)) return null;
+    const payload = buildWorkoutPayload(fullWorkouts.get(key)!.block, resolutions.map((x) => x.choice!), { paces });
+    // Plan workouts have no source column.
+    const { source: _source, ...rest } = payload;
+    void _source;
+    return { ...rest, title };
+  }
 
   function buildItems(): PlanTextImportItem[] {
     return parsed.entries.flatMap((e) =>
@@ -126,13 +138,8 @@ export function PlanImport() {
           const r = resolvedByKey.get(key)!;
           if (r.choice.kind === "skip") return [];
           if (r.choice.kind === "library") return [{ week, day: e.day, libraryWorkoutId: r.choice.id, logic }];
-          let workout: PlanTextImportItem["workout"] = r.newWorkout;
-          if (written) {
-            const { block } = fullWorkouts.get(key)!;
-            // Plan workouts have no source column (undefined is dropped when sent to the server).
-            const payload = buildWorkoutPayload(block, exerciseRows.get(key)!.map((x) => x.choice!), { paces });
-            workout = { ...payload, source: undefined, title: r.newWorkout.title } as PlanTextImportItem["workout"];
-          }
+          // Edited in the workout editor → exactly that; written out → its parsed lines; else the guess from the name.
+          const workout = written && fromWritten(r) ? writtenPayload(key, r.newWorkout.title)! : r.newWorkout;
           return [{ week, day: e.day, workout, saveToLibraryKey: r.saveToLibrary ? key : undefined, logic }];
         });
       })
@@ -275,7 +282,15 @@ export function PlanImport() {
           <SaveAllToLibraryToggle resolved={workoutRows.map((r) => r.resolved)} onChange={setSaveAllNew} />
           <ul className="space-y-1.5">
             {workoutRows.map((r) => (
-              <PlanWorkoutChoiceRow key={r.key} typed={r.typed} resolved={r.resolved} library={library} onChoose={choose}>
+              <PlanWorkoutChoiceRow
+                key={r.key}
+                typed={r.typed}
+                resolved={r.resolved}
+                library={library}
+                paces={paces}
+                onChoose={choose}
+                getDraft={r.block ? () => writtenPayload(r.key, r.resolved.newWorkout.title) : undefined}
+              >
                 {r.block && renderWrittenPreview(r.key, r.block)}
               </PlanWorkoutChoiceRow>
             ))}

@@ -31,7 +31,7 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
   const [error, setError] = useState<string | null>(null);
   const [showTips, setShowTips] = useState(false);
 
-  const { library, isKnownWorkout, resolve, choose, setSaveAllNew } = usePlanWorkoutChoices();
+  const { library, paces, isKnownWorkout, resolve, choose, setSaveAllNew } = usePlanWorkoutChoices();
   const parsed = useMemo(
     () => parsePlanText(text, { totalWeeks, defaultWeek, isKnownWorkout }),
     [text, totalWeeks, defaultWeek, isKnownWorkout]
@@ -136,7 +136,7 @@ export function PlanTextImportModal({ planId, totalWeeks, onDone, onCancel }: Pl
               <SaveAllToLibraryToggle resolved={[...resolved.values()]} onChange={setSaveAllNew} />
               <ul className="space-y-1.5">
                 {texts.map(([key, typed]) => (
-                  <PlanWorkoutChoiceRow key={key} typed={typed} resolved={resolved.get(key)!} library={library} onChoose={choose} />
+                  <PlanWorkoutChoiceRow key={key} typed={typed} resolved={resolved.get(key)!} library={library} paces={paces} onChoose={choose} />
                 ))}
               </ul>
             </div>

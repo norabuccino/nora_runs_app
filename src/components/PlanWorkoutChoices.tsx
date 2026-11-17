@@ -7,6 +7,8 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { createClient } from "@/lib/supabase/client";
 import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
 import { applyNewWorkoutChoice, initialChoice, type PlanWorkoutChoice } from "@/lib/planWorkoutChoice";
+import { draftToExisting, formDataToDraft } from "@/lib/workoutDraft";
+import { WorkoutForm } from "@/components/WorkoutForm";
 import { defaultSubType, filterLibrary, subTypeOptions } from "@/lib/libraryPicker";
 import { describeStepData, groupStepData, planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
@@ -149,17 +151,29 @@ export function PlanWorkoutChoiceRow({
   resolved,
   library,
   onChoose,
+  paces,
+  getDraft,
   children,
 }: {
   typed: string;
   resolved: ResolvedPlanWorkout;
   library: LibraryWorkout[];
   onChoose: (key: string, choice: PlanWorkoutChoice) => void;
+  /** For the workout editor's pace choices. */
+  paces: RunningPace[];
+  /**
+   * The full workout to open in the editor ("Edit steps…"), when it differs from `resolved.newWorkout`
+   * (a written-out workout's parsed steps); null while it can't be built yet (exercises to match).
+   */
+  getDraft?: () => NewWorkoutFromText | null;
   /** Preview of a written-out workout (its steps / exercises), shown while it's a new workout. */
   children?: ReactNode;
 }) {
   const { key, choice, match, newWorkout } = resolved;
   const [showSteps, setShowSteps] = useState(false);
+  const [editing, setEditing] = useState<NewWorkoutFromText | null>(null);
+  const edited = choice.kind === "new" && !!choice.edited;
+  const draft = getDraft ? (edited ? newWorkout : getDraft()) : newWorkout;
   const steps = choice.kind === "new" ? newWorkout.steps ?? [] : [];
 
   // "Pick from library" only lists workouts of the type being imported, optionally narrowed to a sub-type.
@@ -210,11 +224,34 @@ export function PlanWorkoutChoiceRow({
                 />
                 Also save to my workout library
               </label>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => draft && setEditing({ ...draft, title: newWorkout.title })}
+                  disabled={!draft}
+                  className={`${btn} disabled:opacity-50`}
+                  title={draft ? "Correct the steps and details in the workout editor" : "Match the exercises first"}
+                >
+                  Edit steps…
+                </button>
+                {edited && (
+                  <>
+                    <span className="text-[var(--accent)]">Edited</span>
+                    <button
+                      type="button"
+                      onClick={() => onChoose(key, { ...choice, edited: undefined })}
+                      className="text-[var(--muted)] underline hover:text-[var(--foreground)]"
+                    >
+                      Reset to imported
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          {choice.kind === "new" && (
+          {choice.kind === "new" && !edited && (
             <select
               value={newWorkout.type}
               onChange={(e) => onChoose(key, { ...choice, kind: "new", type: e.target.value as WorkoutType })}
@@ -295,8 +332,8 @@ export function PlanWorkoutChoiceRow({
           )}
         </div>
       </div>
-      {choice.kind === "new" && children}
-      {!children && steps.length > 0 && (
+      {choice.kind === "new" && !edited && children}
+      {(!children || edited) && steps.length > 0 && (
         <div>
           <button
             type="button"
@@ -342,6 +379,20 @@ export function PlanWorkoutChoiceRow({
             </button>
           ))}
         </div>
+      )}
+      {editing && choice.kind === "new" && (
+        <WorkoutForm
+          existing={draftToExisting(editing)}
+          paces={paces}
+          heading="before import"
+          nested
+          onCancel={() => setEditing(null)}
+          onSave={async (data) => {
+            // The editor's title becomes the row's name; the type select gives way to the edited type.
+            onChoose(key, { ...choice, edited: formDataToDraft(data), title: undefined, type: undefined });
+            setEditing(null);
+          }}
+        />
       )}
     </li>
   );

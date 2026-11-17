@@ -3,12 +3,24 @@
 
 import type { NewWorkoutFromText } from "@/lib/planTextImport";
 import type { ExerciseMatch } from "@/lib/exerciseMatch";
+import type { StepData } from "@/lib/workoutTextBlock";
+
+/** A new workout as corrected in the workout editor ("Edit steps…") — saved as-is instead of the parsed one. */
+export type EditedWorkout = NewWorkoutFromText & {
+  steps: StepData[];
+  pace_type?: string | null;
+  bike_location?: string | null;
+  cross_train_type?: string | null;
+  continuous_timers?: boolean;
+  equipment_added?: string[];
+  equipment_removed?: string[];
+};
 import type { WorkoutType } from "@/types/database";
 
 export type PlanWorkoutChoice =
   | { kind: "library"; id: string; title: string }
   /** A new workout from the text; `title` / `saveToLibrary` are the user's edits (unset = guessed title / the "save all" default). */
-  | { kind: "new"; type?: WorkoutType; title?: string; saveToLibrary?: boolean }
+  | { kind: "new"; type?: WorkoutType; title?: string; saveToLibrary?: boolean; edited?: EditedWorkout }
   | { kind: "skip" };
 
 export function applyNewWorkoutChoice(
@@ -17,8 +29,9 @@ export function applyNewWorkoutChoice(
   saveAllNew: boolean
 ): { newWorkout: NewWorkoutFromText; saveToLibrary: boolean } {
   if (choice.kind !== "new") return { newWorkout: guess, saveToLibrary: false };
-  const byType: NewWorkoutFromText =
-    choice.type && choice.type !== guess.type
+  const byType: NewWorkoutFromText = choice.edited
+    ? choice.edited
+    : choice.type && choice.type !== guess.type
       ? {
           ...guess,
           type: choice.type,

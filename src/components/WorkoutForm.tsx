@@ -1049,6 +1049,10 @@ interface WorkoutFormProps {
   onSave: (data: WorkoutFormData) => Promise<void>;
   onCancel: () => void;
   onBack?: () => void;
+  /** Replaces the "Wk N, Day" part of the heading (e.g. editing a workout before a plan import). */
+  heading?: string;
+  /** Opened on top of another modal — stack above it. */
+  nested?: boolean;
 }
 
 export function WorkoutForm({
@@ -1062,6 +1066,8 @@ export function WorkoutForm({
   onSave,
   onCancel,
   onBack,
+  heading,
+  nested = false,
 }: WorkoutFormProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1540,7 +1546,7 @@ export function WorkoutForm({
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm">
+    <div className={`fixed inset-0 ${nested ? "z-[70]" : "z-50"} flex items-end sm:items-center justify-center sm:p-4 bg-black/50 backdrop-blur-sm`}>
       <div className="w-full sm:max-w-lg bg-[var(--background)] rounded-t-2xl sm:rounded-2xl border border-[var(--border)] shadow-xl overflow-y-auto max-h-[90dvh] sm:max-h-[90vh]">
         <div className="p-4 space-y-4">
           <div className="flex items-center justify-between">
@@ -1557,9 +1563,10 @@ export function WorkoutForm({
               )}
               <h2 className="font-semibold">
                 {existing ? "Edit" : "Add"} workout —{" "}
-                {scheduledDate
+                {heading ??
+                  (scheduledDate
                   ? new Date(scheduledDate + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : `Wk ${weekNumber}, ${DAY_NAMES[dayOfWeek ?? 0]}`}
+                  : `Wk ${weekNumber}, ${DAY_NAMES[dayOfWeek ?? 0]}`)}
               </h2>
             </div>
             <button
