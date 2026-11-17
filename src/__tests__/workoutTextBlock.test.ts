@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitBulkWorkouts, detectWorkoutType, parseWorkoutBlock, buildWorkoutPayload, runTotals, planRunSteps } from "@/lib/workoutTextBlock";
+import { splitBulkWorkouts, detectWorkoutType, parseWorkoutBlock, buildWorkoutPayload, runTotals, planRunSteps, describeStepData, groupStepData } from "@/lib/workoutTextBlock";
 import { flattenExercises } from "@/lib/workoutTextImport";
 
 const paces = [
@@ -74,5 +74,17 @@ describe("planRunSteps", () => {
   it("leaves plain runs and conditional notes alone", () => {
     expect(planRunSteps("Easy 5 miles", paces)).toBeNull();
     expect(planRunSteps("16 mile progression run (if not racing); if racing, stop at 8 miles", paces)).toBeNull();
+  });
+});
+
+describe("step previews", () => {
+  it("groups repeats and describes each saved step", () => {
+    const steps = planRunSteps("2M w/u; 4x1M @ 3K (90 sec rest); 2M c/d", paces)!.steps;
+    const labels = { warmup: "Warm-up", interval: "Interval", recovery: "Recovery", cooldown: "Cool-down" };
+    expect(groupStepData(steps).map((g) => [g.repeat, g.steps.map((s) => describeStepData(s, labels))])).toEqual([
+      [null, ["Warm-up · 2 mi · @ Easy"]],
+      [4, ["Interval · 1 mi · @ 3K", "Recovery · 90 sec · @ Recovery"]],
+      [null, ["Cool-down · 2 mi · @ Easy"]],
+    ]);
   });
 });

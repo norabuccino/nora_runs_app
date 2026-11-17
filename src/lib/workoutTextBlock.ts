@@ -234,3 +234,36 @@ export function planRunSteps(
   const rows = toRunFormSteps(blocks, { startGroupId: 1, defaultUnit: "mi" });
   return { steps: formRowsToStepData(rows), ...runTotals(rows, paces) };
 }
+
+/** "Interval · 400 m · 1:30 · @ 10K · uphill" — one saved step, for previews. */
+export function describeStepData(s: StepData, labels: Record<string, string>): string {
+  const min = s.duration_minutes;
+  const time =
+    min == null
+      ? null
+      : s.duration_unit === "sec"
+      ? `${Math.round(min * 60)} sec`
+      : Number.isInteger(min)
+      ? `${min} min`
+      : `${Math.floor(min)}:${String(Math.round((min % 1) * 60)).padStart(2, "0")}`;
+  return [
+    labels[s.step_type] ?? s.step_type,
+    s.distance_miles != null ? `${s.distance_miles} ${s.distance_unit}` : null,
+    time,
+    s.pace_type ? `@ ${s.pace_type}` : null,
+    s.notes,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Saved steps grouped for a preview: standalone steps, and repeat groups with their count. */
+export function groupStepData(steps: StepData[]): { repeat: number | null; steps: StepData[] }[] {
+  const out: { repeat: number | null; group: number | null; steps: StepData[] }[] = [];
+  for (const s of steps) {
+    const last = out[out.length - 1];
+    if (s.repeat_group_id != null && last?.group === s.repeat_group_id) last.steps.push(s);
+    else out.push({ repeat: s.repeat_group_id != null ? s.repeat_count : null, group: s.repeat_group_id, steps: [s] });
+  }
+  return out.map(({ repeat, steps }) => ({ repeat, steps }));
+}

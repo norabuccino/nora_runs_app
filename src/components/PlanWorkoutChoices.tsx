@@ -6,9 +6,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
-import { planRunSteps } from "@/lib/workoutTextBlock";
+import { describeStepData, groupStepData, planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
-import { RUN_TYPE_LABELS, STRENGTH_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
+import { RUN_TYPE_LABELS, STEP_TYPE_LABELS, STRENGTH_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
 import type { RunningPace, WorkoutType } from "@/types/database";
 
 export type LibraryWorkout = { id: string; title: string; type: string };
@@ -107,7 +107,6 @@ function describeNew(w: NewWorkoutFromText): string {
     w.strength_type ? STRENGTH_TYPE_LABELS[w.strength_type] : null,
     w.distance_miles != null ? `${w.distance_miles} ${w.distance_unit}` : null,
     w.duration_minutes != null ? `${w.duration_minutes} min` : null,
-    w.steps?.length ? `${w.steps.length} steps` : null,
     w.notes,
   ]
     .filter(Boolean)
@@ -129,6 +128,8 @@ export function PlanWorkoutChoiceRow({
   onChoose: (key: string, choice: PlanWorkoutChoice) => void;
 }) {
   const { key, choice, match, newWorkout } = resolved;
+  const [showSteps, setShowSteps] = useState(false);
+  const steps = choice.kind === "new" ? newWorkout.steps ?? [] : [];
   return (
     <li className="rounded-lg border border-[var(--border)] bg-[var(--card)] p-2 space-y-1">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -193,6 +194,38 @@ export function PlanWorkoutChoiceRow({
           )}
         </div>
       </div>
+      {steps.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowSteps((v) => !v)}
+            className="text-xs text-[var(--accent)] hover:underline"
+            aria-expanded={showSteps}
+          >
+            {showSteps ? "▾ Hide" : "▸ Show"} {steps.length} steps
+          </button>
+          {showSteps && (
+            <ol className="mt-1 space-y-1 text-xs">
+              {groupStepData(steps).map((g, i) =>
+                g.repeat != null ? (
+                  <li key={i} className="rounded-md border border-[var(--border)] px-2 py-1">
+                    <div className="font-medium">Repeat {g.repeat}×</div>
+                    <ul className="pl-3 space-y-0.5 text-[var(--muted)]">
+                      {g.steps.map((s, j) => (
+                        <li key={j}>{describeStepData(s, STEP_TYPE_LABELS)}</li>
+                      ))}
+                    </ul>
+                  </li>
+                ) : (
+                  <li key={i} className="px-2">
+                    {describeStepData(g.steps[0], STEP_TYPE_LABELS)}
+                  </li>
+                )
+              )}
+            </ol>
+          )}
+        </div>
+      )}
       {choice.kind === "new" && match.suggestions.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs text-[var(--muted)]">Similar in your library:</span>
