@@ -71,8 +71,25 @@ describe("planRunSteps", () => {
     expect(out?.miles).toBeGreaterThan(5.9);
   });
 
-  it("leaves plain runs and conditional notes alone", () => {
-    expect(planRunSteps("Easy 5 miles", paces)).toBeNull();
+  it("gives a single run its one step, with a pace offset in the notes", () => {
+    const out = planRunSteps("13-14 miles @ MP + 45-60 sec/mile", [...paces, { name: "Marathon", pace_seconds_per_mile: 480 }]);
+    expect(out?.steps.map((s) => [s.step_type, s.distance_miles, s.distance_unit, s.pace_type, s.notes])).toEqual([
+      ["main", 14, "mi", "Marathon", "+45-60 sec/mi"],
+    ]);
+    expect(out?.miles).toBe(14);
+    expect(planRunSteps("45-50 min easy", paces)?.steps.map((s) => [s.duration_minutes, s.pace_type])).toEqual([[50, "Easy"]]);
+  });
+
+  it("splits 'with the last N miles @ pace' into two steps", () => {
+    const out = planRunSteps("12 miles easy with the last 2 miles @ MP", [...paces, { name: "Marathon", pace_seconds_per_mile: 480 }]);
+    expect(out?.steps.map((s) => [s.distance_miles, s.pace_type])).toEqual([
+      [10, "Easy"],
+      [2, "Marathon"],
+    ]);
+  });
+
+  it("leaves names without an amount and unstructured alternatives alone", () => {
+    expect(planRunSteps("Brooklyn Half Marathon!", paces)).toBeNull();
     expect(planRunSteps("16 mile progression run (if not racing); if racing, stop at 8 miles", paces)).toBeNull();
   });
 });

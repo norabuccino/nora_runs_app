@@ -217,20 +217,25 @@ export function buildWorkoutPayload(
 }
 
 /**
- * Steps for a run written on one line of a pasted plan ("2M w/u; 8x400m at 10K
- * (jog recovery); 2M c/d"), with its totals. Only for a structured session — one
- * with a repeat or a warm-up/cool-down — so "Easy 5 miles" or "16 mile progression
- * run; if racing, stop at 8 miles" stay quick workouts without steps.
+ * Steps for a run written on one line of a pasted plan, with its totals: a structured
+ * session ("2M w/u; 8x400m at 10K (jog recovery); 2M c/d" — a repeat or a warm-up/
+ * cool-down), or a single run step ("13-14 miles @ MP + 45-60 sec/mile" → 14 mi @ MP).
+ * Plain steps only when all the text was read as steps ("12 miles easy with the last 2
+ * miles @ MP" → 10 easy + 2 @ MP); "16 mile progression run (if not racing); if racing,
+ * stop at 8 miles" has a clause that isn't a step, so it gets none.
  */
 export function planRunSteps(
   text: string,
   paces: { name: string; pace_seconds_per_mile: number }[]
 ): { steps: StepData[]; miles: number; minutes: number } | null {
-  const { blocks } = parseRunText(text, { sport: "run", paceNames: paces.map((p) => p.name) });
+  const { blocks, unparsed } = parseRunText(text, { sport: "run", paceNames: paces.map((p) => p.name) });
+  if (!blocks.length) return null;
   const structured = blocks.some(
     (b) => b.kind === "repeat" || b.step.stepType === "warmup" || b.step.stepType === "cooldown"
   );
-  if (!structured || blocks.length < 2) return null;
+  // Plain steps only count as a sequence when the whole text was read as steps — "if racing, stop
+  // at 8 miles" leaves a clause unread, so the progression run keeps its single distance instead.
+  if (!structured && unparsed.length > 0) return null;
   const rows = toRunFormSteps(blocks, { startGroupId: 1, defaultUnit: "mi" });
   return { steps: formRowsToStepData(rows), ...runTotals(rows, paces) };
 }

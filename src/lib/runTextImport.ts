@@ -18,7 +18,8 @@
 //   - Swim: strokes (free, back, breast, fly), "on 1:45" send-off, "15s rest".
 //   - Shorthand: "2M" = 2 miles, "w/u" / "c/d", "(3:00 rest)" / "(jog recovery)"
 //     after a repeat = its recovery, "MP + 45-60 sec/mile" offsets go to notes,
-//     bare "800 @ 10K" = meters.
+//     bare "800 @ 10K" = meters, "12 miles easy with the last 2 miles @ MP" =
+//     10 miles easy then 2 miles @ MP.
 // Leftover meaningful words (strides, hills…) become the step's notes.
 
 import type { WorkoutStepFormRow } from "@/components/WorkoutForm";
@@ -91,7 +92,16 @@ function normalizeText(text: string): string {
     .replace(/\b(warm|cool)[\s-]+(ups?|downs?)\b/g, "$1$2")
     .replace(/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)\b/g, (w) => WORD_NUMBERS[w])
     .replace(/\bhalf (a )?(mile|mi)\b/g, "0.5 mile")
-    .replace(/\b(a|an) (mile|km|kilometer|kilometre)\b/g, "1 $2");
+    .replace(/\b(a|an) (mile|km|kilometer|kilometre)\b/g, "1 $2")
+    // "12 miles easy with the last 2 miles @ mp" → "10 miles easy, 2 miles @ mp"
+    .replace(
+      /\b(\d+(?:\.\d+)?)\s*(miles?|mi|km)\b([^,;.]*?)\s+with (?:the )?(?:last|final) (\d+(?:\.\d+)?)\s*(miles?|mi|km)?\b([^,;.]*)/g,
+      (all, total: string, unit: string, first: string, last: string, lastUnit: string | undefined, rest: string) => {
+        const t = parseFloat(total), l = parseFloat(last);
+        if (!(l < t)) return all;
+        return `${Math.round((t - l) * 100) / 100} ${unit}${first}, ${l} ${lastUnit ?? unit}${rest}`;
+      }
+    );
 }
 
 /** Sentences, then commas / "then" / "followed by" — but never inside a decimal like 1.5. */
