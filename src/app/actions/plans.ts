@@ -5,7 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { PlanType, DifficultyType } from "@/types/database";
-import { getIsAdmin } from "@/lib/profile";
 
 export async function createPlan(data: {
   name: string;
@@ -155,27 +154,38 @@ export async function duplicatePlan(id: string) {
   redirect(`/plans/${newPlan.id}/edit`);
 }
 
+export interface PlanUsage {
+  /** Other people following the plan. */
+  followers: number;
+  followingSelf: boolean;
+  /** Personal copies made from it ("Add to my plans") — they're separate plans and survive. */
+  copies: number;
+}
+
+/** How a plan is used, shown before deleting it. Null if the caller can't edit (delete) it. */
+export async function getPlanUsage(id: string): Promise<PlanUsage | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("plan_usage", { pid: id });
+  if (error) throw new Error(error.message);
+  const row = data?.[0];
+  return row ? { followers: row.followers, followingSelf: row.following_self, copies: row.copies } : null;
+}
+
 /**
- * Deletes a plan and its workouts — admins only (site plans and their own; RLS decides which).
- * A plan someone is following can't be deleted: `user_plans` has no cascade, which protects their
- * completion and strength history (those cascade from the plan's workouts).
+ * Deletes a plan with its workouts, and everyone's assignments to it (with their logged history for
+ * it). Owners delete their own plans, admins also site plans; only admins can delete a plan other
+ * people follow — the checks live in the delete_plan database function.
  */
 export async function deletePlan(id: string): Promise<{ error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
-  if (!(await getIsAdmin())) return { error: "Only admins can delete plans." };
 
-  const { data, error } = await supabase.from("training_plans").delete().eq("id", id).select("id");
-  if (error) {
-    if (error.code === "23503") {
-      return { error: "Someone is following this plan, so it can't be deleted (it would remove their workout history)." };
-    }
-    return { error: error.message };
-  }
-  if (!data?.length) return { error: "This plan can't be deleted from your account." };
+  const { error } = await supabase.rpc("delete_plan", { pid: id });
+  if (error) return { error: error.message };
 
   revalidatePath("/plans");
   revalidatePath("/my-plan");
+  revalidatePath("/dashboard");
   return {};
 }

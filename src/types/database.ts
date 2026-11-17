@@ -728,6 +728,10 @@ export interface Database {
       site_user_ids: { Args: Record<string, never>; Returns: string[] };
       /** Own plans, and site plans for admins. */
       can_edit_plan: { Args: { pid: string }; Returns: boolean };
+      /** For the delete warning: others following the plan, whether the caller does, personal copies. Empty unless can_edit_plan. */
+      plan_usage: { Args: { pid: string }; Returns: { followers: number; following_self: boolean; copies: number }[] };
+      /** Deletes a plan and everyone's assignments to it (others' only for admins). */
+      delete_plan: { Args: { pid: string }; Returns: undefined };
     };
     Enums: Record<string, never>;
   };
