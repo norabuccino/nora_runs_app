@@ -2,19 +2,23 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type { WorkoutType } from "@/types/database";
 import { adminImportPlan } from "@/app/actions/adminImport";
 import type { PlanTextImportItem } from "@/app/actions/planTextImport";
-import { parsePlanMeta, parsePlanText, PLAN_DAY_SHORT } from "@/lib/planTextImport";
+import { parsePlanMeta, parsePlanText, PLAN_DAY_SHORT, type NewWorkoutFromText } from "@/lib/planTextImport";
 import { buildWorkoutPayload, parseWorkoutBlock, type ParsedWorkoutBlock } from "@/lib/workoutTextBlock";
 import { describeParsedExercise, flattenExercises } from "@/lib/workoutTextImport";
 import { describeRunStep } from "@/lib/runTextImport";
 import { normalizeExerciseName } from "@/lib/exerciseMatch";
 import { ResolvedExerciseRow, useExerciseResolver, type ResolvedExercise } from "@/components/ExerciseResolution";
-import { PlanWorkoutChoiceRow, SaveAllToLibraryToggle, usePlanWorkoutChoices, weeksLabel } from "@/components/PlanWorkoutChoices";
-import { DAY_NAMES, DIFFICULTY_LABELS, PLAN_TYPE_LABELS, WORKOUT_TYPE_LABELS } from "@/lib/paceUtils";
+import {
+  PlanWorkoutChoiceRow,
+  SaveAllToLibraryToggle,
+  usePlanWorkoutChoices,
+  weeksLabel,
+  type ResolvedPlanWorkout,
+} from "@/components/PlanWorkoutChoices";
+import { DAY_NAMES, DIFFICULTY_LABELS, PLAN_TYPE_LABELS } from "@/lib/paceUtils";
 
-const TYPES: WorkoutType[] = ["run", "strength", "swim", "bike", "cross_train", "rest"];
 
 const PLACEHOLDER = `Spring Half Build
 Weeks: 12
@@ -37,12 +41,11 @@ Mon/Thu: Easy 5 miles`;
 /** A whole plan from text: details, weeks, days, and each day's workout as a library name, a quick name, or written out in full. */
 export function PlanImport() {
   const [text, setText] = useState("");
-  const [typeOverrides, setTypeOverrides] = useState<Record<string, WorkoutType>>({});
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState<{ planId: string; added: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const exerciseResolver = useExerciseResolver();
-  const { library, paces, isKnownWorkout, resolve, choose, setSaveAllNew } = usePlanWorkoutChoices();
+  const { library, paces, isKnownWorkout, resolve, choose, choiceFor, setSaveAllNew } = usePlanWorkoutChoices();
   const paceNames = useMemo(() => paces.map((p) => p.name), [paces]);
 
   const { meta, rest } = useMemo(() => parsePlanMeta(text), [text]);
@@ -52,59 +55,93 @@ export function PlanImport() {
   );
   const totalWeeks = meta.weeks ?? Math.max(1, ...parsed.entries.flatMap((e) => e.weeks));
 
-  // Workouts written out under their day line — one card each, even when listed for several days.
-  const fullKey = (title: string, body: string) => `${title}\n${body}`;
+  // Workouts written out under their day line — parsed once each, even when listed for several days.
+  // A type picked in the row re-parses the written lines as that type.
+  const fullKey = (title: string, body: string) => `written:${title}\n${body}`;
   const fullWorkouts = useMemo(() => {
     const map = new Map<string, { title: string; block: ParsedWorkoutBlock }>();
     for (const e of parsed.entries) {
       if (!e.body) continue;
       const key = fullKey(e.title, e.body);
       if (!map.has(key)) {
-        const block = parseWorkoutBlock(`${e.title}\n${e.body}`, { paceNames, type: typeOverrides[key] });
+        const choice = choiceFor(key);
+        const block = parseWorkoutBlock(`${e.title}\n${e.body}`, { paceNames, type: choice?.kind === "new" ? choice.type : undefined });
         map.set(key, { title: e.title, block });
       }
     }
     return map;
-  }, [parsed, paceNames, typeOverrides]);
+  }, [parsed, paceNames, choiceFor]);
   const exerciseRows = new Map<string, ResolvedExercise[]>(
     [...fullWorkouts].map(([key, w]) => [key, w.block.strength ? flattenExercises(w.block.strength.blocks).map(exerciseResolver.resolve) : []])
   );
-  const pendingExercises = [...exerciseRows.values()].flat().filter((r) => !r.choice).length;
 
-  const quickNames = [
-    ...new Map(parsed.entries.filter((e) => !e.body).flatMap((e) => e.workouts).map((w) => [normalizeExerciseName(w), w])).entries(),
-  ];
-  const quickResolved = new Map(quickNames.map(([key, typed]) => [key, resolve(typed)]));
+  /** What a written-out workout would create, for the row (the saved payload also has its steps). */
+  function writtenSummary(title: string, block: ParsedWorkoutBlock): NewWorkoutFromText {
+    const totals = block.strength ? null : buildWorkoutPayload(block, [], { paces });
+    return {
+      type: block.type,
+      run_type: block.type === "run" ? block.details.run_type ?? null : null,
+      strength_type: block.type === "strength" ? block.details.strength_type ?? null : null,
+      title: block.details.title ?? title,
+      description: block.details.description ?? null,
+      distance_miles: totals?.distance_miles ?? null,
+      distance_unit: totals?.distance_unit ?? "mi",
+      duration_minutes: totals?.duration_minutes ?? null,
+      notes: block.details.notes ?? null,
+    };
+  }
+
+  // Every workout in the plan, in the order it first appears — named ones and written-out ones alike.
+  const workoutRows: { key: string; typed: string; resolved: ResolvedPlanWorkout; block?: ParsedWorkoutBlock }[] = [];
+  const seen = new Set<string>();
+  for (const e of parsed.entries) {
+    if (e.body) {
+      const key = fullKey(e.title, e.body);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const { block } = fullWorkouts.get(key)!;
+      workoutRows.push({ key, typed: e.title, block, resolved: resolve(e.title, { key, workout: writtenSummary(e.title, block) }) });
+    } else {
+      for (const typed of e.workouts) {
+        const key = normalizeExerciseName(typed);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        workoutRows.push({ key, typed, resolved: resolve(typed) });
+      }
+    }
+  }
+  const resolvedByKey = new Map(workoutRows.map((r) => [r.key, r.resolved]));
+  // Exercises only need deciding for written-out strength workouts that will be created.
+  const pendingExercises = workoutRows
+    .filter((r) => r.block && r.resolved.choice.kind === "new")
+    .flatMap((r) => exerciseRows.get(r.key)!)
+    .filter((r) => !r.choice).length;
 
   function buildItems(): PlanTextImportItem[] {
-    const payloads = new Map(
-      [...fullWorkouts].map(([key, w]) => {
-        const payload = buildWorkoutPayload(w.block, exerciseRows.get(key)!.map((r) => r.choice!), { paces });
-        // Plan workouts have no source column (undefined is dropped when sent to the server).
-        return [key, { ...payload, source: undefined } as Omit<typeof payload, "source">];
-      })
-    );
     return parsed.entries.flatMap((e) =>
       e.weeks.flatMap((week): PlanTextImportItem[] => {
-        if (e.body) return [{ week, day: e.day, workout: payloads.get(fullKey(e.title, e.body))!, logic: "and" }];
-        return e.workouts.flatMap((typed): PlanTextImportItem[] => {
-          const r = quickResolved.get(normalizeExerciseName(typed))!;
-          const logic = e.workouts.length > 1 ? e.logic : "or";
+        const slots = e.body ? [{ key: fullKey(e.title, e.body), written: true }] : e.workouts.map((w) => ({ key: normalizeExerciseName(w), written: false }));
+        const logic = slots.length > 1 ? e.logic : "or";
+        return slots.flatMap(({ key, written }): PlanTextImportItem[] => {
+          const r = resolvedByKey.get(key)!;
           if (r.choice.kind === "skip") return [];
-          return r.choice.kind === "library"
-            ? [{ week, day: e.day, libraryWorkoutId: r.choice.id, logic }]
-            : [{ week, day: e.day, workout: r.newWorkout, saveToLibraryKey: r.saveToLibrary ? r.key : undefined, logic }];
+          if (r.choice.kind === "library") return [{ week, day: e.day, libraryWorkoutId: r.choice.id, logic }];
+          let workout: PlanTextImportItem["workout"] = r.newWorkout;
+          if (written) {
+            const { block } = fullWorkouts.get(key)!;
+            // Plan workouts have no source column (undefined is dropped when sent to the server).
+            const payload = buildWorkoutPayload(block, exerciseRows.get(key)!.map((x) => x.choice!), { paces });
+            workout = { ...payload, source: undefined, title: r.newWorkout.title } as PlanTextImportItem["workout"];
+          }
+          return [{ week, day: e.day, workout, saveToLibraryKey: r.saveToLibrary ? key : undefined, logic }];
         });
       })
     );
   }
-  const itemCount = parsed.entries.reduce(
-    (n, e) =>
-      n +
-      e.weeks.length *
-        (e.body ? 1 : e.workouts.filter((w) => quickResolved.get(normalizeExerciseName(w))?.choice.kind !== "skip").length),
-    0
-  );
+  const itemCount = parsed.entries.reduce((n, e) => {
+    const keys = e.body ? [fullKey(e.title, e.body)] : e.workouts.map((w) => normalizeExerciseName(w));
+    return n + e.weeks.length * keys.filter((k) => resolvedByKey.get(k)?.choice.kind !== "skip").length;
+  }, 0);
 
   async function handleSave() {
     if (!meta.name) return;
@@ -125,7 +162,6 @@ export function PlanImport() {
       );
       setDone(result);
       setText("");
-      setTypeOverrides({});
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed");
     } finally {
@@ -133,64 +169,48 @@ export function PlanImport() {
     }
   }
 
-  function renderFullWorkout(key: string, title: string, block: ParsedWorkoutBlock) {
+  /** The written lines of a workout as they'll be saved: exercises to match, or run/swim steps. */
+  function renderWrittenPreview(key: string, block: ParsedWorkoutBlock) {
     const rows = exerciseRows.get(key)!;
     let n = 0;
-    return (
-      <li key={key} className="rounded-lg border border-[var(--border)] p-2 space-y-1.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-medium">
-            {block.details.title ?? title}
-            <span className="text-xs font-normal text-[var(--muted)]"> · written out in the plan</span>
-          </p>
-          <select
-            value={block.type}
-            onChange={(e) => setTypeOverrides((p) => ({ ...p, [key]: e.target.value as WorkoutType }))}
-            className="rounded-md border border-[var(--border)] bg-[var(--background)] px-1.5 py-0.5 text-xs"
-            aria-label="Workout type"
-          >
-            {TYPES.map((t) => (
-              <option key={t} value={t}>
-                {WORKOUT_TYPE_LABELS[t] ?? t}
-              </option>
-            ))}
-          </select>
-        </div>
-        {block.strength ? (
-          <ul className="space-y-1.5">
-            {block.strength.blocks.flatMap((b) =>
-              (b.kind === "single" ? [b.exercise] : b.exercises).map((ex) => {
-                const idx = n++;
-                return (
-                  <ResolvedExerciseRow
-                    key={idx}
-                    ex={ex}
-                    summary={describeParsedExercise(ex, b.kind === "superset")}
-                    resolved={rows[idx]}
-                    onChoose={exerciseResolver.choose}
-                    onOpenPicker={exerciseResolver.openPicker}
-                  />
-                );
-              })
-            )}
-          </ul>
-        ) : block.run ? (
-          <ol className="text-xs text-[var(--muted)] space-y-0.5">
-            {block.run.blocks.map((b, i) =>
-              b.kind === "step" ? (
-                <li key={i}>{describeRunStep(b.step, block.type === "swim" ? "swim" : "run")}</li>
-              ) : (
-                <li key={i}>
-                  {b.count}× {b.steps.map((s) => describeRunStep(s, block.type === "swim" ? "swim" : "run")).join(" → ")}
-                </li>
-              )
-            )}
-          </ol>
-        ) : (
-          <p className="text-xs text-[var(--muted)]">No steps</p>
-        )}
-      </li>
-    );
+    if (block.strength) {
+      return (
+        <ul className="space-y-1.5">
+          {block.strength.blocks.flatMap((b) =>
+            (b.kind === "single" ? [b.exercise] : b.exercises).map((ex) => {
+              const idx = n++;
+              return (
+                <ResolvedExerciseRow
+                  key={idx}
+                  ex={ex}
+                  summary={describeParsedExercise(ex, b.kind === "superset")}
+                  resolved={rows[idx]}
+                  onChoose={exerciseResolver.choose}
+                  onOpenPicker={exerciseResolver.openPicker}
+                />
+              );
+            })
+          )}
+        </ul>
+      );
+    }
+    if (block.run) {
+      const sport = block.type === "swim" ? "swim" : "run";
+      return (
+        <ol className="text-xs text-[var(--muted)] space-y-0.5">
+          {block.run.blocks.map((b, i) =>
+            b.kind === "step" ? (
+              <li key={i}>{describeRunStep(b.step, sport)}</li>
+            ) : (
+              <li key={i}>
+                {b.count}× {b.steps.map((s) => describeRunStep(s, sport)).join(" → ")}
+              </li>
+            )
+          )}
+        </ol>
+      );
+    }
+    return <p className="text-xs text-[var(--muted)]">No steps</p>;
   }
 
   const metaRows: [string, string | undefined][] = [
@@ -249,20 +269,15 @@ export function PlanImport() {
         </div>
       )}
 
-      {fullWorkouts.size > 0 && (
+      {workoutRows.length > 0 && (
         <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Workouts written out</p>
-          <ul className="space-y-1.5">{[...fullWorkouts].map(([key, w]) => renderFullWorkout(key, w.title, w.block))}</ul>
-        </div>
-      )}
-
-      {quickNames.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Workouts by name</p>
-          <SaveAllToLibraryToggle resolved={[...quickResolved.values()]} onChange={setSaveAllNew} />
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">Workouts</p>
+          <SaveAllToLibraryToggle resolved={workoutRows.map((r) => r.resolved)} onChange={setSaveAllNew} />
           <ul className="space-y-1.5">
-            {quickNames.map(([key, typed]) => (
-              <PlanWorkoutChoiceRow key={key} typed={typed} resolved={quickResolved.get(key)!} library={library} onChoose={choose} />
+            {workoutRows.map((r) => (
+              <PlanWorkoutChoiceRow key={r.key} typed={r.typed} resolved={r.resolved} library={library} onChoose={choose}>
+                {r.block && renderWrittenPreview(r.key, r.block)}
+              </PlanWorkoutChoiceRow>
             ))}
           </ul>
         </div>

@@ -22,7 +22,7 @@ export interface ParsedWorkoutBlock {
   run: ParsedRunWorkout | null;
   /** Distance/time guessed from the text, for workouts without steps (bike, cross-train). */
   distance: number | null;
-  distanceUnit: "mi" | "km";
+  distanceUnit: string;
   durationMinutes: number | null;
 }
 

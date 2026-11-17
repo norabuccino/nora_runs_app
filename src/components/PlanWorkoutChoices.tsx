@@ -3,10 +3,10 @@
 // Matching the workout names in a pasted plan to the workout library, shared by
 // the plan editor's "Paste plan from text" dialog and the admin bulk plan import.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { splitAddOns, workoutFromText, type NewWorkoutFromText } from "@/lib/planTextImport";
-import { applyNewWorkoutChoice, type PlanWorkoutChoice } from "@/lib/planWorkoutChoice";
+import { applyNewWorkoutChoice, initialChoice, type PlanWorkoutChoice } from "@/lib/planWorkoutChoice";
 import { defaultSubType, filterLibrary, subTypeOptions } from "@/lib/libraryPicker";
 import { describeStepData, groupStepData, planRunSteps } from "@/lib/workoutTextBlock";
 import { matchExercise, normalizeExerciseName, type ExerciseMatch } from "@/lib/exerciseMatch";
@@ -31,6 +31,14 @@ export interface ResolvedPlanWorkout {
   newWorkout: NewWorkoutFromText;
   /** A new workout is also saved to the workout library (and the plan copies link to it). */
   saveToLibrary: boolean;
+  /** Written out in full under its day line (admin plan import) rather than just named. */
+  writtenOut: boolean;
+}
+
+/** A workout written out in full under its day line: its own key, and what "new" creates (from the written lines). */
+export interface WrittenWorkout {
+  key: string;
+  workout: NewWorkoutFromText;
 }
 
 const TYPES: WorkoutType[] = ["run", "strength", "bike", "swim", "cross_train", "rest"];
@@ -68,16 +76,21 @@ export function usePlanWorkoutChoices() {
   const knownTitles = useMemo(() => new Set(library.map((w) => normalizeExerciseName(w.title))), [library]);
   const named = useMemo(() => library.map((w) => ({ ...w, name: w.title })), [library]);
   const isKnownWorkout = useCallback((text: string) => knownTitles.has(normalizeExerciseName(text)), [knownTitles]);
+  const choiceFor = useCallback((key: string): PlanWorkoutChoice | undefined => choices[key], [choices]);
 
-  function resolve(typed: string): ResolvedPlanWorkout {
-    const key = normalizeExerciseName(typed);
+  /**
+   * The decision for one workout. `typed` is the name as written; pass `written` for a workout
+   * written out in full — it defaults to new (an exact library match is offered as a suggestion).
+   */
+  function resolve(typed: string, written?: WrittenWorkout): ResolvedPlanWorkout {
+    const key = written?.key ?? normalizeExerciseName(typed);
     // "w/ strides & drills" is left out of matching (it becomes the new workout's notes).
-    const match = matchExercise(splitAddOns(typed).core, named);
-    const choice: PlanWorkoutChoice =
-      choices[key] ?? (match.exercise ? { kind: "library", id: match.exercise.id, title: match.exercise.title } : { kind: "new" });
-    const guess = withRunSteps(workoutFromText(typed), paces);
+    const initial = initialChoice(matchExercise(splitAddOns(typed).core, named), !!written);
+    const match = initial.match;
+    const choice: PlanWorkoutChoice = choices[key] ?? initial.choice;
+    const guess = written ? written.workout : withRunSteps(workoutFromText(typed), paces);
     const { newWorkout, saveToLibrary } = applyNewWorkoutChoice(guess, choice, saveAllNew);
-    return { key, choice, match, newWorkout, saveToLibrary };
+    return { key, choice, match, newWorkout, saveToLibrary, writtenOut: !!written };
   }
 
   return {
@@ -85,6 +98,8 @@ export function usePlanWorkoutChoices() {
     paces,
     isKnownWorkout,
     resolve,
+    /** The user's decision for a key, if they made one (e.g. a type picked for a written-out workout). */
+    choiceFor,
     choose: (key: string, choice: PlanWorkoutChoice) => setChoices((p) => ({ ...p, [key]: choice })),
     saveAllNew,
     /** Sets "save to library" for every new workout (clearing per-row choices). */
@@ -134,11 +149,14 @@ export function PlanWorkoutChoiceRow({
   resolved,
   library,
   onChoose,
+  children,
 }: {
   typed: string;
   resolved: ResolvedPlanWorkout;
   library: LibraryWorkout[];
   onChoose: (key: string, choice: PlanWorkoutChoice) => void;
+  /** Preview of a written-out workout (its steps / exercises), shown while it's a new workout. */
+  children?: ReactNode;
 }) {
   const { key, choice, match, newWorkout } = resolved;
   const [showSteps, setShowSteps] = useState(false);
@@ -160,7 +178,7 @@ export function PlanWorkoutChoiceRow({
             <>
               <span className="text-[var(--accent)]">✓</span> <span className="font-medium">{choice.title}</span>
               <span className="text-xs text-[var(--muted)]"> · from your library</span>
-              {normalizeExerciseName(choice.title) !== key && (
+              {normalizeExerciseName(choice.title) !== normalizeExerciseName(typed) && (
                 <span className="text-xs text-[var(--muted)]"> · typed “{typed}”</span>
               )}
             </>
@@ -180,8 +198,9 @@ export function PlanWorkoutChoiceRow({
                 />
               </div>
               <div className="text-xs text-[var(--muted)]">
-                new workout · {describeNew(newWorkout)}
-                {normalizeExerciseName(newWorkout.title) !== key && <> · typed “{typed}”</>}
+                new workout{resolved.writtenOut && " · written out in the plan"}
+                {describeNew(newWorkout) && <> · {describeNew(newWorkout)}</>}
+                {normalizeExerciseName(newWorkout.title) !== normalizeExerciseName(typed) && <> · typed “{typed}”</>}
               </div>
               <label className="flex items-center gap-1.5 text-xs">
                 <input
@@ -276,7 +295,8 @@ export function PlanWorkoutChoiceRow({
           )}
         </div>
       </div>
-      {steps.length > 0 && (
+      {choice.kind === "new" && children}
+      {!children && steps.length > 0 && (
         <div>
           <button
             type="button"

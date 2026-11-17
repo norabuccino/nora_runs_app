@@ -259,8 +259,10 @@ export interface NewWorkoutFromText {
   run_type: RunType | null;
   strength_type: string | null;
   title: string;
+  /** Only for a workout written out in full in the plan. */
+  description?: string | null;
   distance_miles: number | null;
-  distance_unit: "mi" | "km";
+  distance_unit: string;
   duration_minutes: number | null;
   /** Add-ons like "Strides & drills". */
   notes: string | null;

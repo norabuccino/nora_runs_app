@@ -2,6 +2,7 @@
 // decision's edits (type, name, save to library) apply to what was guessed from the text.
 
 import type { NewWorkoutFromText } from "@/lib/planTextImport";
+import type { ExerciseMatch } from "@/lib/exerciseMatch";
 import type { WorkoutType } from "@/types/database";
 
 export type PlanWorkoutChoice =
@@ -29,4 +30,23 @@ export function applyNewWorkoutChoice(
   // An edited name replaces the guessed title (steps etc. still come from the pasted text).
   const title = choice.title?.trim();
   return { newWorkout: title ? { ...byType, title } : byType, saveToLibrary: choice.saveToLibrary ?? saveAllNew };
+}
+
+/**
+ * The library match shown for a workout and the decision it starts with. Named workouts default to
+ * an exact library match; a workout written out in full defaults to new, with that match offered
+ * as the first suggestion instead.
+ */
+export function initialChoice<T extends { id: string; title: string }>(
+  found: ExerciseMatch<T>,
+  writtenOut: boolean
+): { match: ExerciseMatch<T>; choice: PlanWorkoutChoice } {
+  const exact = found.exercise;
+  if (writtenOut && exact) {
+    return {
+      match: { status: "suggested", exercise: null, suggestions: [exact, ...found.suggestions.filter((s) => s.id !== exact.id)] },
+      choice: { kind: "new" },
+    };
+  }
+  return { match: found, choice: exact ? { kind: "library", id: exact.id, title: exact.title } : { kind: "new" } };
 }
